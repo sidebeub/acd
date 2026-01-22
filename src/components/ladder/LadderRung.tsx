@@ -17,40 +17,100 @@ interface LadderRungProps {
   onExplain?: (rungId: string) => Promise<void>
 }
 
-// Instruction categories for visual styling
-const INPUT_INSTRUCTIONS = ['XIC', 'XIO', 'ONS', 'OSR', 'OSF', 'EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ', 'LIM', 'CMP']
-const OUTPUT_INSTRUCTIONS = ['OTE', 'OTL', 'OTU']
-const TIMER_INSTRUCTIONS = ['TON', 'TOF', 'RTO', 'TONR', 'TOFR']
-const COUNTER_INSTRUCTIONS = ['CTU', 'CTD', 'CTUD', 'RES']
-const MATH_INSTRUCTIONS = ['ADD', 'SUB', 'MUL', 'DIV', 'MOD', 'SQR', 'SQRT', 'ABS', 'NEG', 'CPT']
-const MOVE_INSTRUCTIONS = ['MOV', 'MVM', 'MVMT', 'COP', 'CPS', 'FLL', 'CLR']
-const JUMP_INSTRUCTIONS = ['JSR', 'RET', 'JMP', 'LBL', 'SBR', 'FOR', 'NXT', 'BRK']
+// Instruction categories with their visual styling
+const INSTRUCTION_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  // Input instructions
+  XIC: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'NO Contact' },
+  XIO: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'NC Contact' },
+  ONS: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'One Shot' },
+  OSR: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'One Shot Rising' },
+  OSF: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'One Shot Falling' },
 
-function getInstructionCategory(type: string): string {
-  const upperType = type.toUpperCase()
-  if (INPUT_INSTRUCTIONS.includes(upperType)) return 'input'
-  if (OUTPUT_INSTRUCTIONS.includes(upperType)) return 'output'
-  if (TIMER_INSTRUCTIONS.includes(upperType)) return 'timer'
-  if (COUNTER_INSTRUCTIONS.includes(upperType)) return 'counter'
-  if (MATH_INSTRUCTIONS.includes(upperType)) return 'math'
-  if (MOVE_INSTRUCTIONS.includes(upperType)) return 'move'
-  if (JUMP_INSTRUCTIONS.includes(upperType)) return 'jump'
-  return 'other'
+  // Comparison
+  EQU: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'Equal' },
+  NEQ: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'Not Equal' },
+  LES: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'Less Than' },
+  LEQ: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'Less or Equal' },
+  GRT: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'Greater Than' },
+  GEQ: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'Greater or Equal' },
+  LIM: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'Limit Test' },
+  CMP: { color: 'var(--inst-input)', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.25)', label: 'Compare' },
+
+  // Output instructions
+  OTE: { color: 'var(--inst-output)', bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.25)', label: 'Output Energize' },
+  OTL: { color: 'var(--inst-output)', bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.25)', label: 'Output Latch' },
+  OTU: { color: 'var(--inst-output)', bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.25)', label: 'Output Unlatch' },
+
+  // Timers
+  TON: { color: 'var(--inst-timer)', bg: 'rgba(6, 182, 212, 0.1)', border: 'rgba(6, 182, 212, 0.25)', label: 'Timer On Delay' },
+  TOF: { color: 'var(--inst-timer)', bg: 'rgba(6, 182, 212, 0.1)', border: 'rgba(6, 182, 212, 0.25)', label: 'Timer Off Delay' },
+  RTO: { color: 'var(--inst-timer)', bg: 'rgba(6, 182, 212, 0.1)', border: 'rgba(6, 182, 212, 0.25)', label: 'Retentive Timer' },
+  TONR: { color: 'var(--inst-timer)', bg: 'rgba(6, 182, 212, 0.1)', border: 'rgba(6, 182, 212, 0.25)', label: 'Timer On w/ Reset' },
+  TOFR: { color: 'var(--inst-timer)', bg: 'rgba(6, 182, 212, 0.1)', border: 'rgba(6, 182, 212, 0.25)', label: 'Timer Off w/ Reset' },
+
+  // Counters
+  CTU: { color: 'var(--inst-counter)', bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.25)', label: 'Count Up' },
+  CTD: { color: 'var(--inst-counter)', bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.25)', label: 'Count Down' },
+  CTUD: { color: 'var(--inst-counter)', bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.25)', label: 'Count Up/Down' },
+  RES: { color: 'var(--inst-counter)', bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.25)', label: 'Reset' },
+
+  // Math
+  ADD: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Add' },
+  SUB: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Subtract' },
+  MUL: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Multiply' },
+  DIV: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Divide' },
+  MOD: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Modulo' },
+  SQR: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Square' },
+  SQRT: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Square Root' },
+  ABS: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Absolute' },
+  NEG: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Negate' },
+  CPT: { color: 'var(--inst-math)', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.25)', label: 'Compute' },
+
+  // Move
+  MOV: { color: 'var(--inst-move)', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.25)', label: 'Move' },
+  MVM: { color: 'var(--inst-move)', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.25)', label: 'Masked Move' },
+  MVMT: { color: 'var(--inst-move)', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.25)', label: 'Masked Move w/ Target' },
+  COP: { color: 'var(--inst-move)', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.25)', label: 'Copy' },
+  CPS: { color: 'var(--inst-move)', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.25)', label: 'Sync Copy' },
+  FLL: { color: 'var(--inst-move)', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.25)', label: 'Fill' },
+  CLR: { color: 'var(--inst-move)', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.25)', label: 'Clear' },
+
+  // Program control
+  JSR: { color: 'var(--inst-jump)', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.25)', label: 'Jump Subroutine' },
+  RET: { color: 'var(--inst-jump)', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.25)', label: 'Return' },
+  JMP: { color: 'var(--inst-jump)', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.25)', label: 'Jump' },
+  LBL: { color: 'var(--inst-jump)', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.25)', label: 'Label' },
+  SBR: { color: 'var(--inst-jump)', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.25)', label: 'Subroutine' },
+  FOR: { color: 'var(--inst-jump)', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.25)', label: 'For Loop' },
+  NXT: { color: 'var(--inst-jump)', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.25)', label: 'Next' },
+  BRK: { color: 'var(--inst-jump)', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.25)', label: 'Break' },
 }
 
-function getInstructionStyles(category: string): string {
-  const styles: Record<string, string> = {
-    input: 'bg-emerald-900/30 border-emerald-500/50 text-emerald-400',
-    output: 'bg-amber-900/30 border-amber-500/50 text-amber-400',
-    timer: 'bg-blue-900/30 border-blue-500/50 text-blue-400',
-    counter: 'bg-purple-900/30 border-purple-500/50 text-purple-400',
-    math: 'bg-cyan-900/30 border-cyan-500/50 text-cyan-400',
-    move: 'bg-indigo-900/30 border-indigo-500/50 text-indigo-400',
-    jump: 'bg-orange-900/30 border-orange-500/50 text-orange-400',
-    other: 'bg-gray-900/30 border-gray-500/50 text-gray-400'
-  }
-  return styles[category] || styles.other
+const DEFAULT_CONFIG = {
+  color: 'var(--text-tertiary)',
+  bg: 'var(--surface-3)',
+  border: 'var(--border-default)',
+  label: 'Unknown'
 }
+
+function getInstructionConfig(type: string) {
+  return INSTRUCTION_CONFIG[type.toUpperCase()] || DEFAULT_CONFIG
+}
+
+// Icons
+const IconCode = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="16,18 22,12 16,6" />
+    <polyline points="8,6 2,12 8,18" />
+  </svg>
+)
+
+const IconSparkles = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
+    <circle cx="12" cy="12" r="4" />
+  </svg>
+)
 
 export function LadderRung({
   rungId,
@@ -62,102 +122,264 @@ export function LadderRung({
   onExplain
 }: LadderRungProps) {
   const [isExplaining, setIsExplaining] = useState(false)
-  const [localExplanation, setLocalExplanation] = useState(explanation)
   const [showRaw, setShowRaw] = useState(false)
+  const [hoveredInstruction, setHoveredInstruction] = useState<number | null>(null)
 
   const handleExplain = async () => {
     if (!onExplain || isExplaining) return
     setIsExplaining(true)
     try {
       await onExplain(rungId)
-      // Explanation will be updated via props
     } finally {
       setIsExplaining(false)
     }
   }
 
   return (
-    <div className="border border-gray-700 rounded-lg bg-gray-900/50 p-4 mb-4">
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{
+        background: 'var(--surface-2)',
+        border: '1px solid var(--border-subtle)'
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div
+        className="flex items-center justify-between px-4 py-2 border-b"
+        style={{ borderColor: 'var(--border-subtle)' }}
+      >
         <div className="flex items-center gap-3">
-          <span className="text-gray-500 font-mono text-sm">Rung {number}</span>
+          <span
+            className="font-mono text-xs font-semibold px-2 py-0.5 rounded"
+            style={{
+              background: 'var(--surface-4)',
+              color: 'var(--text-secondary)'
+            }}
+          >
+            {number}
+          </span>
           {comment && (
-            <span className="text-gray-400 text-sm italic">// {comment}</span>
+            <span
+              className="text-xs italic truncate max-w-md"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              {comment}
+            </span>
           )}
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setShowRaw(!showRaw)}
-            className="text-xs px-2 py-1 rounded bg-gray-800 text-gray-400 hover:bg-gray-700"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors"
+            style={{
+              background: showRaw ? 'var(--surface-4)' : 'transparent',
+              color: showRaw ? 'var(--text-primary)' : 'var(--text-muted)'
+            }}
+            onMouseEnter={e => {
+              if (!showRaw) {
+                e.currentTarget.style.background = 'var(--surface-3)'
+                e.currentTarget.style.color = 'var(--text-secondary)'
+              }
+            }}
+            onMouseLeave={e => {
+              if (!showRaw) {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'var(--text-muted)'
+              }
+            }}
           >
-            {showRaw ? 'Hide Raw' : 'Show Raw'}
+            <IconCode />
+            Raw
           </button>
           <button
             onClick={handleExplain}
             disabled={isExplaining}
-            className="text-xs px-2 py-1 rounded bg-blue-900/50 text-blue-400 hover:bg-blue-800/50 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors"
+            style={{
+              background: 'var(--accent-blue-muted)',
+              color: 'var(--accent-blue)',
+              opacity: isExplaining ? 0.5 : 1
+            }}
+            onMouseEnter={e => {
+              if (!isExplaining) {
+                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.25)'
+              }
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'var(--accent-blue-muted)'
+            }}
           >
-            {isExplaining ? 'Explaining...' : 'Explain'}
+            <IconSparkles />
+            {isExplaining ? 'Analyzing...' : 'Explain'}
           </button>
         </div>
       </div>
 
       {/* Ladder visualization */}
-      <div className="flex items-center gap-1 p-3 bg-gray-950 rounded border border-gray-800 overflow-x-auto">
-        {/* Left power rail */}
-        <div className="w-1 h-12 bg-gray-600 rounded flex-shrink-0" />
+      <div
+        className="p-4 overflow-x-auto"
+        style={{ background: 'var(--surface-1)' }}
+      >
+        <div className="flex items-center min-w-fit">
+          {/* Left power rail */}
+          <div
+            className="power-rail flex-shrink-0"
+            style={{ height: '48px' }}
+          />
 
-        {/* Instructions */}
-        <div className="flex items-center gap-2 flex-1">
-          {instructions.length > 0 ? (
-            instructions.map((inst, idx) => {
-              const category = getInstructionCategory(inst.type)
-              const styles = getInstructionStyles(category)
+          {/* Instructions flow */}
+          <div className="flex items-center flex-1">
+            {instructions.length > 0 ? (
+              instructions.map((inst, idx) => {
+                const config = getInstructionConfig(inst.type)
+                const isHovered = hoveredInstruction === idx
 
-              return (
-                <div key={idx} className="flex items-center gap-1">
-                  {/* Connecting wire */}
-                  <div className="w-4 h-0.5 bg-gray-600" />
+                return (
+                  <div key={idx} className="flex items-center">
+                    {/* Connecting wire */}
+                    <div
+                      className="w-6 h-0.5 flex-shrink-0"
+                      style={{ background: 'var(--text-muted)' }}
+                    />
 
-                  {/* Instruction block */}
-                  <div className={`px-3 py-2 rounded border ${styles} font-mono text-sm`}>
-                    <div className="font-bold">{inst.type}</div>
-                    {inst.operands.length > 0 && (
-                      <div className="text-xs opacity-75 mt-1 max-w-32 truncate">
-                        {inst.operands[0]}
+                    {/* Instruction block */}
+                    <div
+                      className="relative flex-shrink-0 px-3 py-2 rounded cursor-default transition-all"
+                      style={{
+                        background: config.bg,
+                        border: `1px solid ${config.border}`,
+                        transform: isHovered ? 'translateY(-2px)' : 'none',
+                        boxShadow: isHovered ? '0 4px 12px rgba(0,0,0,0.3)' : 'none'
+                      }}
+                      onMouseEnter={() => setHoveredInstruction(idx)}
+                      onMouseLeave={() => setHoveredInstruction(null)}
+                    >
+                      {/* Instruction type */}
+                      <div
+                        className="font-mono text-sm font-bold"
+                        style={{ color: config.color }}
+                      >
+                        {inst.type}
                       </div>
-                    )}
+
+                      {/* Primary operand */}
+                      {inst.operands.length > 0 && (
+                        <div
+                          className="font-mono text-[10px] mt-0.5 truncate max-w-28"
+                          style={{ color: 'var(--text-tertiary)' }}
+                        >
+                          {inst.operands[0]}
+                        </div>
+                      )}
+
+                      {/* Hover tooltip */}
+                      {isHovered && (
+                        <div
+                          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded text-[10px] whitespace-nowrap z-10"
+                          style={{
+                            background: 'var(--surface-4)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border-default)'
+                          }}
+                        >
+                          {config.label}
+                          {inst.operands.length > 1 && (
+                            <div style={{ color: 'var(--text-muted)' }}>
+                              {inst.operands.slice(1).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
-            })
-          ) : (
-            <div className="text-gray-500 text-sm italic px-4">No instructions parsed</div>
-          )}
+                )
+              })
+            ) : (
+              <div className="flex-1 flex items-center px-4">
+                <div
+                  className="h-0.5 flex-1"
+                  style={{ background: 'var(--text-muted)' }}
+                />
+                <span
+                  className="px-3 text-xs italic"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  No instructions parsed
+                </span>
+                <div
+                  className="h-0.5 flex-1"
+                  style={{ background: 'var(--text-muted)' }}
+                />
+              </div>
+            )}
 
-          {/* Connecting wire to end */}
-          <div className="flex-1 h-0.5 bg-gray-600 min-w-4" />
+            {/* Final connecting wire */}
+            {instructions.length > 0 && (
+              <div
+                className="flex-1 h-0.5 min-w-6"
+                style={{ background: 'var(--text-muted)' }}
+              />
+            )}
+          </div>
+
+          {/* Right power rail */}
+          <div
+            className="power-rail flex-shrink-0"
+            style={{ height: '48px' }}
+          />
         </div>
-
-        {/* Right power rail */}
-        <div className="w-1 h-12 bg-gray-600 rounded flex-shrink-0" />
       </div>
 
       {/* Raw text (collapsible) */}
       {showRaw && (
-        <div className="mt-3 p-2 bg-gray-950 rounded border border-gray-800">
-          <pre className="text-xs text-gray-400 font-mono whitespace-pre-wrap break-all">
+        <div
+          className="px-4 py-3 border-t"
+          style={{
+            background: 'var(--surface-0)',
+            borderColor: 'var(--border-subtle)'
+          }}
+        >
+          <pre
+            className="text-[11px] font-mono whitespace-pre-wrap break-all leading-relaxed"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
             {rawText}
           </pre>
         </div>
       )}
 
-      {/* Explanation */}
-      {(localExplanation || explanation) && (
-        <div className="mt-3 p-3 bg-blue-950/30 border border-blue-900/50 rounded">
-          <div className="text-xs text-blue-400 mb-1 font-semibold">Explanation:</div>
-          <p className="text-sm text-gray-300">{localExplanation || explanation}</p>
+      {/* AI Explanation */}
+      {explanation && (
+        <div
+          className="px-4 py-3 border-t"
+          style={{
+            background: 'var(--accent-blue-muted)',
+            borderColor: 'rgba(59, 130, 246, 0.2)'
+          }}
+        >
+          <div className="flex items-start gap-2">
+            <div
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5"
+              style={{ background: 'rgba(59, 130, 246, 0.2)' }}
+            >
+              <IconSparkles />
+            </div>
+            <div>
+              <div
+                className="text-[10px] font-semibold uppercase tracking-wider mb-1"
+                style={{ color: 'var(--accent-blue)' }}
+              >
+                AI Analysis
+              </div>
+              <p
+                className="text-sm leading-relaxed"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {explanation}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>

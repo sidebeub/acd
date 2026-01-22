@@ -7,6 +7,7 @@ export default function Home() {
   const router = useRouter()
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const handleFile = async (file: File) => {
@@ -18,6 +19,12 @@ export default function Home() {
 
     setError(null)
     setIsUploading(true)
+    setUploadProgress(0)
+
+    // Simulate progress for better UX
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => Math.min(prev + 10, 90))
+    }, 200)
 
     try {
       const formData = new FormData()
@@ -28,6 +35,9 @@ export default function Home() {
         body: formData
       })
 
+      clearInterval(progressInterval)
+      setUploadProgress(100)
+
       if (!response.ok) {
         const data = await response.json()
         throw new Error(data.error || 'Upload failed')
@@ -36,6 +46,7 @@ export default function Home() {
       const project = await response.json()
       router.push(`/project/${project.id}`)
     } catch (err) {
+      clearInterval(progressInterval)
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setIsUploading(false)
@@ -65,30 +76,80 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white">
-      <div className="container mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent mb-4">
-            ACD Viewer
+    <div className="min-h-screen relative overflow-hidden" style={{ background: 'var(--surface-0)' }}>
+      {/* Subtle grid background */}
+      <div
+        className="absolute inset-0 grid-pattern opacity-30"
+        style={{ maskImage: 'radial-gradient(ellipse at center, black 0%, transparent 70%)' }}
+      />
+
+      {/* Header */}
+      <header className="relative z-10 border-b" style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-1)' }}>
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Logo mark */}
+            <div
+              className="w-8 h-8 rounded flex items-center justify-center"
+              style={{ background: 'var(--accent-blue-muted)', border: '1px solid var(--accent-blue)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2.5">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+                <circle cx="8" cy="6" r="1" fill="currentColor" />
+                <circle cx="16" cy="12" r="1" fill="currentColor" />
+                <circle cx="12" cy="18" r="1" fill="currentColor" />
+              </svg>
+            </div>
+            <span className="font-semibold text-[15px]" style={{ color: 'var(--text-primary)' }}>
+              PLC Viewer
+            </span>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <span className="tech-badge">
+              <span className="status-dot status-dot-active" />
+              Rockwell Compatible
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="relative z-10 max-w-7xl mx-auto px-6 py-16">
+        {/* Hero section */}
+        <div className="text-center mb-16 animate-fade-in">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-emerald)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+              Studio 5000 Logix Designer Files
+            </span>
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4" style={{ color: 'var(--text-primary)' }}>
+            Analyze PLC Programs
+            <br />
+            <span style={{ color: 'var(--text-tertiary)' }}>with precision</span>
           </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Upload your Rockwell Automation L5X or ACD files to visualize ladder logic,
-            browse tags, and get AI-powered explanations.
+
+          <p className="text-lg max-w-xl mx-auto mb-12" style={{ color: 'var(--text-secondary)' }}>
+            Upload L5X or ACD files to visualize ladder logic, browse tags,
+            and get AI-powered explanations of your control code.
           </p>
         </div>
 
-        {/* Upload Area */}
-        <div className="max-w-2xl mx-auto">
+        {/* Upload card */}
+        <div className="max-w-2xl mx-auto mb-20 animate-slide-up">
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
-              isDragging
-                ? 'border-blue-500 bg-blue-500/10'
-                : 'border-gray-700 hover:border-gray-600 bg-gray-900/50'
-            } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+            className={`relative p-8 rounded-lg transition-all duration-200 ${
+              isUploading ? 'pointer-events-none' : ''
+            }`}
+            style={{
+              background: isDragging ? 'var(--accent-blue-muted)' : 'var(--surface-2)',
+              border: `2px dashed ${isDragging ? 'var(--accent-blue)' : 'var(--border-default)'}`,
+            }}
           >
             <input
               type="file"
@@ -98,93 +159,237 @@ export default function Home() {
               disabled={isUploading}
             />
 
-            <div className="mb-4">
-              <svg
-                className={`w-16 h-16 mx-auto ${isDragging ? 'text-blue-400' : 'text-gray-500'}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-lg text-gray-300">
-                {isUploading ? (
-                  'Processing file...'
-                ) : isDragging ? (
-                  'Drop your file here'
-                ) : (
-                  <>
-                    Drag and drop your file here, or{' '}
-                    <span className="text-blue-400 underline">browse</span>
-                  </>
-                )}
-              </p>
-              <p className="text-sm text-gray-500">Supports .L5X and .ACD files</p>
-            </div>
-
-            {isUploading && (
-              <div className="mt-6">
-                <div className="w-48 h-1.5 bg-gray-800 rounded-full mx-auto overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full animate-pulse w-3/4" />
+            {isUploading ? (
+              <div className="text-center py-4">
+                <div className="mb-4">
+                  <svg className="w-10 h-10 mx-auto animate-pulse-subtle" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
+                    <path d="M12 3v12M12 3l4 4M12 3L8 7" />
+                    <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
+                  </svg>
                 </div>
+                <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+                  Processing file...
+                </p>
+                <div className="w-64 h-1 mx-auto rounded-full overflow-hidden" style={{ background: 'var(--surface-4)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-200"
+                    style={{
+                      background: 'var(--accent-blue)',
+                      width: `${uploadProgress}%`
+                    }}
+                  />
+                </div>
+                <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                  Parsing L5X structure...
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <div className="mb-4">
+                  <svg
+                    className="w-10 h-10 mx-auto transition-colors"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke={isDragging ? 'var(--accent-blue)' : 'var(--text-muted)'}
+                    strokeWidth="1.5"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M9 13l3-3 3 3" />
+                    <path d="M12 10v7" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                  {isDragging ? 'Drop to upload' : 'Drop your file here'}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  or <span style={{ color: 'var(--accent-blue)' }} className="cursor-pointer">browse</span> to select
+                </p>
               </div>
             )}
           </div>
 
+          {/* Supported formats */}
+          <div className="flex items-center justify-center gap-4 mt-4">
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <path d="M14 2v6h6M12 18v-6M9 15h6" />
+              </svg>
+              .L5X
+            </div>
+            <span style={{ color: 'var(--text-muted)' }}>|</span>
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <path d="M14 2v6h6" />
+              </svg>
+              .ACD
+            </div>
+          </div>
+
+          {/* Error message */}
           {error && (
-            <div className="mt-4 p-4 bg-red-900/30 border border-red-800 rounded-lg text-red-400">
-              {error}
+            <div
+              className="mt-4 px-4 py-3 rounded-lg flex items-center gap-3"
+              style={{ background: 'var(--accent-red-muted)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M15 9l-6 6M9 9l6 6" />
+              </svg>
+              <span className="text-sm" style={{ color: 'var(--accent-red)' }}>{error}</span>
             </div>
           )}
         </div>
 
-        {/* Features */}
-        <div className="mt-20 grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-            <div className="w-12 h-12 bg-emerald-900/50 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+        {/* Feature bento grid */}
+        <div className="grid md:grid-cols-3 gap-4 max-w-5xl mx-auto">
+          {/* Main feature card */}
+          <div
+            className="md:col-span-2 p-6 rounded-lg"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
+          >
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--inst-input)" strokeWidth="1.5">
+                  <rect x="3" y="6" width="4" height="12" rx="1" />
+                  <rect x="10" y="6" width="4" height="12" rx="1" />
+                  <rect x="17" y="6" width="4" height="12" rx="1" />
+                  <path d="M5 9h2M5 12h2M5 15h2M12 9h2M12 12h2M19 9h2M19 12h2M19 15h2" strokeWidth="1" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                  Ladder Logic Visualization
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                  View rungs with color-coded instructions. Input contacts, output coils, timers,
+                  counters, and math operations are visually distinct for quick analysis.
+                </p>
+              </div>
+            </div>
+
+            {/* Mini preview */}
+            <div
+              className="mt-6 p-4 rounded"
+              style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="power-rail h-8" />
+                <div className="wire flex-1 max-w-8" />
+                <div
+                  className="px-2 py-1 rounded text-xs font-mono"
+                  style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', color: 'var(--inst-input)' }}
+                >
+                  XIC
+                </div>
+                <div className="wire flex-1" />
+                <div
+                  className="px-2 py-1 rounded text-xs font-mono"
+                  style={{ background: 'rgba(6, 182, 212, 0.15)', border: '1px solid rgba(6, 182, 212, 0.3)', color: 'var(--inst-timer)' }}
+                >
+                  TON
+                </div>
+                <div className="wire flex-1" />
+                <div
+                  className="px-2 py-1 rounded text-xs font-mono"
+                  style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', color: 'var(--inst-output)' }}
+                >
+                  OTE
+                </div>
+                <div className="wire flex-1 max-w-8" />
+                <div className="power-rail h-8" />
+              </div>
+            </div>
+          </div>
+
+          {/* AI card */}
+          <div
+            className="p-6 rounded-lg"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
+          >
+            <div
+              className="w-10 h-10 rounded flex items-center justify-center mb-4"
+              style={{ background: 'var(--accent-blue-muted)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
+                <path d="M12 2a4 4 0 014 4v1a3 3 0 013 3v1h1a3 3 0 013 3v2a4 4 0 01-4 4h-1" />
+                <path d="M12 2a4 4 0 00-4 4v1a3 3 0 00-3 3v1H4a3 3 0 00-3 3v2a4 4 0 004 4h1" />
+                <circle cx="12" cy="14" r="4" />
+                <path d="M12 12v4M10 14h4" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Ladder Visualization</h3>
-            <p className="text-gray-400">
-              View your ladder logic with clear, color-coded instruction blocks and power rails.
+            <h3 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+              AI Explanations
+            </h3>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+              Get plain-English explanations of complex rungs. Powered by Claude.
             </p>
           </div>
 
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-            <div className="w-12 h-12 bg-blue-900/50 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          {/* Tags card */}
+          <div
+            className="p-6 rounded-lg"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
+          >
+            <div
+              className="w-10 h-10 rounded flex items-center justify-center mb-4"
+              style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--inst-counter)" strokeWidth="1.5">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">AI Explanations</h3>
-            <p className="text-gray-400">
-              Get plain-English explanations of what each rung does, powered by Claude AI.
+            <h3 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+              Tag Browser
+            </h3>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+              Search and filter all controller and program-scoped tags with type info.
             </p>
           </div>
 
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-            <div className="w-12 h-12 bg-purple-900/50 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
+          {/* Cross-ref card */}
+          <div
+            className="md:col-span-2 p-6 rounded-lg"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
+          >
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(249, 115, 22, 0.1)', border: '1px solid rgba(249, 115, 22, 0.2)' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--inst-jump)" strokeWidth="1.5">
+                  <circle cx="5" cy="12" r="3" />
+                  <circle cx="19" cy="6" r="3" />
+                  <circle cx="19" cy="18" r="3" />
+                  <path d="M8 12h4l3-6M12 12l3 6" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                  Program Structure
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                  Navigate tasks, programs, and routines in a hierarchical tree.
+                  See the complete organization of your PLC project at a glance.
+                </p>
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Tag Browser</h3>
-            <p className="text-gray-400">
-              Search and browse all controller and program tags with their types and descriptions.
-            </p>
           </div>
         </div>
-      </div>
-    </main>
+
+        {/* Footer info */}
+        <div className="text-center mt-20">
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Compatible with Allen-Bradley ControlLogix, CompactLogix, and GuardLogix controllers
+          </p>
+        </div>
+      </main>
+    </div>
   )
 }

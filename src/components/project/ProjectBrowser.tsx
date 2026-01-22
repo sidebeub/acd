@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { LadderRung } from '../ladder/LadderRung'
 
 interface Tag {
@@ -48,20 +48,103 @@ interface ProjectBrowserProps {
   project: Project
 }
 
+// Icons as components for cleaner JSX
+const IconProgram = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M9 9h6M9 13h6M9 17h4" />
+  </svg>
+)
+
+const IconRoutine = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+)
+
+const IconTag = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+    <path d="M2 17l10 5 10-5" />
+    <path d="M2 12l10 5 10-5" />
+  </svg>
+)
+
+const IconLadder = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="6" width="4" height="12" rx="1" />
+    <rect x="17" y="6" width="4" height="12" rx="1" />
+    <path d="M7 9h10M7 13h10M7 17h10" />
+  </svg>
+)
+
+const IconSearch = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="11" cy="11" r="8" />
+    <path d="M21 21l-4.35-4.35" />
+  </svg>
+)
+
+const IconChevron = ({ expanded }: { expanded: boolean }) => (
+  <svg
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    style={{
+      transition: 'transform 0.15s ease',
+      transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)'
+    }}
+  >
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+)
+
+const IconHome = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+  </svg>
+)
+
 export function ProjectBrowser({ project }: ProjectBrowserProps) {
   const [selectedProgram, setSelectedProgram] = useState<string | null>(
     project.programs[0]?.id || null
   )
   const [selectedRoutine, setSelectedRoutine] = useState<string | null>(null)
+  const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(
+    new Set([project.programs[0]?.id].filter(Boolean))
+  )
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'ladder' | 'tags'>('ladder')
+  const [sidebarWidth, setSidebarWidth] = useState(280)
 
   const currentProgram = project.programs.find(p => p.id === selectedProgram)
   const currentRoutine = currentProgram?.routines.find(r => r.id === selectedRoutine)
 
   // Initialize with first routine when program changes
-  if (currentProgram && !selectedRoutine && currentProgram.routines.length > 0) {
-    setSelectedRoutine(currentProgram.routines[0].id)
+  useEffect(() => {
+    if (currentProgram && !selectedRoutine && currentProgram.routines.length > 0) {
+      setSelectedRoutine(currentProgram.routines[0].id)
+    }
+  }, [currentProgram, selectedRoutine])
+
+  const handleProgramClick = (programId: string) => {
+    setSelectedProgram(programId)
+    setExpandedPrograms(prev => {
+      const next = new Set(prev)
+      if (next.has(programId)) {
+        next.delete(programId)
+      } else {
+        next.add(programId)
+      }
+      return next
+    })
+    const program = project.programs.find(p => p.id === programId)
+    if (program?.routines[0]) {
+      setSelectedRoutine(program.routines[0].id)
+    }
   }
 
   const handleExplain = async (rungId: string) => {
@@ -72,7 +155,6 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
         body: JSON.stringify({ rungId })
       })
       if (!response.ok) throw new Error('Failed to get explanation')
-      // Explanation will be cached, could refresh here
     } catch (error) {
       console.error('Error explaining rung:', error)
     }
@@ -84,37 +166,80 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
       tag.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Count stats
+  const totalRoutines = project.programs.reduce((acc, p) => acc + p.routines.length, 0)
+  const totalRungs = project.programs.reduce(
+    (acc, p) => acc + p.routines.reduce((a, r) => a + r.rungs.length, 0), 0
+  )
+
   return (
-    <div className="h-screen flex flex-col bg-gray-950 text-white">
-      {/* Header */}
-      <header className="bg-gray-900 border-b border-gray-800 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white">{project.name}</h1>
+    <div className="h-screen flex flex-col" style={{ background: 'var(--surface-0)' }}>
+      {/* Header bar */}
+      <header
+        className="flex-shrink-0 h-12 flex items-center justify-between px-4 border-b"
+        style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
+      >
+        <div className="flex items-center gap-4">
+          {/* Back home link */}
+          <a
+            href="/"
+            className="flex items-center gap-2 px-2 py-1 rounded transition-colors"
+            style={{ color: 'var(--text-tertiary)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = 'var(--text-primary)'
+              e.currentTarget.style.background = 'var(--surface-3)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = 'var(--text-tertiary)'
+              e.currentTarget.style.background = 'transparent'
+            }}
+          >
+            <IconHome />
+          </a>
+
+          {/* Divider */}
+          <div className="w-px h-5" style={{ background: 'var(--border-default)' }} />
+
+          {/* Project info */}
+          <div className="flex items-center gap-3">
+            <h1 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+              {project.name}
+            </h1>
             {project.processorType && (
-              <p className="text-sm text-gray-400">{project.processorType}</p>
+              <span className="tech-badge">{project.processorType}</span>
             )}
           </div>
-          <div className="flex gap-4">
+        </div>
+
+        {/* Stats and tabs */}
+        <div className="flex items-center gap-4">
+          {/* Quick stats */}
+          <div className="hidden sm:flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span>{project.programs.length} programs</span>
+            <span>{totalRoutines} routines</span>
+            <span>{totalRungs} rungs</span>
+            <span>{project.tags.length} tags</span>
+          </div>
+
+          {/* Tab switcher */}
+          <div className="tab-nav">
             <button
               onClick={() => setActiveTab('ladder')}
-              className={`px-4 py-2 rounded ${
-                activeTab === 'ladder'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
+              className={`tab-item ${activeTab === 'ladder' ? 'tab-item-active' : ''}`}
             >
-              Ladder Logic
+              <span className="flex items-center gap-2">
+                <IconLadder />
+                Ladder
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('tags')}
-              className={`px-4 py-2 rounded ${
-                activeTab === 'tags'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
+              className={`tab-item ${activeTab === 'tags' ? 'tab-item-active' : ''}`}
             >
-              Tags ({project.tags.length})
+              <span className="flex items-center gap-2">
+                <IconTag />
+                Tags
+              </span>
             </button>
           </div>
         </div>
@@ -123,128 +248,256 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
       <div className="flex-1 flex overflow-hidden">
         {activeTab === 'ladder' ? (
           <>
-            {/* Sidebar - Programs & Routines */}
-            <aside className="w-64 bg-gray-900 border-r border-gray-800 overflow-y-auto">
-              <div className="p-4">
-                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Programs
+            {/* Sidebar */}
+            <aside
+              className="flex-shrink-0 overflow-y-auto border-r"
+              style={{
+                width: sidebarWidth,
+                background: 'var(--surface-1)',
+                borderColor: 'var(--border-subtle)'
+              }}
+            >
+              {/* Sidebar header */}
+              <div
+                className="sticky top-0 z-10 p-3 border-b"
+                style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
+              >
+                <h2
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-2"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Programs & Routines
                 </h2>
-                {project.programs.map(program => (
-                  <div key={program.id} className="mb-2">
-                    <button
-                      onClick={() => {
-                        setSelectedProgram(program.id)
-                        setSelectedRoutine(program.routines[0]?.id || null)
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded ${
-                        selectedProgram === program.id
-                          ? 'bg-blue-900/50 text-blue-400'
-                          : 'text-gray-300 hover:bg-gray-800'
-                      } ${program.disabled ? 'opacity-50' : ''}`}
-                    >
-                      <div className="font-medium">{program.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {program.routines.length} routines
-                      </div>
-                    </button>
+              </div>
 
-                    {selectedProgram === program.id && (
-                      <div className="ml-4 mt-1 space-y-1">
-                        {program.routines.map(routine => (
-                          <button
-                            key={routine.id}
-                            onClick={() => setSelectedRoutine(routine.id)}
-                            className={`w-full text-left px-3 py-1.5 rounded text-sm ${
-                              selectedRoutine === routine.id
-                                ? 'bg-emerald-900/50 text-emerald-400'
-                                : 'text-gray-400 hover:bg-gray-800'
-                            }`}
-                          >
-                            {routine.name}
-                            <span className="text-gray-500 text-xs ml-2">
-                              ({routine.rungs.length})
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              {/* Program tree */}
+              <div className="p-2">
+                {project.programs.map(program => {
+                  const isExpanded = expandedPrograms.has(program.id)
+                  const isSelected = selectedProgram === program.id
+
+                  return (
+                    <div key={program.id} className="mb-1">
+                      {/* Program header */}
+                      <button
+                        onClick={() => handleProgramClick(program.id)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+                          program.disabled ? 'opacity-50' : ''
+                        }`}
+                        style={{
+                          background: isSelected ? 'var(--accent-blue-muted)' : 'transparent',
+                          color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)'
+                        }}
+                        onMouseEnter={e => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = 'var(--surface-3)'
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = 'transparent'
+                          }
+                        }}
+                      >
+                        <IconChevron expanded={isExpanded} />
+                        <IconProgram />
+                        <span className="flex-1 text-[13px] font-medium truncate">{program.name}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                          {program.routines.length}
+                        </span>
+                      </button>
+
+                      {/* Routines list */}
+                      {isExpanded && (
+                        <div className="ml-5 mt-1 space-y-0.5">
+                          {program.routines.map(routine => (
+                            <button
+                              key={routine.id}
+                              onClick={() => setSelectedRoutine(routine.id)}
+                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors"
+                              style={{
+                                background: selectedRoutine === routine.id ? 'var(--accent-emerald-muted)' : 'transparent',
+                                color: selectedRoutine === routine.id ? 'var(--accent-emerald)' : 'var(--text-tertiary)'
+                              }}
+                              onMouseEnter={e => {
+                                if (selectedRoutine !== routine.id) {
+                                  e.currentTarget.style.background = 'var(--surface-3)'
+                                  e.currentTarget.style.color = 'var(--text-secondary)'
+                                }
+                              }}
+                              onMouseLeave={e => {
+                                if (selectedRoutine !== routine.id) {
+                                  e.currentTarget.style.background = 'transparent'
+                                  e.currentTarget.style.color = 'var(--text-tertiary)'
+                                }
+                              }}
+                            >
+                              <IconRoutine />
+                              <span className="flex-1 text-[12px] truncate">{routine.name}</span>
+                              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                {routine.rungs.length}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </aside>
 
-            {/* Main Content - Ladder View */}
-            <main className="flex-1 overflow-y-auto p-6">
+            {/* Main content area */}
+            <main className="flex-1 overflow-y-auto" style={{ background: 'var(--surface-0)' }}>
               {currentRoutine ? (
-                <div>
+                <div className="p-6">
+                  {/* Routine header */}
                   <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-white">
-                      {currentRoutine.name}
-                    </h2>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {currentRoutine.name}
+                      </h2>
+                      <span
+                        className="px-2 py-0.5 rounded text-[11px] font-medium"
+                        style={{
+                          background: 'var(--surface-3)',
+                          color: 'var(--text-tertiary)',
+                          border: '1px solid var(--border-subtle)'
+                        }}
+                      >
+                        {currentRoutine.type}
+                      </span>
+                    </div>
                     {currentRoutine.description && (
-                      <p className="text-gray-400 mt-1">{currentRoutine.description}</p>
+                      <p className="text-sm mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                        {currentRoutine.description}
+                      </p>
                     )}
-                    <p className="text-sm text-gray-500 mt-2">
-                      {currentRoutine.rungs.length} rungs • {currentRoutine.type} routine
-                    </p>
+                    <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                      <span>{currentRoutine.rungs.length} rungs</span>
+                      <span>in {currentProgram?.name}</span>
+                    </div>
                   </div>
 
-                  <div className="space-y-4">
-                    {currentRoutine.rungs.map(rung => (
-                      <LadderRung
+                  {/* Rungs list */}
+                  <div className="space-y-3">
+                    {currentRoutine.rungs.map((rung, index) => (
+                      <div
                         key={rung.id}
-                        rungId={rung.id}
-                        number={rung.number}
-                        comment={rung.comment}
-                        rawText={rung.rawText}
-                        instructions={rung.instructions ? JSON.parse(rung.instructions) : []}
-                        explanation={rung.explanation}
-                        onExplain={handleExplain}
-                      />
+                        className="animate-fade-in"
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <LadderRung
+                          rungId={rung.id}
+                          number={rung.number}
+                          comment={rung.comment}
+                          rawText={rung.rawText}
+                          instructions={rung.instructions ? JSON.parse(rung.instructions) : []}
+                          explanation={rung.explanation}
+                          onExplain={handleExplain}
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  Select a routine to view ladder logic
+                <div
+                  className="flex items-center justify-center h-full"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <div className="text-center">
+                    <IconLadder />
+                    <p className="mt-2 text-sm">Select a routine to view ladder logic</p>
+                  </div>
                 </div>
               )}
             </main>
           </>
         ) : (
           /* Tags View */
-          <main className="flex-1 overflow-y-auto p-6">
-            <div className="mb-6">
-              <input
-                type="text"
-                placeholder="Search tags..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full max-w-md px-4 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-              />
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
+            {/* Search header */}
+            <div
+              className="flex-shrink-0 p-4 border-b"
+              style={{ borderColor: 'var(--border-subtle)' }}
+            >
+              <div className="relative max-w-md">
+                <div
+                  className="absolute left-3 top-1/2 -translate-y-1/2"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <IconSearch />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search tags by name or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input-field w-full pl-9"
+                />
+              </div>
+              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                {filteredTags.length} of {project.tags.length} tags
+              </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            {/* Tags table */}
+            <div className="flex-1 overflow-auto p-4">
+              <table className="data-table">
                 <thead>
-                  <tr className="border-b border-gray-800">
-                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Name</th>
-                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Data Type</th>
-                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Scope</th>
-                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Description</th>
+                  <tr>
+                    <th style={{ width: '30%' }}>Name</th>
+                    <th style={{ width: '15%' }}>Data Type</th>
+                    <th style={{ width: '15%' }}>Scope</th>
+                    <th>Description</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTags.map(tag => (
-                    <tr key={tag.id} className="border-b border-gray-800/50 hover:bg-gray-900/50">
-                      <td className="py-3 px-4 font-mono text-emerald-400">{tag.name}</td>
-                      <td className="py-3 px-4 text-blue-400">{tag.dataType}</td>
-                      <td className="py-3 px-4 text-gray-400">{tag.scope}</td>
-                      <td className="py-3 px-4 text-gray-300">{tag.description || '-'}</td>
+                  {filteredTags.map((tag, index) => (
+                    <tr
+                      key={tag.id}
+                      className="animate-fade-in"
+                      style={{ animationDelay: `${Math.min(index, 20) * 20}ms` }}
+                    >
+                      <td>
+                        <code
+                          className="text-[13px] font-mono"
+                          style={{ color: 'var(--accent-emerald)' }}
+                        >
+                          {tag.name}
+                        </code>
+                      </td>
+                      <td>
+                        <span
+                          className="px-2 py-0.5 rounded text-xs font-mono"
+                          style={{
+                            background: 'var(--accent-blue-muted)',
+                            color: 'var(--accent-blue)'
+                          }}
+                        >
+                          {tag.dataType}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--text-tertiary)' }}>
+                        {tag.scope}
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)' }}>
+                        {tag.description || <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
+              {filteredTags.length === 0 && (
+                <div
+                  className="text-center py-12"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <IconTag />
+                  <p className="mt-2 text-sm">No tags found matching "{searchQuery}"</p>
+                </div>
+              )}
             </div>
           </main>
         )}
