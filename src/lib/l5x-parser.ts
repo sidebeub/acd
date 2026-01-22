@@ -144,41 +144,114 @@ export async function parseL5X(content: string): Promise<PlcProject> {
 }
 
 /**
- * Parse an ACD file (ZIP containing L5X)
+ * Parse an ACD file (ZIP containing L5X or XML controller data)
  */
 export async function parseACD(buffer: ArrayBuffer): Promise<PlcProject> {
   const zip = await JSZip.loadAsync(buffer)
+  const allFiles = Object.keys(zip.files)
 
-  // Find the L5X file inside the ACD
+  console.log('ACD file contents:', allFiles)
+
+  // Find the L5X/XML file inside the ACD
+  // ACD files can have different structures depending on Studio 5000 version
   let l5xContent: string | null = null
+  let foundFile: string | null = null
 
-  for (const filename of Object.keys(zip.files)) {
-    if (filename.toLowerCase().endsWith('.l5x') || filename.toLowerCase().includes('controller')) {
+  // Priority 1: Look for .L5X files
+  for (const filename of allFiles) {
+    if (filename.toLowerCase().endsWith('.l5x')) {
       const file = zip.files[filename]
       if (!file.dir) {
         l5xContent = await file.async('string')
+        foundFile = filename
+        console.log('Found L5X file:', filename)
         break
       }
     }
   }
 
-  // If no L5X found, try the first XML file
+  // Priority 2: Look for controller XML files (common in newer ACD formats)
   if (!l5xContent) {
-    for (const filename of Object.keys(zip.files)) {
+    const controllerPatterns = [
+      /controller.*\.xml$/i,
+      /^[^/]+\.xml$/i,  // XML files at root level
+      /content\.xml$/i,
+      /project\.xml$/i
+    ]
+
+    for (const pattern of controllerPatterns) {
+      for (const filename of allFiles) {
+        if (pattern.test(filename)) {
+          const file = zip.files[filename]
+          if (!file.dir) {
+            const content = await file.async('string')
+            // Check if it looks like L5X content
+            if (content.includes('RSLogix5000Content') || content.includes('Controller')) {
+              l5xContent = content
+              foundFile = filename
+              console.log('Found controller XML:', filename)
+              break
+            }
+          }
+        }
+      }
+      if (l5xContent) break
+    }
+  }
+
+  // Priority 3: Try any XML file that contains RSLogix5000Content or Controller
+  if (!l5xContent) {
+    for (const filename of allFiles) {
       if (filename.toLowerCase().endsWith('.xml')) {
         const file = zip.files[filename]
         if (!file.dir) {
-          l5xContent = await file.async('string')
-          break
+          try {
+            const content = await file.async('string')
+            if (content.includes('RSLogix5000Content') ||
+                content.includes('<Controller') ||
+                content.includes('Controller Name=')) {
+              l5xContent = content
+              foundFile = filename
+              console.log('Found XML with controller data:', filename)
+              break
+            }
+          } catch (e) {
+            console.log('Could not read file:', filename, e)
+          }
+        }
+      }
+    }
+  }
+
+  // Priority 4: Some ACD files store data in a binary format with embedded XML
+  // Try to find any file that might contain XML data
+  if (!l5xContent) {
+    for (const filename of allFiles) {
+      const file = zip.files[filename]
+      if (!file.dir && !filename.includes('__MACOSX')) {
+        try {
+          const content = await file.async('string')
+          // Look for XML declaration or RSLogix content
+          if (content.includes('<?xml') &&
+              (content.includes('RSLogix') || content.includes('Controller'))) {
+            l5xContent = content
+            foundFile = filename
+            console.log('Found potential controller file:', filename)
+            break
+          }
+        } catch (e) {
+          // File might be binary, skip it
         }
       }
     }
   }
 
   if (!l5xContent) {
-    throw new Error('No L5X or XML content found in ACD file')
+    const fileList = allFiles.filter(f => !zip.files[f].dir).join(', ')
+    throw new Error(`No L5X or XML controller content found in ACD file. Files in archive: ${fileList || 'none'}`)
   }
 
+  console.log('Parsing content from:', foundFile)
   return parseL5X(l5xContent)
 }
 

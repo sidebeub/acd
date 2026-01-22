@@ -147,8 +147,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error parsing file:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json(
-      { error: 'Failed to parse file', details: String(error) },
+      { error: `Failed to parse file: ${errorMessage}` },
       { status: 500 }
     )
   }
