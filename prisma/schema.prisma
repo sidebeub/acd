@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// Authentication Models
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  projects      Project[]
+  sessions      Session[]
+  accounts      Account[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// PLC Project Models
+// ============================================
+
+model Project {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name            String    // Project name from ACD file
+  fileName        String    // Original uploaded file name
+  processorType   String?   // e.g., "1756-L83E"
+  softwareVersion String?   // Studio 5000 version
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  tags            Tag[]
+  programs        Program[]
+  tasks           PlcTask[]
+  modules         Module[]
+  dataTypes       DataType[]
+
+  @@index([userId])
+}
+
+model Tag {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String    // Tag name
+  dataType        String    // BOOL, DINT, REAL, UDT name, etc.
+  scope           String    // "controller" or program name
+  description     String?
+  value           String?   // Initial/default value
+  externalAccess  String?   // Read/Write, Read Only, None
+
+  // Array info
+  dimensions      String?   // JSON array of dimensions
+
+  // Alias info
+  aliasFor        String?   // Target tag if this is an alias
+
+  // Usage tracking (populated during analysis)
+  usageCount      Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([projectId, name, scope])
+  @@index([projectId])
+  @@index([name])
+}
+
+model Program {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  description     String?
+  mainRoutineName String?   // Which routine is called first
+  disabled        Boolean   @default(false)
+
+  routines        Routine[]
+  localTags       LocalTag[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+model Routine {
+  id              String    @id @default(cuid())
+  programId       String
+  program         Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  name            String
+  type            String    // "Ladder", "FBD", "SFC", "ST"
+  description     String?
+
+  rungs           Rung[]
+
+  @@unique([programId, name])
+  @@index([programId])
+}
+
+model Rung {
+  id              String    @id @default(cuid())
+  routineId       String
+  routine         Routine   @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  number          Int       // Rung number within routine
+  comment         String?   // Rung comment
+  rawText         String    // Original L5X/ACD rung text
+
+  // Parsed instruction data (JSON)
+  instructions    String?   // JSON array of parsed instructions
+
+  // Analysis results
+  explanation     String?   // Human-readable explanation from Claude
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([routineId, number])
+  @@index([routineId])
+}
+
+model LocalTag {
+  id              String    @id @default(cuid())
+  programId       String
+  program         Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  name            String
+  dataType        String
+  description     String?
+  value           String?
+
+  @@unique([programId, name])
+  @@index([programId])
+}
+
+model PlcTask {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  type            String    // "Continuous", "Periodic", "Event"
+  rate            Float?    // Scan rate in ms (for periodic)
+  priority        Int?
+  watchdog        Float?    // Watchdog timeout in ms
+  inhibitTask     Boolean   @default(false)
+
+  // Scheduled programs (JSON array of program names)
+  scheduledPrograms String?
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+model Module {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  catalogNumber   String?   // e.g., "1756-IB16"
+  vendor          String?
+  productType     String?
+  revision        String?
+  slot            Int?
+  parentModule    String?   // For distributed I/O
+
+  // Module configuration (JSON)
+  config          String?
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+model DataType {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  family          String?   // "StringFamily", "NoFamily"
+  description     String?
+
+  // Member definitions (JSON)
+  members         String?
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+// ============================================
+// Cross-Reference & Analysis
+// ============================================
+
+model CrossReference {
+  id              String    @id @default(cuid())
+  projectId       String
+
+  tagName         String
+  routineName     String
+  programName     String
+  rungNumber      Int
+  instructionType String    // XIC, XIO, OTE, etc.
+  operandPosition Int       // Which operand in the instruction
+
+  @@index([projectId, tagName])
+  @@index([projectId, routineName])
+}
