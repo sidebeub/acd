@@ -4,6 +4,17 @@ import { prisma } from '@/lib/prisma'
 // Parser API URL - set in environment
 const PARSER_API_URL = process.env.PARSER_API_URL || 'http://localhost:8000'
 
+// PostgreSQL INT4 max value (signed 32-bit)
+const MAX_INT4 = 2147483647
+
+// Sanitize integer values that might overflow PostgreSQL INT4
+// Values like 4294967295 (0xFFFFFFFF) are often used as "not set" sentinels
+function safeInt(value: number | undefined | null): number | null {
+  if (value === undefined || value === null) return null
+  if (value > MAX_INT4 || value < -MAX_INT4) return null
+  return value
+}
+
 // GET - List all projects
 export async function GET() {
   // TODO: Add authentication
@@ -53,10 +64,17 @@ export async function POST(request: NextRequest) {
 
     console.log(`Sending ${file.name} to parser API at ${PARSER_API_URL}`)
 
+    // ACD files take longer to parse (binary extraction), so use a 10 minute timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000)
+
     const parserResponse = await fetch(`${PARSER_API_URL}/parse`, {
       method: 'POST',
-      body: parserFormData
+      body: parserFormData,
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId)
 
     if (!parserResponse.ok) {
       const errorText = await parserResponse.text()
@@ -72,101 +90,90 @@ export async function POST(request: NextRequest) {
 
     const project = parseResult.project
 
+    // Debug: Log what we received from the parser
+    console.log('[DEBUG] Programs received:', project.programs?.length || 0)
+    let totalRungs = 0
+    for (const prog of project.programs || []) {
+      const progRungs = (prog.routines || []).reduce((sum: number, r: { rungs?: unknown[] }) => sum + (r.rungs?.length || 0), 0)
+      totalRungs += progRungs
+      console.log(`[DEBUG] Program '${prog.name}': ${prog.routines?.length || 0} routines, ${progRungs} rungs`)
+      for (const routine of prog.routines || []) {
+        console.log(`[DEBUG]   ${prog.name}/${routine.name}: ${routine.rungs?.length || 0} rungs`)
+        if (routine.rungs?.length > 0) {
+          console.log(`[DEBUG]     First rung: number=${routine.rungs[0].number}, raw_text_len=${routine.rungs[0].raw_text?.length || 0}`)
+        }
+      }
+    }
+    console.log(`[DEBUG] Total rungs received: ${totalRungs}`)
+
     // Store in database
-    // TODO: Add userId from session
+    // TODO: Add userId from session when auth is implemented
     const dbProject = await prisma.project.create({
       data: {
-        userId: 'demo-user', // Replace with actual auth
         name: project.controller?.name || project.file_name || 'Unknown Project',
         fileName: file.name,
         processorType: project.controller?.processor_type || null,
         softwareVersion: project.controller?.software_version || null,
         tags: {
-          create: (project.tags || []).map((tag: {
-            name: string
-            data_type: string
-            scope: string
-            scope_name?: string
-            description?: string
-            value?: string
-            external_access?: string
-            dimensions?: number[]
-            alias_for?: string
-          }) => ({
-            name: tag.name,
-            dataType: tag.data_type,
-            scope: tag.scope === 'program' ? (tag.scope_name || 'program') : 'controller',
-            description: tag.description || null,
-            value: tag.value || null,
-            externalAccess: tag.external_access || null,
-            dimensions: tag.dimensions ? JSON.stringify(tag.dimensions) : null,
-            aliasFor: tag.alias_for || null
-          }))
-        },
-        programs: {
-          create: (project.programs || []).map((prog: {
-            name: string
-            description?: string
-            main_routine?: string
-            disabled?: boolean
-            tags?: Array<{
-              name: string
-              data_type: string
-              description?: string
-              value?: string
-            }>
-            routines?: Array<{
-              name: string
-              type?: string
-              description?: string
-              rungs?: Array<{
-                number: number
-                comment?: string
-                raw_text: string
-                instructions?: Array<{
-                  type: string
-                  operands?: string[]
-                }>
-              }>
-            }>
-          }) => ({
-            name: prog.name,
-            description: prog.description || null,
-            mainRoutineName: prog.main_routine || null,
-            disabled: prog.disabled || false,
-            localTags: {
-              create: (prog.tags || []).map((tag: {
+          create: (() => {
+            // Deduplicate tags by name+scope
+            const seen = new Set<string>()
+            return (project.tags || [])
+              .filter((tag: { name: string; scope: string; scope_name?: string }) => {
+                const scope = tag.scope === 'program' ? (tag.scope_name || 'program') : 'controller'
+                const key = `${tag.name}::${scope}`
+                if (seen.has(key)) return false
+                seen.add(key)
+                return true
+              })
+              .map((tag: {
                 name: string
                 data_type: string
+                scope: string
+                scope_name?: string
                 description?: string
                 value?: string
+                external_access?: string
+                dimensions?: number[]
+                alias_for?: string
               }) => ({
                 name: tag.name,
                 dataType: tag.data_type,
+                scope: tag.scope === 'program' ? (tag.scope_name || 'program') : 'controller',
                 description: tag.description || null,
-                value: tag.value || null
+                value: tag.value || null,
+                externalAccess: tag.external_access || null,
+                dimensions: tag.dimensions ? JSON.stringify(tag.dimensions) : null,
+                aliasFor: tag.alias_for || null
               }))
-            },
-            routines: {
-              create: (prog.routines || []).map((routine: {
+          })()
+        },
+        programs: {
+          create: (() => {
+            // Deduplicate programs by name
+            const seenPrograms = new Set<string>()
+            return (project.programs || [])
+              .filter((prog: { name: string }) => {
+                if (seenPrograms.has(prog.name)) return false
+                seenPrograms.add(prog.name)
+                return true
+              })
+              .map((prog: {
                 name: string
-                type?: string
                 description?: string
-                rungs?: Array<{
-                  number: number
-                  comment?: string
-                  raw_text: string
-                  instructions?: Array<{
-                    type: string
-                    operands?: string[]
-                  }>
+                main_routine?: string
+                disabled?: boolean
+                tags?: Array<{
+                  name: string
+                  data_type: string
+                  description?: string
+                  value?: string
                 }>
-              }) => ({
-                name: routine.name,
-                type: routine.type || 'Ladder',
-                description: routine.description || null,
-                rungs: {
-                  create: (routine.rungs || []).map((rung: {
+                routines?: Array<{
+                  name: string
+                  type?: string
+                  description?: string
+                  rungs?: Array<{
                     number: number
                     comment?: string
                     raw_text: string
@@ -174,16 +181,106 @@ export async function POST(request: NextRequest) {
                       type: string
                       operands?: string[]
                     }>
-                  }) => ({
-                    number: rung.number,
-                    comment: rung.comment || null,
-                    rawText: rung.raw_text || '',
-                    instructions: JSON.stringify(rung.instructions || [])
-                  }))
+                  }>
+                }>
+              }) => {
+                // Deduplicate routines within program
+                const seenRoutines = new Set<string>()
+                const uniqueRoutines = (prog.routines || []).filter((r: { name: string }) => {
+                  if (seenRoutines.has(r.name)) return false
+                  seenRoutines.add(r.name)
+                  return true
+                })
+
+                // Deduplicate local tags
+                const seenLocalTags = new Set<string>()
+                const uniqueLocalTags = (prog.tags || []).filter((t: { name: string }) => {
+                  if (seenLocalTags.has(t.name)) return false
+                  seenLocalTags.add(t.name)
+                  return true
+                })
+
+                return {
+                  name: prog.name,
+                  description: prog.description || null,
+                  mainRoutineName: prog.main_routine || null,
+                  disabled: prog.disabled || false,
+                  localTags: {
+                    create: uniqueLocalTags.map((tag: {
+                      name: string
+                      data_type: string
+                      description?: string
+                      value?: string
+                    }) => ({
+                      name: tag.name,
+                      dataType: tag.data_type,
+                      description: tag.description || null,
+                      value: tag.value || null
+                    }))
+                  },
+                  routines: {
+                    create: uniqueRoutines.map((routine: {
+                      name: string
+                      type?: string
+                      description?: string
+                      rungs?: Array<{
+                        number: number
+                        comment?: string
+                        raw_text: string
+                        instructions?: Array<{
+                          type: string
+                          operands?: string[]
+                        }>
+                      }>
+                    }) => ({
+                      name: routine.name,
+                      type: routine.type || 'Ladder',
+                      description: routine.description || null,
+                      rungs: {
+                        create: (() => {
+                          // Deduplicate rungs and assign valid numbers
+                          const seenRungs = new Set<number>()
+                          let nextAutoNumber = 0
+
+                          return (routine.rungs || [])
+                            .map((rung: {
+                              number: number
+                              comment?: string
+                              raw_text: string
+                              instructions?: Array<{
+                                type: string
+                                operands?: string[]
+                              }>
+                            }, index: number) => {
+                              // Get a valid rung number
+                              let rungNumber = safeInt(rung.number)
+
+                              // If number is invalid or already used, assign next available
+                              if (rungNumber === null || seenRungs.has(rungNumber)) {
+                                // Find next available number
+                                while (seenRungs.has(nextAutoNumber)) {
+                                  nextAutoNumber++
+                                }
+                                rungNumber = nextAutoNumber
+                                nextAutoNumber++
+                              }
+
+                              seenRungs.add(rungNumber)
+
+                              return {
+                                number: rungNumber,
+                                comment: rung.comment || null,
+                                rawText: rung.raw_text || '',
+                                instructions: JSON.stringify(rung.instructions || [])
+                              }
+                            })
+                        })()
+                      }
+                    }))
+                  }
                 }
-              }))
-            }
-          }))
+              })
+          })()
         },
         tasks: {
           create: (project.tasks || []).map((task: {
@@ -197,9 +294,9 @@ export async function POST(request: NextRequest) {
           }) => ({
             name: task.name,
             type: task.type || 'Periodic',
-            rate: task.rate_ms || null,
-            priority: task.priority || null,
-            watchdog: task.watchdog_ms || null,
+            rate: safeInt(task.rate_ms),
+            priority: safeInt(task.priority),
+            watchdog: safeInt(task.watchdog_ms),
             inhibitTask: task.inhibited || false,
             scheduledPrograms: JSON.stringify(task.programs || [])
           }))
@@ -215,7 +312,7 @@ export async function POST(request: NextRequest) {
             name: mod.name,
             catalogNumber: mod.catalog_number || null,
             vendor: mod.vendor || null,
-            slot: mod.slot || null,
+            slot: safeInt(mod.slot),
             parentModule: mod.parent_module || null
           }))
         },

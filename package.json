@@ -1,6 +1,6 @@
 {
-  "name": "acd-viewer-web",
-  "version": "0.1.0",
+  "name": "acd-viewer-web-v2",
+  "version": "0.1.2",
   "private": true,
   "scripts": {
     "dev": "next dev",

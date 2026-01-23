@@ -4,12 +4,32 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
 })
 
+type ExplanationMode = 'friendly' | 'technical' | 'operator'
+
+const MODE_PROMPTS: Record<ExplanationMode, string> = {
+  friendly: `You are explaining PLC ladder logic to someone new to automation.
+Use real-world analogies and simple language. Avoid technical jargon.
+Example: "When the start button is pressed AND the safety guard is closed, the motor turns ON - like how a microwave only runs when the door is shut."
+Be concise (2-3 sentences). Make it relatable.`,
+
+  technical: `You are a senior controls engineer explaining ladder logic to another engineer.
+Use proper technical terminology: examine if closed (XIC), output energize (OTE), etc.
+Include bit states, timing values, and register operations.
+Be precise and complete but concise (2-4 sentences).`,
+
+  operator: `You are explaining PLC ladder logic to a machine operator or maintenance technician.
+Focus on: what conditions must be met, what happens as a result, and troubleshooting hints.
+Use clear operational language. Name the devices by their function.
+Be concise (2-3 sentences). Include any safety-relevant information.`
+}
+
 /**
  * Explain a PLC rung in human-readable terms
  */
 export async function explainRung(
   rungText: string,
-  tags: Record<string, { dataType: string; description?: string }>
+  tags: Record<string, { dataType: string; description?: string }>,
+  mode: ExplanationMode = 'friendly'
 ): Promise<string> {
   const tagContext = Object.entries(tags)
     .map(([name, info]) => `- ${name}: ${info.dataType}${info.description ? ` (${info.description})` : ''}`)
@@ -18,10 +38,7 @@ export async function explainRung(
   const response = await anthropic.messages.create({
     model: 'claude-3-5-haiku-20241022',
     max_tokens: 1024,
-    system: `You are an expert PLC programmer explaining ladder logic to maintenance technicians.
-Explain what the rung does in plain English, focusing on the real-world effect.
-Be concise (2-3 sentences max). Use the tag descriptions when available.
-Format: Start with what triggers the action, then what happens.`,
+    system: MODE_PROMPTS[mode],
     messages: [{
       role: 'user',
       content: `Explain this ladder logic rung:

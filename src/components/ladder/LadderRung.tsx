@@ -14,6 +14,7 @@ interface LadderRungProps {
   rawText: string
   instructions: Instruction[]
   explanation?: string | null
+  explanationSource?: 'library' | 'ai' | 'hybrid' | 'learned' | null
   onExplain?: (rungId: string) => Promise<void>
 }
 
@@ -112,6 +113,13 @@ const IconSparkles = () => (
   </svg>
 )
 
+const SOURCE_LABELS: Record<string, { label: string; icon: string }> = {
+  library: { label: 'Library', icon: '📚' },
+  ai: { label: 'AI Analysis', icon: '✨' },
+  hybrid: { label: 'Hybrid', icon: '🔄' },
+  learned: { label: 'Learned', icon: '🧠' }
+}
+
 export function LadderRung({
   rungId,
   number,
@@ -119,6 +127,7 @@ export function LadderRung({
   rawText,
   instructions,
   explanation,
+  explanationSource,
   onExplain
 }: LadderRungProps) {
   const [isExplaining, setIsExplaining] = useState(false)
@@ -218,7 +227,7 @@ export function LadderRung({
 
       {/* Ladder visualization */}
       <div
-        className="p-4 overflow-x-auto"
+        className="px-4 pt-4 pb-16 overflow-visible"
         style={{ background: 'var(--surface-1)' }}
       >
         <div className="flex items-center min-w-fit">
@@ -273,20 +282,22 @@ export function LadderRung({
                         </div>
                       )}
 
-                      {/* Hover tooltip */}
+                      {/* Hover tooltip - positioned below */}
                       {isHovered && (
                         <div
-                          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded text-[10px] whitespace-nowrap z-10"
+                          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 rounded text-xs whitespace-nowrap z-50 shadow-lg"
                           style={{
                             background: 'var(--surface-4)',
                             color: 'var(--text-primary)',
                             border: '1px solid var(--border-default)'
                           }}
                         >
-                          {config.label}
-                          {inst.operands.length > 1 && (
-                            <div style={{ color: 'var(--text-muted)' }}>
-                              {inst.operands.slice(1).join(', ')}
+                          <div className="font-semibold">{config.label}</div>
+                          {inst.operands.length > 0 && (
+                            <div className="mt-1 font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                              {inst.operands.map((op, i) => (
+                                <div key={i}>{op}</div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -349,28 +360,28 @@ export function LadderRung({
         </div>
       )}
 
-      {/* AI Explanation */}
+      {/* Explanation */}
       {explanation && (
         <div
           className="px-4 py-3 border-t"
           style={{
-            background: 'var(--accent-blue-muted)',
-            borderColor: 'rgba(59, 130, 246, 0.2)'
+            background: explanationSource === 'ai' ? 'var(--accent-blue-muted)' : 'var(--accent-emerald-muted)',
+            borderColor: explanationSource === 'ai' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'
           }}
         >
           <div className="flex items-start gap-2">
             <div
-              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5"
-              style={{ background: 'rgba(59, 130, 246, 0.2)' }}
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 text-sm"
+              style={{ background: explanationSource === 'ai' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)' }}
             >
-              <IconSparkles />
+              {SOURCE_LABELS[explanationSource || 'library']?.icon || '📚'}
             </div>
             <div>
               <div
                 className="text-[10px] font-semibold uppercase tracking-wider mb-1"
-                style={{ color: 'var(--accent-blue)' }}
+                style={{ color: explanationSource === 'ai' ? 'var(--accent-blue)' : 'var(--accent-emerald)' }}
               >
-                AI Analysis
+                {SOURCE_LABELS[explanationSource || 'library']?.label || 'Explanation'}
               </div>
               <p
                 className="text-sm leading-relaxed"

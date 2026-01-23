@@ -65,8 +65,8 @@ model VerificationToken {
 
 model Project {
   id              String    @id @default(cuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name            String    // Project name from ACD file
   fileName        String    // Original uploaded file name
@@ -253,4 +253,56 @@ model CrossReference {
 
   @@index([projectId, tagName])
   @@index([projectId, routineName])
+}
+
+// ============================================
+// Learned Instructions (from AI fallback)
+// ============================================
+
+model LearnedInstruction {
+  id              String    @id @default(cuid())
+
+  instruction     String    @unique  // Instruction name (uppercase)
+  category        String?   // Guessed category
+
+  // Explanations by mode (learned from AI)
+  friendlyExpl    String?   // Friendly mode explanation template
+  technicalExpl   String?   // Technical mode explanation template
+  operatorExpl    String?   // Operator mode explanation template
+
+  // Metadata
+  source          String    @default("ai") // "ai", "manual", "imported"
+  usageCount      Int       @default(1)    // How many times this was needed
+  verified        Boolean   @default(false) // Has a human verified this?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([instruction])
+}
+
+// ============================================
+// Rung Explanation Cache (full rung explanations)
+// ============================================
+
+model RungExplanationCache {
+  id              String    @id @default(cuid())
+
+  // Hash of rung text for quick lookup
+  rungHash        String    @unique
+  rungText        String    // Original rung text
+
+  // Explanations by mode
+  friendlyExpl    String?
+  technicalExpl   String?
+  operatorExpl    String?
+
+  // Metadata
+  source          String    @default("library") // "library", "ai", "hybrid"
+  usageCount      Int       @default(1)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([rungHash])
 }
