@@ -5,6 +5,9 @@ import { useState } from 'react'
 interface Instruction {
   type: string
   operands: string[]
+  branch_level?: number  // 0 = main path, 1+ = in branch
+  parallel_index?: number  // Which parallel path (0, 1, 2...)
+  is_input?: boolean  // True for inputs, false for outputs
 }
 
 interface LadderRungProps {
@@ -400,6 +403,224 @@ function ContactCoilElement({
   )
 }
 
+// Organize instructions into rows based on branch structure
+function organizeBranches(instructions: Instruction[]): { rows: Instruction[][]; hasBranches: boolean } {
+  if (instructions.length === 0) return { rows: [[]], hasBranches: false }
+
+  // Check if we have any branches
+  const hasBranches = instructions.some(i => (i.branch_level ?? 0) > 0)
+
+  if (!hasBranches) {
+    // No branches - single row
+    return { rows: [instructions], hasBranches: false }
+  }
+
+  // Group by parallel_index at branch_level > 0
+  const rows: Instruction[][] = []
+  const mainPath: Instruction[] = []
+  const branchGroups: Map<number, Instruction[]> = new Map()
+
+  // Separate main path from branched instructions
+  for (const inst of instructions) {
+    const level = inst.branch_level ?? 0
+    const parallel = inst.parallel_index ?? 0
+
+    if (level === 0) {
+      mainPath.push(inst)
+    } else {
+      if (!branchGroups.has(parallel)) {
+        branchGroups.set(parallel, [])
+      }
+      branchGroups.get(parallel)!.push(inst)
+    }
+  }
+
+  // Find where branches start/end in main path
+  // For now, simple approach: main path first row, then branch rows
+  const sortedBranches = Array.from(branchGroups.entries()).sort((a, b) => a[0] - b[0])
+  const numBranchRows = sortedBranches.length
+
+  // Build rows
+  // Row 0: main path before branches + first branch + main path after branches
+  // Row 1+: additional parallel branches
+
+  if (numBranchRows === 0) {
+    rows.push(mainPath)
+  } else {
+    // First row: main path with first branch inline
+    const firstBranch = sortedBranches[0]?.[1] || []
+    rows.push([...mainPath.filter(i => i.is_input !== false), ...firstBranch, ...mainPath.filter(i => i.is_input === false)])
+
+    // Additional rows for other parallel branches
+    for (let i = 1; i < sortedBranches.length; i++) {
+      const branchInsts = sortedBranches[i][1]
+      // These rows only have the branched instructions
+      rows.push(branchInsts)
+    }
+  }
+
+  return { rows, hasBranches: numBranchRows > 1 }
+}
+
+// Main ladder visualization component with branch support
+function LadderVisualization({
+  instructions,
+  hoveredInstruction,
+  setHoveredInstruction,
+  tagDescriptions
+}: {
+  instructions: Instruction[]
+  hoveredInstruction: number | null
+  setHoveredInstruction: (idx: number | null) => void
+  tagDescriptions?: Record<string, string>
+}) {
+  const { rows, hasBranches } = organizeBranches(instructions)
+  const rowHeight = 70 // Height per row
+
+  // Calculate total height
+  const totalHeight = Math.max(rows.length * rowHeight, 60)
+
+  // Build instruction index map for hover tracking
+  let globalIdx = 0
+  const idxMap: Map<Instruction, number> = new Map()
+  for (const inst of instructions) {
+    idxMap.set(inst, globalIdx++)
+  }
+
+  return (
+    <div
+      className="px-4 pt-4 pb-8 overflow-visible"
+      style={{ background: 'var(--surface-1)' }}
+    >
+      <div className="flex min-w-fit" style={{ minHeight: `${totalHeight}px` }}>
+        {/* Left power rail */}
+        <div
+          className="power-rail flex-shrink-0"
+          style={{ height: `${totalHeight}px` }}
+        />
+
+        {/* Rows container */}
+        <div className="flex-1 relative">
+          {rows.length > 0 && rows[0].length > 0 ? (
+            <>
+              {rows.map((rowInsts, rowIdx) => (
+                <div
+                  key={rowIdx}
+                  className="flex items-center absolute left-0 right-0"
+                  style={{ top: `${rowIdx * rowHeight}px`, height: `${rowHeight}px` }}
+                >
+                  {/* Branch vertical connection at start (for non-first rows) */}
+                  {hasBranches && rowIdx > 0 && (
+                    <div
+                      className="absolute w-0.5"
+                      style={{
+                        background: 'var(--text-muted)',
+                        left: '20px',
+                        top: `-${rowHeight / 2}px`,
+                        height: `${rowHeight / 2 + rowHeight / 2}px`
+                      }}
+                    />
+                  )}
+
+                  {/* Horizontal wire to first instruction (for branch rows) */}
+                  {hasBranches && rowIdx > 0 && (
+                    <div
+                      className="w-6 h-0.5"
+                      style={{ background: 'var(--text-muted)', marginLeft: '20px' }}
+                    />
+                  )}
+
+                  {/* Instructions in this row */}
+                  {rowInsts.map((inst, instIdx) => {
+                    const config = getInstructionConfig(inst.type)
+                    const globalIndex = idxMap.get(inst) ?? 0
+                    const isHovered = hoveredInstruction === globalIndex
+                    const isContactOrCoil = config.isContact || config.isCoil
+
+                    return (
+                      <div key={instIdx} className="flex items-center">
+                        {/* Connecting wire */}
+                        {(instIdx > 0 || rowIdx === 0) && (
+                          <div
+                            className="w-6 h-0.5 flex-shrink-0"
+                            style={{ background: 'var(--text-muted)' }}
+                          />
+                        )}
+
+                        {/* Render contact/coil symbol or instruction box */}
+                        {isContactOrCoil ? (
+                          <ContactCoilElement
+                            inst={inst}
+                            config={config}
+                            isHovered={isHovered}
+                            onHover={(h) => setHoveredInstruction(h ? globalIndex : null)}
+                            tagDescriptions={tagDescriptions}
+                          />
+                        ) : (
+                          <InstructionBox
+                            inst={inst}
+                            config={config}
+                            isHovered={isHovered}
+                            onHover={(h) => setHoveredInstruction(h ? globalIndex : null)}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {/* Final connecting wire to right rail */}
+                  {rowInsts.length > 0 && (
+                    <div
+                      className="flex-1 h-0.5 min-w-6"
+                      style={{ background: 'var(--text-muted)' }}
+                    />
+                  )}
+
+                  {/* Branch vertical connection at end (for branch rows) */}
+                  {hasBranches && rowIdx > 0 && (
+                    <div
+                      className="absolute w-0.5"
+                      style={{
+                        background: 'var(--text-muted)',
+                        right: '20px',
+                        top: `-${rowHeight / 2}px`,
+                        height: `${rowHeight / 2 + rowHeight / 2}px`
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="flex items-center h-full px-4">
+              <div
+                className="h-0.5 flex-1"
+                style={{ background: 'var(--text-muted)' }}
+              />
+              <span
+                className="px-3 text-xs italic"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                No instructions parsed
+              </span>
+              <div
+                className="h-0.5 flex-1"
+                style={{ background: 'var(--text-muted)' }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Right power rail */}
+        <div
+          className="power-rail flex-shrink-0"
+          style={{ height: `${totalHeight}px` }}
+        />
+      </div>
+    </div>
+  )
+}
+
 export function LadderRung({
   rungId,
   number,
@@ -507,88 +728,12 @@ export function LadderRung({
       </div>
 
       {/* Ladder visualization */}
-      <div
-        className="px-4 pt-4 pb-16 overflow-visible"
-        style={{ background: 'var(--surface-1)' }}
-      >
-        <div className="flex items-center min-w-fit">
-          {/* Left power rail */}
-          <div
-            className="power-rail flex-shrink-0"
-            style={{ height: '60px' }}
-          />
-
-          {/* Instructions flow */}
-          <div className="flex items-center flex-1">
-            {instructions.length > 0 ? (
-              instructions.map((inst, idx) => {
-                const config = getInstructionConfig(inst.type)
-                const isHovered = hoveredInstruction === idx
-                const isContactOrCoil = config.isContact || config.isCoil
-
-                return (
-                  <div key={idx} className="flex items-center">
-                    {/* Connecting wire */}
-                    <div
-                      className="w-6 h-0.5 flex-shrink-0"
-                      style={{ background: 'var(--text-muted)' }}
-                    />
-
-                    {/* Render contact/coil symbol or instruction box */}
-                    {isContactOrCoil ? (
-                      <ContactCoilElement
-                        inst={inst}
-                        config={config}
-                        isHovered={isHovered}
-                        onHover={(h) => setHoveredInstruction(h ? idx : null)}
-                        tagDescriptions={tagDescriptions}
-                      />
-                    ) : (
-                      <InstructionBox
-                        inst={inst}
-                        config={config}
-                        isHovered={isHovered}
-                        onHover={(h) => setHoveredInstruction(h ? idx : null)}
-                      />
-                    )}
-                  </div>
-                )
-              })
-            ) : (
-              <div className="flex-1 flex items-center px-4">
-                <div
-                  className="h-0.5 flex-1"
-                  style={{ background: 'var(--text-muted)' }}
-                />
-                <span
-                  className="px-3 text-xs italic"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  No instructions parsed
-                </span>
-                <div
-                  className="h-0.5 flex-1"
-                  style={{ background: 'var(--text-muted)' }}
-                />
-              </div>
-            )}
-
-            {/* Final connecting wire */}
-            {instructions.length > 0 && (
-              <div
-                className="flex-1 h-0.5 min-w-6"
-                style={{ background: 'var(--text-muted)' }}
-              />
-            )}
-          </div>
-
-          {/* Right power rail */}
-          <div
-            className="power-rail flex-shrink-0"
-            style={{ height: '60px' }}
-          />
-        </div>
-      </div>
+      <LadderVisualization
+        instructions={instructions}
+        hoveredInstruction={hoveredInstruction}
+        setHoveredInstruction={setHoveredInstruction}
+        tagDescriptions={tagDescriptions}
+      />
 
       {/* Raw text (collapsible) */}
       {showRaw && (
