@@ -475,7 +475,7 @@ function LadderVisualization({
   tagDescriptions?: Record<string, string>
 }) {
   const { rows, hasBranches } = organizeBranches(instructions)
-  const rowHeight = 70 // Height per row
+  const rowHeight = 100 // Height per row - enough space for instruction boxes with params
 
   // Calculate total height
   const totalHeight = Math.max(rows.length * rowHeight, 60)
