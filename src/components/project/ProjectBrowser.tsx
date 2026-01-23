@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { LadderRung } from '../ladder/LadderRung'
 
 interface Tag {
@@ -372,6 +372,17 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
       tag.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Build tag descriptions map for ladder view
+  const tagDescriptions = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const tag of project.tags) {
+      if (tag.description) {
+        map[tag.name] = tag.description
+      }
+    }
+    return map
+  }, [project.tags])
+
   // Count stats
   const totalRoutines = project.programs.reduce((acc, p) => acc + p.routines.length, 0)
   const totalRungs = project.programs.reduce(
@@ -690,6 +701,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                             explanation={rungExplanations[rung.id]?.text || rung.explanation}
                             explanationSource={rungExplanations[rung.id]?.source || null}
                             onExplain={handleExplain}
+                            tagDescriptions={tagDescriptions}
                           />
                         ) : (
                           /* Simple text view */

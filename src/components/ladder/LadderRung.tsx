@@ -16,6 +16,7 @@ interface LadderRungProps {
   explanation?: string | null
   explanationSource?: 'library' | 'ai' | 'hybrid' | 'learned' | null
   onExplain?: (rungId: string) => Promise<void>
+  tagDescriptions?: Record<string, string>  // Map of tag name -> description
 }
 
 // Instruction categories with their visual styling
@@ -305,20 +306,37 @@ function InstructionBox({
   )
 }
 
+// Helper to get tag description, handling member access like Tag.Member
+function getTagDescription(tagName: string, descriptions: Record<string, string>): string | undefined {
+  if (!tagName || !descriptions) return undefined
+  // Try exact match
+  if (descriptions[tagName]) return descriptions[tagName]
+  // Try base tag (before first dot)
+  const baseName = tagName.split('.')[0].split('[')[0]
+  if (descriptions[baseName]) return descriptions[baseName]
+  // Try without array index
+  const noIndex = tagName.replace(/\[\d+\]/g, '')
+  if (descriptions[noIndex]) return descriptions[noIndex]
+  return undefined
+}
+
 // Contact/Coil Element with tag name above
 function ContactCoilElement({
   inst,
   config,
   isHovered,
-  onHover
+  onHover,
+  tagDescriptions
 }: {
   inst: Instruction
   config: typeof DEFAULT_CONFIG & { isContact?: boolean; isCoil?: boolean }
   isHovered: boolean
   onHover: (hovered: boolean) => void
+  tagDescriptions?: Record<string, string>
 }) {
   const tagName = inst.operands[0] || ''
   const instType = inst.type.toUpperCase()
+  const description = tagDescriptions ? getTagDescription(tagName, tagDescriptions) : undefined
 
   return (
     <div
@@ -330,9 +348,20 @@ function ContactCoilElement({
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
     >
-      {/* Tag name above */}
+      {/* Tag description above (like Logix Designer) */}
+      {description && (
+        <div
+          className="text-[9px] mb-0.5 truncate max-w-28 text-center leading-tight"
+          style={{ color: 'var(--text-muted)' }}
+          title={description}
+        >
+          {description}
+        </div>
+      )}
+
+      {/* Tag name */}
       <div
-        className="font-mono text-[10px] mb-1 truncate max-w-24 text-center"
+        className="font-mono text-[10px] mb-1 truncate max-w-28 text-center"
         style={{ color: 'var(--text-secondary)' }}
         title={tagName}
       >
@@ -357,6 +386,11 @@ function ContactCoilElement({
           }}
         >
           <div className="font-semibold">{config.label}</div>
+          {description && (
+            <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+              {description}
+            </div>
+          )}
           <div className="mt-1 font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
             {tagName}
           </div>
@@ -374,7 +408,8 @@ export function LadderRung({
   instructions,
   explanation,
   explanationSource,
-  onExplain
+  onExplain,
+  tagDescriptions
 }: LadderRungProps) {
   const [isExplaining, setIsExplaining] = useState(false)
   const [showRaw, setShowRaw] = useState(false)
@@ -506,6 +541,7 @@ export function LadderRung({
                         config={config}
                         isHovered={isHovered}
                         onHover={(h) => setHoveredInstruction(h ? idx : null)}
+                        tagDescriptions={tagDescriptions}
                       />
                     ) : (
                       <InstructionBox
