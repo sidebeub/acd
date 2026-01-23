@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 interface IOPoint {
   tagName: string
+  aliasName?: string
   fullPath: string
   type: 'input' | 'output' | 'unknown'
   module?: string
@@ -49,41 +50,48 @@ export async function GET(
 
     const ioPoints: Record<string, IOPoint> = {}
 
-    // Common I/O tag patterns
-    // Local:X:I.Data.Y - local I/O
-    // ModuleName:I.Data.X - remote I/O
-    const ioPatterns = [
-      /Local:(\d+):([IO])\.Data\.(\d+)/gi,       // Local:slot:I/O.Data.channel
-      /Local:(\d+):([IO])\.(\d+)/gi,             // Local:slot:I/O.channel
-      /([A-Za-z_][A-Za-z0-9_]*):([IO])\.Data\.(\d+)/gi, // Module:I/O.Data.channel
-      /([A-Za-z_][A-Za-z0-9_]*):(\d+):([IO])/gi  // Module:slot:I/O
-    ]
+    // Build alias map: raw I/O address -> friendly tag name
+    // e.g., "&ee491627:5:I.0" -> "MagLiftUp"
+    const aliasMap: Record<string, { name: string; description?: string }> = {}
+    for (const tag of project.tags) {
+      if (tag.aliasFor) {
+        aliasMap[tag.aliasFor] = { name: tag.name, description: tag.description || undefined }
+        // Also map without the leading & if present
+        if (tag.aliasFor.startsWith('&')) {
+          aliasMap[tag.aliasFor.substring(1)] = { name: tag.name, description: tag.description || undefined }
+        }
+      }
+    }
 
-    // Also look for tags with I/O-related data types
+    // Also look for tags with I/O-related data types or patterns
     const ioTags = project.tags.filter(t =>
       t.dataType?.includes('INPUT') ||
       t.dataType?.includes('OUTPUT') ||
       t.name.includes(':I.') ||
       t.name.includes(':O.') ||
       t.aliasFor?.includes(':I.') ||
-      t.aliasFor?.includes(':O.')
+      t.aliasFor?.includes(':O.') ||
+      // Common I/O naming patterns various programmers use
+      t.name.match(/^(Local|Remote):/i) ||
+      t.aliasFor?.match(/^&[a-f0-9]+:/i)
     )
 
-    // Add tags to ioPoints
+    // Add aliased I/O tags first (these have friendly names)
     for (const tag of ioTags) {
-      const isInput = tag.dataType?.includes('INPUT') ||
-                      tag.name.includes(':I.') ||
-                      tag.aliasFor?.includes(':I.')
-      const isOutput = tag.dataType?.includes('OUTPUT') ||
-                       tag.name.includes(':O.') ||
-                       tag.aliasFor?.includes(':O.')
+      if (tag.aliasFor) {
+        const isInput = tag.aliasFor.includes(':I.')
+        const isOutput = tag.aliasFor.includes(':O.')
 
-      ioPoints[tag.name] = {
-        tagName: tag.name,
-        fullPath: tag.aliasFor || tag.name,
-        type: isInput ? 'input' : isOutput ? 'output' : 'unknown',
-        description: tag.description || undefined,
-        usage: []
+        if (isInput || isOutput) {
+          ioPoints[tag.aliasFor] = {
+            tagName: tag.aliasFor,
+            aliasName: tag.name,
+            fullPath: tag.aliasFor,
+            type: isInput ? 'input' : 'output',
+            description: tag.description || undefined,
+            usage: []
+          }
+        }
       }
     }
 
@@ -95,40 +103,54 @@ export async function GET(
           const instructionRegex = /([A-Z_][A-Z0-9_]*)\(([^)]*)\)/gi
           let match
 
+          instructionRegex.lastIndex = 0
           while ((match = instructionRegex.exec(rung.rawText)) !== null) {
             const instruction = match[1].toUpperCase()
             const operands = parseOperands(match[2])
 
             for (const operand of operands) {
               // Check if this looks like an I/O reference
+              // Various patterns programmers use:
+              // - &hexid:slot:I.bit or &hexid:slot:O.bit (Point I/O)
+              // - Local:slot:I.Data.bit (local chassis)
+              // - ModuleName:I.Data.bit (named modules)
               const isIORef =
                 operand.includes(':I.') ||
                 operand.includes(':O.') ||
                 operand.startsWith('Local:') ||
+                operand.startsWith('&') ||
                 ioPoints[operand]
 
               if (isIORef) {
-                const baseName = extractBaseName(operand)
                 const isInput = operand.includes(':I.')
                 const isOutput = operand.includes(':O.')
 
-                if (!ioPoints[baseName]) {
-                  ioPoints[baseName] = {
-                    tagName: baseName,
+                if (!ioPoints[operand]) {
+                  // Look up alias for this address
+                  const alias = aliasMap[operand] || aliasMap[operand.replace(/^&/, '')]
+
+                  ioPoints[operand] = {
+                    tagName: operand,
+                    aliasName: alias?.name,
                     fullPath: operand,
                     type: isInput ? 'input' : isOutput ? 'output' : 'unknown',
+                    description: alias?.description,
                     usage: []
                   }
 
                   // Try to extract module/slot/channel info
-                  const localMatch = operand.match(/Local:(\d+):([IO])\.(?:Data\.)?(\d+)/)
-                  if (localMatch) {
-                    ioPoints[baseName].slot = parseInt(localMatch[1])
-                    ioPoints[baseName].channel = parseInt(localMatch[3])
+                  // Pattern: &hexid:slot:I/O.bit or Local:slot:I/O.Data.bit
+                  const slotMatch = operand.match(/:(\d+):([IO])\./)
+                  if (slotMatch) {
+                    ioPoints[operand].slot = parseInt(slotMatch[1])
+                  }
+                  const channelMatch = operand.match(/\.(\d+)$/)
+                  if (channelMatch) {
+                    ioPoints[operand].channel = parseInt(channelMatch[1])
                   }
                 }
 
-                ioPoints[baseName].usage.push({
+                ioPoints[operand].usage.push({
                   program: program.name,
                   routine: routine.name,
                   rungNumber: rung.number,
@@ -154,18 +176,39 @@ export async function GET(
         outputs.push(io)
       }
 
-      // Group by module
-      const moduleMatch = io.fullPath.match(/^([^:]+):/)
-      const moduleName = moduleMatch ? moduleMatch[1] : 'Unknown'
+      // Group by module - extract module identifier
+      let moduleName = 'Unknown'
+      const moduleMatch = io.fullPath.match(/^(&?[^:]+):/)
+      if (moduleMatch) {
+        moduleName = moduleMatch[1]
+        // Try to find a friendly module name from hardware modules
+        const hwModule = project.modules.find(m =>
+          m.name && io.fullPath.includes(m.name)
+        )
+        if (hwModule?.name) {
+          moduleName = hwModule.name
+        }
+      }
+
       if (!byModule[moduleName]) {
         byModule[moduleName] = []
       }
       byModule[moduleName].push(io)
     }
 
-    // Sort
-    inputs.sort((a, b) => a.tagName.localeCompare(b.tagName))
-    outputs.sort((a, b) => a.tagName.localeCompare(b.tagName))
+    // Sort - put aliased (named) I/O first, then by address
+    const sortIO = (a: IOPoint, b: IOPoint) => {
+      // Aliased tags first
+      if (a.aliasName && !b.aliasName) return -1
+      if (!a.aliasName && b.aliasName) return 1
+      // Then by alias name or tag name
+      const nameA = a.aliasName || a.tagName
+      const nameB = b.aliasName || b.tagName
+      return nameA.localeCompare(nameB)
+    }
+
+    inputs.sort(sortIO)
+    outputs.sort(sortIO)
 
     return NextResponse.json({
       projectId: id,
@@ -174,6 +217,8 @@ export async function GET(
         totalIOPoints: Object.keys(ioPoints).length,
         inputs: inputs.length,
         outputs: outputs.length,
+        namedInputs: inputs.filter(i => i.aliasName).length,
+        namedOutputs: outputs.filter(o => o.aliasName).length,
         modules: Object.keys(byModule).length
       },
       inputs,

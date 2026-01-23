@@ -5,6 +5,8 @@ interface TimerInfo {
   tagName: string
   type: 'TON' | 'TOF' | 'RTO'
   preset: string
+  presetValue: number | null
+  presetUnit: string
   accum: string
   locations: {
     program: string
@@ -25,6 +27,7 @@ interface CounterInfo {
   tagName: string
   type: 'CTU' | 'CTD' | 'CTUD'
   preset: string
+  presetValue: number | null
   accum: string
   locations: {
     program: string
@@ -39,6 +42,33 @@ interface CounterInfo {
     rungNumber: number
     rungId: string
   }[]
+}
+
+// Parse preset value - handles numbers, tag references, expressions
+function parsePresetValue(preset: string): { value: number | null; display: string; unit: string } {
+  if (!preset) return { value: null, display: '?', unit: '' }
+
+  const trimmed = preset.trim()
+
+  // Direct number (milliseconds for timers)
+  const numMatch = trimmed.match(/^(\d+)$/)
+  if (numMatch) {
+    const ms = parseInt(numMatch[1])
+    // Format as seconds if >= 1000ms
+    if (ms >= 1000) {
+      return { value: ms, display: `${(ms / 1000).toFixed(1)}s`, unit: 'ms' }
+    }
+    return { value: ms, display: `${ms}ms`, unit: 'ms' }
+  }
+
+  // Tag.PRE reference - show tag name
+  if (trimmed.includes('.PRE')) {
+    const tagName = trimmed.split('.')[0]
+    return { value: null, display: `${tagName}.PRE`, unit: '' }
+  }
+
+  // Other tag reference or expression
+  return { value: null, display: trimmed, unit: '' }
 }
 
 // GET - Get timer/counter analysis for a project
@@ -72,7 +102,8 @@ export async function GET(
     const timers: Record<string, TimerInfo> = {}
     const counters: Record<string, CounterInfo> = {}
 
-    // Timer instruction patterns
+    // Timer instruction patterns - handle various formats
+    // TON(timer,preset,accum) or TON(timer,?,preset,accum) depending on version
     const timerRegex = /(TON|TOF|RTO)\(([^)]+)\)/gi
     const counterRegex = /(CTU|CTD|CTUD)\(([^)]+)\)/gi
     const resetRegex = /RES\(([^)]+)\)/gi
@@ -82,21 +113,45 @@ export async function GET(
         for (const rung of routine.rungs) {
           // Find timers
           let match
+          timerRegex.lastIndex = 0 // Reset regex state
           while ((match = timerRegex.exec(rung.rawText)) !== null) {
             const type = match[1].toUpperCase() as 'TON' | 'TOF' | 'RTO'
             const operands = parseOperands(match[2])
             const tagName = operands[0]?.trim()
 
             if (tagName) {
+              // Preset is typically second operand, but may vary
+              // Try to find a numeric or .PRE reference
+              let presetRaw = ''
+              for (let i = 1; i < operands.length; i++) {
+                const op = operands[i]?.trim()
+                if (op && (/^\d+$/.test(op) || op.includes('.PRE'))) {
+                  presetRaw = op
+                  break
+                }
+              }
+              if (!presetRaw && operands[1]) {
+                presetRaw = operands[1].trim()
+              }
+
+              const presetInfo = parsePresetValue(presetRaw)
+
               if (!timers[tagName]) {
                 timers[tagName] = {
                   tagName,
                   type,
-                  preset: operands[1]?.trim() || '',
+                  preset: presetRaw,
+                  presetValue: presetInfo.value,
+                  presetUnit: presetInfo.unit,
                   accum: operands[2]?.trim() || '0',
                   locations: [],
                   resets: []
                 }
+              } else if (!timers[tagName].presetValue && presetInfo.value) {
+                // Update with better preset info if we find it
+                timers[tagName].preset = presetRaw
+                timers[tagName].presetValue = presetInfo.value
+                timers[tagName].presetUnit = presetInfo.unit
               }
 
               timers[tagName].locations.push({
@@ -110,21 +165,42 @@ export async function GET(
           }
 
           // Find counters
+          counterRegex.lastIndex = 0
           while ((match = counterRegex.exec(rung.rawText)) !== null) {
             const type = match[1].toUpperCase() as 'CTU' | 'CTD' | 'CTUD'
             const operands = parseOperands(match[2])
             const tagName = operands[0]?.trim()
 
             if (tagName) {
+              // Find preset value
+              let presetRaw = ''
+              for (let i = 1; i < operands.length; i++) {
+                const op = operands[i]?.trim()
+                if (op && (/^\d+$/.test(op) || op.includes('.PRE'))) {
+                  presetRaw = op
+                  break
+                }
+              }
+              if (!presetRaw && operands[1]) {
+                presetRaw = operands[1].trim()
+              }
+
+              const numMatch = presetRaw.match(/^(\d+)$/)
+              const presetValue = numMatch ? parseInt(numMatch[1]) : null
+
               if (!counters[tagName]) {
                 counters[tagName] = {
                   tagName,
                   type,
-                  preset: operands[1]?.trim() || '',
+                  preset: presetRaw,
+                  presetValue,
                   accum: operands[2]?.trim() || '0',
                   locations: [],
                   resets: []
                 }
+              } else if (!counters[tagName].presetValue && presetValue) {
+                counters[tagName].preset = presetRaw
+                counters[tagName].presetValue = presetValue
               }
 
               counters[tagName].locations.push({
@@ -138,6 +214,7 @@ export async function GET(
           }
 
           // Find resets - apply to both timers and counters
+          resetRegex.lastIndex = 0
           while ((match = resetRegex.exec(rung.rawText)) !== null) {
             const tagName = match[1].trim()
 
@@ -163,7 +240,7 @@ export async function GET(
       }
     }
 
-    // Get tag info for timers/counters
+    // Get tag info for timers/counters from tags table
     const timerTags = project.tags.filter(t =>
       t.dataType === 'TIMER' || t.dataType?.startsWith('TIMER')
     )
@@ -171,13 +248,23 @@ export async function GET(
       t.dataType === 'COUNTER' || t.dataType?.startsWith('COUNTER')
     )
 
-    // Sort by tag name
-    const sortedTimers = Object.values(timers).sort((a, b) =>
-      a.tagName.localeCompare(b.tagName)
-    )
-    const sortedCounters = Object.values(counters).sort((a, b) =>
-      a.tagName.localeCompare(b.tagName)
-    )
+    // Format timers with display-friendly preset
+    const sortedTimers = Object.values(timers)
+      .map(t => ({
+        ...t,
+        presetDisplay: t.presetValue
+          ? (t.presetValue >= 1000 ? `${(t.presetValue / 1000).toFixed(1)}s` : `${t.presetValue}ms`)
+          : (t.preset || '?')
+      }))
+      .sort((a, b) => a.tagName.localeCompare(b.tagName))
+
+    // Format counters
+    const sortedCounters = Object.values(counters)
+      .map(c => ({
+        ...c,
+        presetDisplay: c.presetValue?.toString() || c.preset || '?'
+      }))
+      .sort((a, b) => a.tagName.localeCompare(b.tagName))
 
     return NextResponse.json({
       projectId: id,

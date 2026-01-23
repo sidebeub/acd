@@ -87,6 +87,8 @@ interface TimerInfo {
   tagName: string
   type: string
   preset: string
+  presetDisplay?: string
+  presetValue?: number | null
   accum: string
   locations: Array<{ program: string; routine: string; rungNumber: number }>
   resets: Array<{ program: string; routine: string; rungNumber: number }>
@@ -96,6 +98,8 @@ interface CounterInfo {
   tagName: string
   type: string
   preset: string
+  presetDisplay?: string
+  presetValue?: number | null
   accum: string
   locations: Array<{ program: string; routine: string; rungNumber: number }>
   resets: Array<{ program: string; routine: string; rungNumber: number }>
@@ -103,6 +107,7 @@ interface CounterInfo {
 
 interface IOPoint {
   tagName: string
+  aliasName?: string
   fullPath: string
   type: 'input' | 'output' | 'unknown'
   description?: string
@@ -910,7 +915,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                           <tr key={timer.tagName} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
                             <td><code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>{timer.tagName}</code></td>
                             <td><span className="px-2 py-0.5 rounded text-xs" style={{ background: 'var(--accent-blue-muted)', color: 'var(--accent-blue)' }}>{timer.type}</span></td>
-                            <td style={{ color: 'var(--text-secondary)' }}>{timer.preset}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{timer.presetDisplay || timer.preset || '?'}</td>
                             <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
                               {timer.locations.slice(0, 2).map((l, j) => (
                                 <span key={j}>{l.routine}:{l.rungNumber}{j < Math.min(timer.locations.length, 2) - 1 && ', '}</span>
@@ -940,7 +945,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                           <tr key={counter.tagName} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
                             <td><code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>{counter.tagName}</code></td>
                             <td><span className="px-2 py-0.5 rounded text-xs" style={{ background: 'var(--accent-amber-muted)', color: 'var(--accent-amber)' }}>{counter.type}</span></td>
-                            <td style={{ color: 'var(--text-secondary)' }}>{counter.preset}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{counter.presetDisplay || counter.preset || '?'}</td>
                             <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
                               {counter.locations.slice(0, 2).map((l, j) => (
                                 <span key={j}>{l.routine}:{l.rungNumber}{j < Math.min(counter.locations.length, 2) - 1 && ', '}</span>
@@ -989,8 +994,14 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                     <div className="space-y-2">
                       {ioData.inputs.map((io, i) => (
                         <div key={io.tagName} className="p-3 rounded" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
-                          <code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>{io.tagName}</code>
-                          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{io.fullPath}</div>
+                          {io.aliasName ? (
+                            <>
+                              <code className="text-[13px] font-mono font-semibold" style={{ color: 'var(--accent-emerald)' }}>{io.aliasName}</code>
+                              <div className="text-xs mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>{io.tagName}</div>
+                            </>
+                          ) : (
+                            <code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>{io.tagName}</code>
+                          )}
                           {io.description && <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{io.description}</div>}
                           <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Used {io.usage.length} times</div>
                         </div>
@@ -1007,8 +1018,14 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                     <div className="space-y-2">
                       {ioData.outputs.map((io, i) => (
                         <div key={io.tagName} className="p-3 rounded" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
-                          <code className="text-[13px] font-mono" style={{ color: 'var(--accent-amber)' }}>{io.tagName}</code>
-                          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{io.fullPath}</div>
+                          {io.aliasName ? (
+                            <>
+                              <code className="text-[13px] font-mono font-semibold" style={{ color: 'var(--accent-amber)' }}>{io.aliasName}</code>
+                              <div className="text-xs mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>{io.tagName}</div>
+                            </>
+                          ) : (
+                            <code className="text-[13px] font-mono" style={{ color: 'var(--accent-amber)' }}>{io.tagName}</code>
+                          )}
                           {io.description && <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{io.description}</div>}
                           <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Used {io.usage.length} times</div>
                         </div>
