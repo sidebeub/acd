@@ -226,6 +226,24 @@ const IconDownload = () => (
   </svg>
 )
 
+const IconGraphic = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="8" width="7" height="8" rx="1" />
+    <rect x="14" y="8" width="7" height="8" rx="1" />
+    <line x1="10" y1="12" x2="14" y2="12" />
+    <line x1="3" y1="12" x2="1" y2="12" />
+    <line x1="23" y1="12" x2="21" y2="12" />
+  </svg>
+)
+
+const IconText = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="4" y1="6" x2="20" y2="6" />
+    <line x1="4" y1="12" x2="16" y2="12" />
+    <line x1="4" y1="18" x2="18" y2="18" />
+  </svg>
+)
+
 type TabType = 'ladder' | 'tags' | 'xref' | 'calltree' | 'timers' | 'io' | 'alarms' | 'report'
 
 export function ProjectBrowser({ project }: ProjectBrowserProps) {
@@ -249,6 +267,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
   const [alarmData, setAlarmData] = useState<{ alarms: AlarmInfo[] } | null>(null)
   const [analysisLoading, setAnalysisLoading] = useState<TabType | null>(null)
   const [xrefFilter, setXrefFilter] = useState('')
+  const [ladderViewMode, setLadderViewMode] = useState<'graphic' | 'simple'>('graphic')
 
   const currentProgram = project.programs.find(p => p.id === selectedProgram)
   const currentRoutine = currentProgram?.routines.find(r => r.id === selectedRoutine)
@@ -614,9 +633,42 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                         {currentRoutine.description}
                       </p>
                     )}
-                    <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-                      <span>{currentRoutine.rungs.length} rungs</span>
-                      <span>in {currentProgram?.name}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                        <span>{currentRoutine.rungs.length} rungs</span>
+                        <span>in {currentProgram?.name}</span>
+                      </div>
+                      {/* View mode toggle */}
+                      <div
+                        className="flex rounded-md overflow-hidden"
+                        style={{ border: '1px solid var(--border-subtle)' }}
+                      >
+                        <button
+                          onClick={() => setLadderViewMode('graphic')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors"
+                          style={{
+                            background: ladderViewMode === 'graphic' ? 'var(--accent-blue)' : 'var(--surface-2)',
+                            color: ladderViewMode === 'graphic' ? 'white' : 'var(--text-secondary)'
+                          }}
+                          title="Graphic view"
+                        >
+                          <IconGraphic />
+                          Graphic
+                        </button>
+                        <button
+                          onClick={() => setLadderViewMode('simple')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors"
+                          style={{
+                            background: ladderViewMode === 'simple' ? 'var(--accent-blue)' : 'var(--surface-2)',
+                            color: ladderViewMode === 'simple' ? 'white' : 'var(--text-secondary)',
+                            borderLeft: '1px solid var(--border-subtle)'
+                          }}
+                          title="Simple text view"
+                        >
+                          <IconText />
+                          Simple
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -628,16 +680,92 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                         className="animate-fade-in"
                         style={{ animationDelay: `${index * 30}ms` }}
                       >
-                        <LadderRung
-                          rungId={rung.id}
-                          number={rung.number}
-                          comment={rung.comment}
-                          rawText={rung.rawText}
-                          instructions={rung.instructions ? JSON.parse(rung.instructions) : []}
-                          explanation={rungExplanations[rung.id]?.text || rung.explanation}
-                          explanationSource={rungExplanations[rung.id]?.source || null}
-                          onExplain={handleExplain}
-                        />
+                        {ladderViewMode === 'graphic' ? (
+                          <LadderRung
+                            rungId={rung.id}
+                            number={rung.number}
+                            comment={rung.comment}
+                            rawText={rung.rawText}
+                            instructions={rung.instructions ? JSON.parse(rung.instructions) : []}
+                            explanation={rungExplanations[rung.id]?.text || rung.explanation}
+                            explanationSource={rungExplanations[rung.id]?.source || null}
+                            onExplain={handleExplain}
+                          />
+                        ) : (
+                          /* Simple text view */
+                          <div
+                            className="rounded-lg overflow-hidden"
+                            style={{
+                              background: 'var(--surface-2)',
+                              border: '1px solid var(--border-subtle)'
+                            }}
+                          >
+                            {/* Header */}
+                            <div
+                              className="flex items-center justify-between px-4 py-2 border-b"
+                              style={{ borderColor: 'var(--border-subtle)' }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span
+                                  className="font-mono text-xs font-semibold px-2 py-0.5 rounded"
+                                  style={{
+                                    background: 'var(--surface-4)',
+                                    color: 'var(--text-secondary)'
+                                  }}
+                                >
+                                  {rung.number}
+                                </span>
+                                {rung.comment && (
+                                  <span
+                                    className="text-xs italic truncate max-w-md"
+                                    style={{ color: 'var(--text-tertiary)' }}
+                                  >
+                                    {rung.comment}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => handleExplain(rung.id)}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors"
+                                style={{
+                                  background: 'var(--accent-blue-muted)',
+                                  color: 'var(--accent-blue)'
+                                }}
+                              >
+                                Explain
+                              </button>
+                            </div>
+                            {/* Raw text */}
+                            <div
+                              className="px-4 py-3"
+                              style={{ background: 'var(--surface-1)' }}
+                            >
+                              <pre
+                                className="text-[12px] font-mono whitespace-pre-wrap break-all leading-relaxed"
+                                style={{ color: 'var(--text-secondary)' }}
+                              >
+                                {rung.rawText}
+                              </pre>
+                            </div>
+                            {/* Explanation if available */}
+                            {(rungExplanations[rung.id]?.text || rung.explanation) && (
+                              <div
+                                className="px-4 py-3 border-t"
+                                style={{
+                                  background: 'var(--accent-emerald-muted)',
+                                  borderColor: 'rgba(16, 185, 129, 0.2)'
+                                }}
+                              >
+                                <p
+                                  className="text-sm leading-relaxed"
+                                  style={{ color: 'var(--text-secondary)' }}
+                                >
+                                  {rungExplanations[rung.id]?.text || rung.explanation}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
