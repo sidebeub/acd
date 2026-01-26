@@ -88,11 +88,40 @@ export async function POST(request: NextRequest) {
         data: { usageCount: { increment: 1 } }
       })
 
+      // Even for cached explanations, we need to regenerate the dynamic parts
+      // (troubleshooting, conditions, crossRefs) since they're not cached
+      const instructionDetails = explainRungInstructions(rung.rawText, explanationMode)
+
+      // Collect unique troubleshooting tips
+      const troubleshootingTips: string[] = []
+      const deviceTypes: string[] = []
+
+      for (const inst of instructionDetails) {
+        if (inst.troubleshooting) {
+          for (const tip of inst.troubleshooting) {
+            if (!troubleshootingTips.includes(tip)) {
+              troubleshootingTips.push(tip)
+            }
+          }
+        }
+        if (inst.device) {
+          if (!deviceTypes.includes(inst.device.friendlyName)) {
+            deviceTypes.push(inst.device.friendlyName)
+          }
+        }
+      }
+
+      // Generate condition breakdown
+      const conditions = generateConditionBreakdown(rung.rawText)
+
       return NextResponse.json({
         explanation: cachedRung[modeField],
         source: cachedRung.source,
         mode: explanationMode,
-        cached: true
+        cached: true,
+        troubleshooting: troubleshootingTips.length > 0 ? troubleshootingTips : undefined,
+        deviceTypes: deviceTypes.length > 0 ? deviceTypes : undefined,
+        conditions: conditions.length > 0 ? conditions : undefined
       })
     }
 
