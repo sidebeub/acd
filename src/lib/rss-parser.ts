@@ -554,61 +554,95 @@ function parseBinaryLadder(data: Buffer): { rungs: PlcRung[], addresses: Set<str
 
   console.log(`[RSS Parser] Found ladder files: ${ladderFiles.join(', ') || 'none'}`)
 
-  // Parse rungs using structure markers: CRung marks each rung, CIns marks each instruction
-  // Format: ...CRung...CIns...address...CIns...address...CRung...
-  const rungMarker = 'CRung'
-  const insMarker = 'CIns'
+  // Parse by CLadFile sections - each ladder file contains rungs for that routine
+  // Structure: CLadFile...ROUTINENAME...addresses...CLadFile...
+  const ladFileMarker = 'CLadFile'
   let rungNumber = 0
 
-  // Find all CRung positions
-  const rungPositions: number[] = []
-  let pos = text.indexOf(rungMarker)
+  // Find all CLadFile positions
+  const ladFilePositions: number[] = []
+  let pos = text.indexOf(ladFileMarker)
   while (pos !== -1) {
-    rungPositions.push(pos)
-    pos = text.indexOf(rungMarker, pos + rungMarker.length)
+    ladFilePositions.push(pos)
+    pos = text.indexOf(ladFileMarker, pos + ladFileMarker.length)
   }
 
-  console.log(`[RSS Parser] Found ${rungPositions.length} CRung markers`)
+  console.log(`[RSS Parser] Found ${ladFilePositions.length} CLadFile markers`)
 
-  // Process each rung
-  for (let r = 0; r < rungPositions.length; r++) {
-    const rungStart = rungPositions[r]
-    const rungEnd = r < rungPositions.length - 1 ? rungPositions[r + 1] : text.length
-    const rungText = text.substring(rungStart, rungEnd)
+  // Process each ladder file section
+  for (let f = 0; f < ladFilePositions.length; f++) {
+    const fileStart = ladFilePositions[f]
+    const fileEnd = f < ladFilePositions.length - 1 ? ladFilePositions[f + 1] : text.length
+    const fileText = text.substring(fileStart, fileEnd)
 
-    // Find all CIns markers in this rung
-    const rungAddresses: string[] = []
-    let insPos = rungText.indexOf(insMarker)
+    // Collect all addresses in this ladder file section
+    const fileAddresses: string[] = []
+    const addrRegex = /\b([BIOTCRNFSAL])(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?\b/gi
+    const ioRegex = /\b([IO]):(\d+)(?:\/(\d+))?\b/gi
 
-    while (insPos !== -1) {
-      // Look for address after this CIns marker (within next 100 chars)
-      const searchStart = insPos + insMarker.length
-      const searchText = rungText.substring(searchStart, searchStart + 100)
+    let m
+    while ((m = addrRegex.exec(fileText)) !== null) {
+      const addr = m[0].toUpperCase()
+      const fileNum = parseInt(m[2])
+      const element = parseInt(m[3])
+      if (fileNum <= 255 && element <= 999) {
+        fileAddresses.push(addr)
+      }
+    }
+    while ((m = ioRegex.exec(fileText)) !== null) {
+      fileAddresses.push(m[0].toUpperCase())
+    }
 
-      // Find the first valid address
-      const addrMatch = searchText.match(/([BIOTCRNFSAL])(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?/i) ||
-                        searchText.match(/([IO]):(\d+)(?:\/(\d+))?/i)
+    // Split addresses into rungs based on output patterns
+    // A rung typically ends with an output instruction (O:, bit output, timer, counter)
+    if (fileAddresses.length > 0) {
+      let currentRungAddrs: string[] = []
 
-      if (addrMatch) {
-        const addr = addrMatch[0].toUpperCase()
-        rungAddresses.push(addr)
+      for (let i = 0; i < fileAddresses.length; i++) {
+        const addr = fileAddresses[i]
+        currentRungAddrs.push(addr)
+
+        // Check if this is an output-type address that ends a rung
+        const isOutput = addr.startsWith('O:') ||
+                         addr.match(/^[TC]\d+:\d+$/) ||  // Timer/counter base (instruction target)
+                         addr.match(/^[TC]\d+:\d+\.(?:PRE|ACC)$/i)  // Timer/counter preset/acc
+
+        // Also end rung if we have several addresses and next looks like start of new rung
+        const nextAddr = fileAddresses[i + 1]
+        const nextIsNewRung = nextAddr && (
+          nextAddr.startsWith('I:') ||
+          (nextAddr.match(/^B\d+:\d+\/\d+$/) && currentRungAddrs.length >= 2) ||
+          nextAddr.match(/^[TC]\d+:\d+\.DN$/i)
+        )
+
+        if (isOutput || (currentRungAddrs.length >= 4 && nextIsNewRung)) {
+          const instructions = createInstructionsFromAddresses(currentRungAddrs)
+          if (instructions.length > 0) {
+            rungs.push({
+              number: rungNumber++,
+              rawText: instructions.map(inst => `${inst.type}(${inst.operands.join(',')})`).join(' '),
+              instructions
+            })
+          }
+          currentRungAddrs = []
+        }
       }
 
-      insPos = rungText.indexOf(insMarker, insPos + insMarker.length)
-    }
-
-    // Create rung if we found addresses
-    if (rungAddresses.length > 0) {
-      const instructions = createInstructionsFromAddresses(rungAddresses)
-      rungs.push({
-        number: rungNumber++,
-        rawText: instructions.map(i => `${i.type}(${i.operands.join(',')})`).join(' '),
-        instructions
-      })
+      // Add remaining addresses as final rung for this file
+      if (currentRungAddrs.length > 0) {
+        const instructions = createInstructionsFromAddresses(currentRungAddrs)
+        if (instructions.length > 0) {
+          rungs.push({
+            number: rungNumber++,
+            rawText: instructions.map(inst => `${inst.type}(${inst.operands.join(',')})`).join(' '),
+            instructions
+          })
+        }
+      }
     }
   }
 
-  console.log(`[RSS Parser] Created ${rungs.length} rungs from CRung/CIns markers`)
+  console.log(`[RSS Parser] Created ${rungs.length} rungs from CLadFile sections`)
 
   // If no CRung markers found, try alternative parsing
   if (rungs.length === 0 && addresses.size > 0) {
