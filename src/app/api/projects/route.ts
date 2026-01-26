@@ -109,19 +109,25 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingProject) {
-      console.log(`[Upload] Found existing project ${existingProject.id} for file hash`)
-      return NextResponse.json({
-        id: existingProject.id,
-        name: existingProject.name,
-        tagCount: existingProject._count.tags,
-        programCount: existingProject._count.programs,
-        moduleCount: existingProject._count.modules,
-        aoiCount: existingProject._count.addOnInstructions,
-        dataTypeCount: existingProject._count.dataTypes,
-        warnings: [],
-        cached: true,
-        message: 'This file was previously uploaded. Using cached data to save processing time.'
-      }, { status: 200 })
+      // For RSS files, delete the old project and re-parse (RSS parser is being improved)
+      if (fileName.endsWith('.rss')) {
+        console.log(`[Upload] Deleting cached RSS project ${existingProject.id} to re-parse`)
+        await prisma.project.delete({ where: { id: existingProject.id } })
+      } else {
+        console.log(`[Upload] Found existing project ${existingProject.id} for file hash`)
+        return NextResponse.json({
+          id: existingProject.id,
+          name: existingProject.name,
+          tagCount: existingProject._count.tags,
+          programCount: existingProject._count.programs,
+          moduleCount: existingProject._count.modules,
+          aoiCount: existingProject._count.addOnInstructions,
+          dataTypeCount: existingProject._count.dataTypes,
+          warnings: [],
+          cached: true,
+          message: 'This file was previously uploaded. Using cached data to save processing time.'
+        }, { status: 200 })
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
