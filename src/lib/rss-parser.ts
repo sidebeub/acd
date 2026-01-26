@@ -6,8 +6,46 @@
  */
 
 import CFB from 'cfb'
-import { inflateSync } from 'zlib'
+import { inflateSync, inflateRawSync, gunzipSync } from 'zlib'
 import type { PlcProject, PlcProgram, PlcRoutine, PlcRung, PlcInstruction, PlcTag } from './l5x-parser'
+
+/**
+ * Try multiple decompression methods on data
+ */
+function tryDecompress(data: Buffer, expectedSize?: number): Buffer | null {
+  // Try at multiple offsets (0, 16, etc.) with multiple methods
+  const offsets = [0, 16]
+  const methods = [
+    { name: 'zlib', fn: (d: Buffer) => inflateSync(d) },
+    { name: 'raw deflate', fn: (d: Buffer) => inflateRawSync(d) },
+    { name: 'gzip', fn: (d: Buffer) => gunzipSync(d) },
+  ]
+
+  for (const offset of offsets) {
+    if (offset >= data.length) continue
+    const slice = offset > 0 ? data.subarray(offset) : data
+
+    for (const method of methods) {
+      try {
+        const result = method.fn(slice)
+        // If we got expected size, this is likely correct
+        if (expectedSize && result.length === expectedSize) {
+          console.log(`[RSS Parser] Decompressed with ${method.name} at offset ${offset}: ${result.length} bytes (matches expected)`)
+          return result
+        }
+        // If result is significantly larger than input, likely successful decompression
+        if (result.length > slice.length * 1.5) {
+          console.log(`[RSS Parser] Decompressed with ${method.name} at offset ${offset}: ${result.length} bytes`)
+          return result
+        }
+      } catch {
+        // Method didn't work, try next
+      }
+    }
+  }
+
+  return null
+}
 
 // RSLogix 500 data file type prefixes
 export const RSS500_FILE_TYPES: Record<string, { name: string; description: string }> = {
@@ -47,6 +85,86 @@ const TIMER_COUNTER_SUBFIELDS: Record<string, string> = {
   '.POS': 'Position',
 }
 
+// RSLogix 500 instruction opcodes (common ones)
+const SLC500_OPCODES: Record<number, string> = {
+  0x01: 'XIC',   // Examine If Closed
+  0x02: 'XIO',   // Examine If Open
+  0x03: 'OTE',   // Output Energize
+  0x04: 'OTL',   // Output Latch
+  0x05: 'OTU',   // Output Unlatch
+  0x06: 'ONS',   // One Shot
+  0x07: 'OSR',   // One Shot Rising
+  0x08: 'OSF',   // One Shot Falling
+  0x10: 'TON',   // Timer On Delay
+  0x11: 'TOF',   // Timer Off Delay
+  0x12: 'RTO',   // Retentive Timer
+  0x13: 'CTU',   // Count Up
+  0x14: 'CTD',   // Count Down
+  0x15: 'RES',   // Reset
+  0x20: 'ADD',   // Add
+  0x21: 'SUB',   // Subtract
+  0x22: 'MUL',   // Multiply
+  0x23: 'DIV',   // Divide
+  0x24: 'NEG',   // Negate
+  0x25: 'CLR',   // Clear
+  0x26: 'MOV',   // Move
+  0x27: 'MVM',   // Masked Move
+  0x28: 'AND',   // Bitwise AND
+  0x29: 'OR',    // Bitwise OR
+  0x2A: 'XOR',   // Bitwise XOR
+  0x2B: 'NOT',   // Bitwise NOT
+  0x30: 'EQU',   // Equal
+  0x31: 'NEQ',   // Not Equal
+  0x32: 'LES',   // Less Than
+  0x33: 'LEQ',   // Less Than or Equal
+  0x34: 'GRT',   // Greater Than
+  0x35: 'GEQ',   // Greater Than or Equal
+  0x36: 'LIM',   // Limit Test
+  0x37: 'MEQ',   // Masked Comparison
+  0x40: 'JMP',   // Jump
+  0x41: 'LBL',   // Label
+  0x42: 'JSR',   // Jump to Subroutine
+  0x43: 'SBR',   // Subroutine
+  0x44: 'RET',   // Return
+  0x45: 'MCR',   // Master Control Reset
+  0x50: 'COP',   // Copy File
+  0x51: 'FLL',   // Fill File
+  0x52: 'BSL',   // Bit Shift Left
+  0x53: 'BSR',   // Bit Shift Right
+  0x54: 'FFL',   // FIFO Load
+  0x55: 'FFU',   // FIFO Unload
+  0x60: 'SQO',   // Sequencer Output
+  0x61: 'SQI',   // Sequencer Input
+  0x62: 'SQC',   // Sequencer Compare
+  0x63: 'SQL',   // Sequencer Load
+  0x70: 'MSG',   // Message
+  0x71: 'PID',   // PID Control
+  0x80: 'ABL',   // ASCII Test Buffer For Line
+  0x81: 'ACB',   // ASCII Characters in Buffer
+  0x82: 'AHL',   // ASCII Handshake Lines
+  0x83: 'ARD',   // ASCII Read
+  0x84: 'ARL',   // ASCII Read Line
+  0x85: 'AWA',   // ASCII Write Append
+  0x86: 'AWL',   // ASCII Write Line
+}
+
+// File type codes in SLC 500 binary format
+const SLC500_FILE_TYPES_BINARY: Record<number, string> = {
+  0x01: 'O',   // Output
+  0x02: 'I',   // Input
+  0x03: 'S',   // Status
+  0x04: 'B',   // Binary/Bit
+  0x05: 'T',   // Timer
+  0x06: 'C',   // Counter
+  0x07: 'R',   // Control
+  0x08: 'N',   // Integer
+  0x09: 'F',   // Float
+  0x0A: 'ST',  // String
+  0x0B: 'A',   // ASCII
+  0x0C: 'D',   // BCD
+  0x0D: 'L',   // Long Integer
+}
+
 /**
  * Parse an RSS file (RSLogix 500 format)
  */
@@ -69,14 +187,25 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
 
       const streamInfo: { path: string; content: Buffer; decompressed?: Buffer } = { path, content }
 
-      // Try to decompress if it looks like zlib
-      if (content[0] === 0x78) {
-        try {
-          streamInfo.decompressed = inflateSync(content)
-          console.log(`[RSS Parser]   -> Decompressed to ${streamInfo.decompressed.length} bytes`)
-        } catch {
-          // Not zlib compressed
+      // Parse RSS stream header to get expected uncompressed size
+      // Format: [version:4][headerSize:4][compSize:4][uncompSize:4]
+      let expectedSize: number | undefined
+      if (content.length >= 16) {
+        const version = content.readUInt32LE(0)
+        const headerSize = content.readUInt32LE(4)
+        const uncompSize = content.readUInt32LE(12)
+
+        // Check if this looks like a valid RSS header
+        if ((version === 0 || version === 2) && headerSize === 16 && uncompSize > content.length) {
+          expectedSize = uncompSize
+          console.log(`[RSS Parser]   -> Header indicates uncompressed size: ${expectedSize}`)
         }
+      }
+
+      // Try to decompress using multiple methods
+      const decompressed = tryDecompress(content, expectedSize)
+      if (decompressed) {
+        streamInfo.decompressed = decompressed
       }
 
       streams.push(streamInfo)
@@ -85,14 +214,16 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
 
   // Find the best stream to parse
   let programData: Buffer | null = null
+  let rawProgramStream: Buffer | null = null
   let projectName = 'RSLogix 500 Project'
   let processorType = 'SLC 500'
 
   // Strategy 1: Look specifically for PROGRAM FILES stream (contains ladder logic)
   for (const stream of streams) {
     if (stream.path.includes('PROGRAM FILES') && !stream.path.includes('ONLINEIMAGE')) {
+      rawProgramStream = stream.content
       programData = stream.decompressed || stream.content
-      console.log(`[RSS Parser] Using PROGRAM FILES stream: ${stream.path} (${programData.length} bytes)`)
+      console.log(`[RSS Parser] Using PROGRAM FILES stream: ${stream.path} (raw: ${stream.content.length}, decompressed: ${programData.length} bytes)`)
       break
     }
   }
@@ -120,11 +251,13 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
   // Extract project name from PROCESSOR stream
   for (const stream of streams) {
     if (stream.path.includes('PROCESSOR') && !stream.path.includes('ONLINEIMAGE')) {
-      const text = (stream.decompressed || stream.content).toString('latin1')
-      // Look for project name patterns
-      const nameMatch = text.match(/LANLOGIX|([A-Z][A-Z0-9_]{3,15})/i)
+      const procData = stream.decompressed || stream.content
+      const text = procData.toString('latin1')
+      // Look for project name patterns - typically after some header bytes
+      // The visible text sample shows: "...LANLOGIX.MAIN_PROG..."
+      const nameMatch = text.match(/([A-Z][A-Z0-9_]{3,15})(?=[^A-Z0-9_]|$)/i)
       if (nameMatch) {
-        projectName = nameMatch[0]
+        projectName = nameMatch[1]
         console.log(`[RSS Parser] Found project name: ${projectName}`)
       }
       break
@@ -146,6 +279,7 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     }
 
     if (largestStream) {
+      rawProgramStream = largestStream.content
       programData = largestStream.decompressed || largestStream.content
       console.log(`[RSS Parser] Fallback - using largest stream: ${largestStream.path} (${programData.length} bytes)`)
     }
@@ -155,6 +289,7 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
   if (!programData) {
     for (const stream of streams) {
       if (stream.content.length > 0) {
+        rawProgramStream = stream.content
         programData = stream.decompressed || stream.content
         console.log(`[RSS Parser] Fallback: using stream ${stream.path}`)
         break
@@ -194,11 +329,27 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     }
   }
 
+  // Parse the header to understand data structure
+  // RSS PROGRAM FILES header format:
+  // Bytes 0-3: Version/flags
+  // Bytes 4-7: Header size (typically 0x10 = 16)
+  // Bytes 8-11: Compressed size
+  // Bytes 12-15: Uncompressed size
+  let headerInfo = ''
+  if (rawProgramStream && rawProgramStream.length >= 16) {
+    const version = rawProgramStream.readUInt32LE(0)
+    const headerSize = rawProgramStream.readUInt32LE(4)
+    const compSize = rawProgramStream.readUInt32LE(8)
+    const uncompSize = rawProgramStream.readUInt32LE(12)
+    headerInfo = `version=${version}, headerSize=${headerSize}, compSize=${compSize}, uncompSize=${uncompSize}`
+    console.log(`[RSS Parser] Header: ${headerInfo}`)
+  }
+
   // Parse the data
   const text = programData.toString('latin1')
-  const hexDump = programData.slice(0, 500).toString('hex')
-  console.log(`[RSS Parser] First 500 bytes hex: ${hexDump}`)
-  console.log(`[RSS Parser] Visible text sample: ${text.slice(0, 500).replace(/[^\x20-\x7E]/g, '.')}`)
+  const hexDump = programData.slice(0, 200).toString('hex')
+  console.log(`[RSS Parser] First 200 bytes hex: ${hexDump}`)
+  console.log(`[RSS Parser] Visible text sample: ${text.slice(0, 300).replace(/[^\x20-\x7E]/g, '.')}`)
 
   // Extract processor info
   if (text.includes('MicroLogix') || text.includes('1761') || text.includes('1762') ||
@@ -206,8 +357,12 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     processorType = 'MicroLogix'
   }
 
-  // Extract all visible addresses from multiple streams
-  const addresses = extractAddresses(text)
+  // Try to parse binary ladder structure first
+  const binaryResult = parseBinaryLadder(programData)
+  console.log(`[RSS Parser] Binary parsing found ${binaryResult.rungs.length} rungs, ${binaryResult.addresses.size} addresses`)
+
+  // Extract all visible addresses from text as fallback
+  const addresses = binaryResult.addresses.size > 0 ? binaryResult.addresses : extractAddresses(text)
 
   // Also scan DATA FILES and COMPILER streams for addresses
   if (dataFilesStream) {
@@ -234,8 +389,8 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     }
   }
 
-  // Try to extract ladder logic structure from PROGRAM FILES
-  let rungs = extractRungs(programData, text, addresses)
+  // Use binary-parsed rungs if available, otherwise fall back to text extraction
+  let rungs = binaryResult.rungs.length > 0 ? binaryResult.rungs : extractRungs(programData, text, addresses)
   console.log(`[RSS Parser] Extracted ${rungs.length} rungs`)
 
   // Ensure we always have at least one rung with file info
@@ -291,6 +446,155 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     modules: [],
     dataTypes: []
   }
+}
+
+/**
+ * Parse binary ladder logic from PROGRAM FILES stream
+ * RSLogix 500 uses a proprietary binary format for storing ladder logic
+ */
+function parseBinaryLadder(data: Buffer): { rungs: PlcRung[], addresses: Set<string> } {
+  const rungs: PlcRung[] = []
+  const addresses = new Set<string>()
+
+  // Skip past header if present (typically starts with version info)
+  let offset = 0
+
+  // Check for common RSS header patterns
+  if (data.length > 16) {
+    const version = data.readUInt32LE(0)
+    const headerSize = data.readUInt32LE(4)
+
+    // Valid header typically has version 0-2 and headerSize 16
+    if ((version === 0 || version === 2) && headerSize === 16) {
+      offset = headerSize
+      console.log(`[RSS Parser] Skipping ${headerSize}-byte header`)
+    }
+  }
+
+  // Look for ladder file markers
+  // RSLogix 500 ladder files start with specific signatures
+  const ladderMarkers: number[] = []
+
+  // Search for patterns that indicate ladder file starts
+  // Common pattern: 0x00 followed by file number then content
+  for (let i = offset; i < data.length - 8; i++) {
+    // Look for file header pattern
+    // Ladder files often start with a length word followed by file metadata
+    const b0 = data[i]
+    const b1 = data[i + 1]
+    const b2 = data[i + 2]
+    const b3 = data[i + 3]
+
+    // Pattern 1: Look for "LAD" text marker followed by file number
+    if (b0 === 0x4C && b1 === 0x41 && b2 === 0x44) { // "LAD"
+      ladderMarkers.push(i)
+      console.log(`[RSS Parser] Found LAD marker at offset ${i}`)
+    }
+
+    // Pattern 2: Look for typical rung start sequence
+    // Rungs often start with specific byte patterns
+    if (b0 === 0x00 && b1 > 0 && b1 < 0x10 && b2 === 0x00 && b3 > 0) {
+      // Could be: [rungLength low] [rungLength high] [type] [data...]
+    }
+  }
+
+  // If no explicit markers, try scanning for instruction patterns
+  // SLC 500 instructions are typically 4 bytes each:
+  // [opcode] [file type] [file number] [element]
+  const foundInstructions: Array<{offset: number, opcode: number, instruction: string, address: string}> = []
+
+  for (let i = offset; i < data.length - 4; i++) {
+    const opcode = data[i]
+
+    // Check if this looks like a valid instruction opcode
+    if (SLC500_OPCODES[opcode]) {
+      const fileType = data[i + 1]
+      const fileNum = data[i + 2]
+      const element = data[i + 3]
+
+      // Validate the operand looks reasonable
+      const fileTypeName = SLC500_FILE_TYPES_BINARY[fileType & 0x0F]
+      if (fileTypeName && fileNum < 100 && element < 256) {
+        const address = formatBinaryAddress(fileType, fileNum, element)
+        if (address) {
+          foundInstructions.push({
+            offset: i,
+            opcode,
+            instruction: SLC500_OPCODES[opcode],
+            address
+          })
+          addresses.add(address)
+        }
+      }
+    }
+  }
+
+  console.log(`[RSS Parser] Found ${foundInstructions.length} potential instructions in binary scan`)
+
+  // Group instructions into rungs
+  // Output instructions (OTE, OTL, OTU, etc.) typically end a rung
+  if (foundInstructions.length > 0) {
+    let currentInstructions: PlcInstruction[] = []
+    let currentRawText = ''
+    let rungNumber = 0
+    const outputOpcodes = [0x03, 0x04, 0x05, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x20, 0x21, 0x22, 0x23, 0x26, 0x40, 0x42]
+
+    for (const inst of foundInstructions) {
+      currentInstructions.push({
+        type: inst.instruction,
+        operands: [inst.address]
+      })
+      currentRawText += `${inst.instruction}(${inst.address})`
+
+      // End rung on output instruction
+      if (outputOpcodes.includes(inst.opcode) || currentInstructions.length >= 10) {
+        rungs.push({
+          number: rungNumber++,
+          rawText: currentRawText,
+          instructions: currentInstructions
+        })
+        currentInstructions = []
+        currentRawText = ''
+      }
+    }
+
+    // Add remaining instructions
+    if (currentInstructions.length > 0) {
+      rungs.push({
+        number: rungNumber++,
+        rawText: currentRawText,
+        instructions: currentInstructions
+      })
+    }
+  }
+
+  // Alternative approach: Look for ASCII instruction names in the binary
+  // Some RSS files store instructions as text
+  const text = data.toString('latin1')
+  const instPattern = /\b(XIC|XIO|OTE|OTL|OTU|TON|TOF|CTU|CTD|RES|MOV|ADD|SUB|MUL|DIV|EQU|NEQ|LES|GRT|JMP|JSR|LBL)\b/g
+  const textInstructions = [...text.matchAll(instPattern)]
+
+  if (textInstructions.length > 5 && rungs.length === 0) {
+    console.log(`[RSS Parser] Found ${textInstructions.length} text instruction names, trying text-based extraction`)
+    // This will be handled by extractRungs as fallback
+  }
+
+  return { rungs, addresses }
+}
+
+/**
+ * Format a binary address reference to string format
+ */
+function formatBinaryAddress(fileType: number, fileNum: number, element: number, bit?: number): string | null {
+  const typeCode = SLC500_FILE_TYPES_BINARY[fileType & 0x0F]
+  if (!typeCode) return null
+
+  let addr = `${typeCode}${fileNum}:${element}`
+  if (bit !== undefined) {
+    addr += `/${bit}`
+  }
+
+  return addr
 }
 
 /**
