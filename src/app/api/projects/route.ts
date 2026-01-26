@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { analyzeProject } from '@/lib/project-analysis'
+import { requireAuth } from '@/lib/auth'
 
 // Parser API URL - set in environment
 const PARSER_API_URL = process.env.PARSER_API_URL || 'http://localhost:8000'
@@ -25,32 +26,44 @@ function safeInt(value: number | undefined | null): number | null {
   return value
 }
 
-// GET - List all projects
+// GET - List all projects for authenticated user
 export async function GET() {
-  // TODO: Add authentication
-  const projects = await prisma.project.findMany({
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      name: true,
-      fileName: true,
-      processorType: true,
-      createdAt: true,
-      _count: {
-        select: {
-          tags: true,
-          programs: true
+  try {
+    const user = await requireAuth()
+
+    const projects = await prisma.project.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        fileName: true,
+        processorType: true,
+        createdAt: true,
+        _count: {
+          select: {
+            tags: true,
+            programs: true
+          }
         }
       }
-    }
-  })
+    })
 
-  return NextResponse.json(projects)
+    return NextResponse.json(projects)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    throw error
+  }
 }
 
 // POST - Upload and parse a new project
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    const user = await requireAuth()
+
     const formData = await request.formData()
     const file = formData.get('file') as File
 
@@ -74,9 +87,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Upload] File: ${file.name}, Size: ${fileSize}, Hash: ${fileHash.substring(0, 16)}...`)
 
-    // Check if this exact file has been uploaded before
+    // Check if this exact file has been uploaded before by this user
     const existingProject = await prisma.project.findFirst({
-      where: { fileHash },
+      where: { fileHash, userId: user.id },
       select: {
         id: true,
         name: true,
@@ -158,10 +171,10 @@ export async function POST(request: NextRequest) {
     }
     console.log(`[DEBUG] Total rungs received: ${totalRungs}`)
 
-    // Store in database
-    // TODO: Add userId from session when auth is implemented
+    // Store in database with user association
     const dbProject = await prisma.project.create({
       data: {
+        userId: user.id,
         name: project.controller?.name || project.file_name || 'Unknown Project',
         fileName: file.name,
         fileHash: fileHash,
@@ -542,6 +555,11 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
 
   } catch (error) {
+    // Handle auth errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     console.error('Error processing file:', error)
     const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
 import {
   chatWithProject,
   chatWithAnalyzedProject,
@@ -7,16 +8,30 @@ import {
   type AnalyzedProjectContext
 } from '@/lib/claude'
 
+// Helper to verify project ownership
+async function verifyProjectOwnership(projectId: string, userId: string) {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId }
+  })
+  return project !== null
+}
+
 // GET /api/projects/[id]/chat - List chat sessions for project
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth()
     const { id: projectId } = await params
 
+    // Verify project ownership
+    if (!await verifyProjectOwnership(projectId, user.id)) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
     const sessions = await prisma.chatSession.findMany({
-      where: { projectId },
+      where: { projectId, userId: user.id },
       orderBy: { updatedAt: 'desc' },
       include: {
         messages: {
@@ -39,6 +54,9 @@ export async function GET(
       }))
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('Failed to list chat sessions:', error)
     return NextResponse.json({ error: 'Failed to list sessions' }, { status: 500 })
   }
@@ -50,12 +68,18 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth()
     const { id: projectId } = await params
     const body = await request.json()
     const { sessionId, message, stream = false } = body
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+    }
+
+    // Verify project ownership
+    if (!await verifyProjectOwnership(projectId, user.id)) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
     // Check if we have pre-computed analysis (cost optimized path)
@@ -213,10 +237,11 @@ export async function POST(
         return NextResponse.json({ error: 'Session not found' }, { status: 404 })
       }
     } else {
-      // Create new session
+      // Create new session with user association
       session = await prisma.chatSession.create({
         data: {
           projectId,
+          userId: user.id,
           title: message.slice(0, 100)
         },
         include: {
@@ -282,6 +307,9 @@ export async function POST(
       })
     }
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('Chat error:', error)
     return NextResponse.json({ error: 'Chat failed' }, { status: 500 })
   }

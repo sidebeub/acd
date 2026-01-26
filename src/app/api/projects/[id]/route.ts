@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -10,35 +11,43 @@ export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ) {
-  const { id } = await params
+  try {
+    const user = await requireAuth()
+    const { id } = await params
 
-  const project = await prisma.project.findUnique({
-    where: { id },
-    include: {
-      tags: true,
-      programs: {
-        include: {
-          routines: {
-            include: {
-              rungs: true,
-              analysis: true
-            }
-          },
-          localTags: true
-        }
-      },
-      tasks: true,
-      modules: true,
-      dataTypes: true,
-      analysis: true
+    const project = await prisma.project.findFirst({
+      where: { id, userId: user.id },
+      include: {
+        tags: true,
+        programs: {
+          include: {
+            routines: {
+              include: {
+                rungs: true,
+                analysis: true
+              }
+            },
+            localTags: true
+          }
+        },
+        tasks: true,
+        modules: true,
+        dataTypes: true,
+        analysis: true
+      }
+    })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
-  })
 
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    return NextResponse.json(project)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    throw error
   }
-
-  return NextResponse.json(project)
 }
 
 // DELETE - Delete a project
@@ -46,15 +55,28 @@ export async function DELETE(
   request: NextRequest,
   { params }: RouteParams
 ) {
-  const { id } = await params
-
   try {
+    const user = await requireAuth()
+    const { id } = await params
+
+    // Verify ownership before deleting
+    const project = await prisma.project.findFirst({
+      where: { id, userId: user.id }
+    })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
     await prisma.project.delete({
       where: { id }
     })
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
 }
