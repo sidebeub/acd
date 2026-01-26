@@ -140,6 +140,8 @@ export async function GET(
       return generateMarkdownReport(reportData)
     } else if (format === 'html') {
       return generateHtmlReport(reportData)
+    } else if (format === 'operator') {
+      return generateOperatorGuide(project)
     }
 
     return NextResponse.json(reportData)
@@ -346,6 +348,281 @@ function generateHtmlReport(data: any): NextResponse {
     headers: {
       'Content-Type': 'text/html',
       'Content-Disposition': `attachment; filename="${data.project.name}-report.html"`
+    }
+  })
+}
+
+// Instruction explanations for operators
+const INSTRUCTION_EXPLANATIONS: Record<string, (args: string[]) => string> = {
+  'XIC': (args) => `When "${args[0]}" is ON`,
+  'XIO': (args) => `When "${args[0]}" is OFF`,
+  'OTE': (args) => `Turn ON "${args[0]}"`,
+  'OTL': (args) => `Latch ON "${args[0]}" (stays ON until unlatched)`,
+  'OTU': (args) => `Unlatch "${args[0]}" (turn OFF latched output)`,
+  'TON': (args) => `Start timer "${args[0]}" (delays turning ON)`,
+  'TOF': (args) => `Start timer "${args[0]}" (delays turning OFF)`,
+  'RTO': (args) => `Start retentive timer "${args[0]}" (accumulates time)`,
+  'CTU': (args) => `Count UP on "${args[0]}"`,
+  'CTD': (args) => `Count DOWN on "${args[0]}"`,
+  'RES': (args) => `Reset "${args[0]}" to zero`,
+  'MOV': (args) => `Move value ${args[0]} to "${args[1]}"`,
+  'ADD': (args) => `Add ${args[0]} + ${args[1]}, store in "${args[2]}"`,
+  'SUB': (args) => `Subtract ${args[0]} - ${args[1]}, store in "${args[2]}"`,
+  'MUL': (args) => `Multiply ${args[0]} × ${args[1]}, store in "${args[2]}"`,
+  'DIV': (args) => `Divide ${args[0]} ÷ ${args[1]}, store in "${args[2]}"`,
+  'EQU': (args) => `When ${args[0]} equals ${args[1]}`,
+  'NEQ': (args) => `When ${args[0]} does NOT equal ${args[1]}`,
+  'GRT': (args) => `When ${args[0]} is greater than ${args[1]}`,
+  'GEQ': (args) => `When ${args[0]} is greater than or equal to ${args[1]}`,
+  'LES': (args) => `When ${args[0]} is less than ${args[1]}`,
+  'LEQ': (args) => `When ${args[0]} is less than or equal to ${args[1]}`,
+  'JSR': (args) => `Jump to subroutine "${args[0]}"`,
+  'JMP': (args) => `Jump to label "${args[0]}"`,
+  'LBL': (args) => `Label "${args[0]}"`,
+  'ONS': (args) => `One-shot using "${args[0]}" (triggers once per ON)`,
+  'AFI': () => `Always False (disabled/bypassed)`,
+  'NOP': () => `No operation (placeholder)`,
+  'BST': () => `Branch start`,
+  'BND': () => `Branch end`,
+  'COP': (args) => `Copy from "${args[0]}" to "${args[1]}"`,
+  'CLR': (args) => `Clear/zero "${args[0]}"`,
+  'SQO': (args) => `Sequencer output using "${args[0]}"`,
+  'SQI': (args) => `Sequencer input compare using "${args[0]}"`,
+  'SQL': (args) => `Sequencer load using "${args[0]}"`,
+}
+
+// Parse a rung and extract instructions with their arguments
+function parseRungInstructions(rungText: string): { instruction: string; args: string[] }[] {
+  const results: { instruction: string; args: string[] }[] = []
+  const instructionRegex = /([A-Z_][A-Z0-9_]*)\(([^)]*)\)/gi
+  let match
+
+  while ((match = instructionRegex.exec(rungText)) !== null) {
+    const instruction = match[1].toUpperCase()
+    const argsStr = match[2]
+
+    // Parse arguments (handle nested parentheses and array brackets)
+    const args: string[] = []
+    let current = ''
+    let depth = 0
+
+    for (const char of argsStr) {
+      if ((char === '(' || char === '[') && depth >= 0) {
+        depth++
+        current += char
+      } else if ((char === ')' || char === ']') && depth > 0) {
+        depth--
+        current += char
+      } else if (char === ',' && depth === 0) {
+        if (current.trim()) args.push(current.trim())
+        current = ''
+      } else {
+        current += char
+      }
+    }
+    if (current.trim()) args.push(current.trim())
+
+    results.push({ instruction, args })
+  }
+
+  return results
+}
+
+// Generate human-readable explanation for a rung
+function explainRung(rungText: string, rungComment?: string | null): string {
+  const instructions = parseRungInstructions(rungText)
+  if (instructions.length === 0) return 'Empty rung'
+
+  const conditions: string[] = []
+  const actions: string[] = []
+
+  for (const { instruction, args } of instructions) {
+    const explainer = INSTRUCTION_EXPLANATIONS[instruction]
+    if (!explainer) continue
+
+    const explanation = explainer(args)
+
+    // Categorize as condition or action
+    if (['XIC', 'XIO', 'EQU', 'NEQ', 'GRT', 'GEQ', 'LES', 'LEQ', 'ONS', 'LIM'].includes(instruction)) {
+      conditions.push(explanation)
+    } else if (!['BST', 'BND', 'NOP'].includes(instruction)) {
+      actions.push(explanation)
+    }
+  }
+
+  let explanation = ''
+
+  if (conditions.length > 0 && actions.length > 0) {
+    explanation = `${conditions.join(' AND ')} → ${actions.join(', ')}`
+  } else if (actions.length > 0) {
+    explanation = `Always: ${actions.join(', ')}`
+  } else if (conditions.length > 0) {
+    explanation = `Condition check: ${conditions.join(' AND ')}`
+  } else {
+    explanation = 'Control flow instruction'
+  }
+
+  return explanation
+}
+
+// Detect safety-related tags
+function isSafetyRelated(text: string): boolean {
+  const safetyPatterns = [
+    /e[-_]?stop|estop|emergency/i,
+    /guard|door[-_]?sw|gate[-_]?sw/i,
+    /light[-_]?curtain|lc[-_]/i,
+    /safety|interlock|intlk/i,
+    /fault|alarm|error/i,
+    /overload|over[-_]?temp/i,
+  ]
+  return safetyPatterns.some(p => p.test(text))
+}
+
+function generateOperatorGuide(project: any): NextResponse {
+  const lines: string[] = []
+
+  lines.push(`# Operator Guide: ${project.name}`)
+  lines.push('')
+  lines.push(`This guide explains the PLC program in plain language for operators and maintenance personnel.`)
+  lines.push('')
+  lines.push(`**System:** ${project.processorType || 'PLC Controller'}`)
+  lines.push(`**Generated:** ${new Date().toLocaleString()}`)
+  lines.push('')
+  lines.push('---')
+  lines.push('')
+
+  // Table of Contents
+  lines.push('## Table of Contents')
+  lines.push('')
+  for (const program of project.programs) {
+    lines.push(`- [${program.name}](#${program.name.toLowerCase().replace(/[^a-z0-9]/g, '-')})`)
+  }
+  lines.push('')
+  lines.push('---')
+  lines.push('')
+
+  // Process each program
+  for (const program of project.programs) {
+    lines.push(`## ${program.name}`)
+    lines.push('')
+
+    if (program.description) {
+      lines.push(`**Purpose:** ${program.description}`)
+      lines.push('')
+    }
+
+    if (program.disabled) {
+      lines.push('> ⚠️ **Note:** This program is currently DISABLED')
+      lines.push('')
+    }
+
+    // Process each routine
+    for (const routine of program.routines) {
+      if (routine.rungs.length === 0) continue
+
+      lines.push(`### ${routine.name}`)
+      lines.push('')
+
+      if (routine.description) {
+        lines.push(`*${routine.description}*`)
+        lines.push('')
+      }
+
+      // Group rungs by their comments (sections)
+      let currentSection = ''
+      let rungExplanations: { number: number; comment?: string; explanation: string; isSafety: boolean }[] = []
+
+      for (const rung of routine.rungs.sort((a: any, b: any) => a.number - b.number)) {
+        const explanation = explainRung(rung.rawText, rung.comment)
+        const isSafety = isSafetyRelated(rung.rawText) || isSafetyRelated(rung.comment || '')
+
+        rungExplanations.push({
+          number: rung.number,
+          comment: rung.comment || undefined,
+          explanation,
+          isSafety
+        })
+      }
+
+      // Output explanations, grouping by comments
+      for (const rung of rungExplanations) {
+        if (rung.comment && rung.comment !== currentSection) {
+          currentSection = rung.comment
+          lines.push('')
+          lines.push(`#### ${rung.comment}`)
+          lines.push('')
+        }
+
+        const safetyMarker = rung.isSafety ? ' 🛡️' : ''
+        lines.push(`- **Rung ${rung.number}${safetyMarker}:** ${rung.explanation}`)
+      }
+
+      lines.push('')
+    }
+
+    lines.push('---')
+    lines.push('')
+  }
+
+  // Safety Summary Section
+  lines.push('## Safety Summary')
+  lines.push('')
+  lines.push('The following tags and logic are related to safety systems. **Do not bypass or modify without proper authorization.**')
+  lines.push('')
+
+  const safetyTags = new Set<string>()
+  const safetyPatterns = [
+    { regex: /e[-_]?stop|estop|emergency/i, label: 'Emergency Stop' },
+    { regex: /guard|door[-_]?sw|gate[-_]?sw/i, label: 'Guard/Door' },
+    { regex: /light[-_]?curtain|lc[-_]/i, label: 'Light Curtain' },
+    { regex: /interlock|intlk/i, label: 'Interlock' },
+  ]
+
+  for (const program of project.programs) {
+    for (const routine of program.routines) {
+      for (const rung of routine.rungs) {
+        const tagRegex = /([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)/g
+        let match
+        while ((match = tagRegex.exec(rung.rawText)) !== null) {
+          const tag = match[1]
+          for (const pattern of safetyPatterns) {
+            if (pattern.regex.test(tag)) {
+              safetyTags.add(`${tag} (${pattern.label})`)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (safetyTags.size > 0) {
+    for (const tag of Array.from(safetyTags).sort()) {
+      lines.push(`- 🛡️ ${tag}`)
+    }
+  } else {
+    lines.push('No safety-related tags detected by pattern matching.')
+  }
+
+  lines.push('')
+  lines.push('---')
+  lines.push('')
+  lines.push('## Legend')
+  lines.push('')
+  lines.push('- **→** means "causes" or "results in"')
+  lines.push('- **AND** means all conditions must be true')
+  lines.push('- **ON/OFF** refers to the state of a bit or signal')
+  lines.push('- **Latch** stays ON until explicitly unlatched')
+  lines.push('- **Timer** delays an action by a set time')
+  lines.push('- **Counter** tracks the number of occurrences')
+  lines.push('- 🛡️ indicates safety-critical logic')
+  lines.push('')
+
+  const markdown = lines.join('\n')
+
+  return new NextResponse(markdown, {
+    headers: {
+      'Content-Type': 'text/markdown',
+      'Content-Disposition': `attachment; filename="${project.name}-operator-guide.md"`
     }
   })
 }

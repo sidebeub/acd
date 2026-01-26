@@ -1924,64 +1924,177 @@ function parseOperands(operandsStr: string): string[] {
 }
 
 /**
- * Detect branch structure from rung text
- * Rockwell uses brackets [] and commas , to denote parallel branches
+ * Parsed rung structure showing shared conditions, branches, and outputs
  */
-function detectBranches(rungText: string): string[][] {
-  const branches: string[][] = []
+interface ParsedRungStructure {
+  sharedPrefix: string[]  // Instructions before any branches
+  branches: string[][]    // Parallel branches (each is an array of instruction strings)
+  sharedSuffix: string[]  // Instructions after branches (outputs)
+  hasBranches: boolean
+}
 
-  // Try to parse branch structure from brackets and commas
-  // Format examples:
-  // [XIC(a) ,XIC(b)] OTE(c) - two parallel inputs to one output
-  // XIC(a) [OTE(b) ,OTE(c)] - one input to two parallel outputs
-  // [XIC(a) OTE(b) ,XIC(c) OTE(d)] - two complete parallel branches
+/**
+ * Check if a bracket at position i is a branch bracket (not an array index)
+ * Branch brackets contain instructions (have INSTR( pattern inside) or commas
+ * Array brackets just contain numbers/expressions like [1], [i], [x+1]
+ */
+function isBranchBracket(text: string, openPos: number): boolean {
+  // Find the matching close bracket
+  let depth = 1
+  let closePos = openPos + 1
+  while (closePos < text.length && depth > 0) {
+    if (text[closePos] === '[') depth++
+    else if (text[closePos] === ']') depth--
+    closePos++
+  }
 
-  // Simplified approach: split by top-level commas that indicate branches
+  const content = text.substring(openPos + 1, closePos - 1)
+
+  // Branch brackets contain instructions (NAME() pattern) or commas at top level
+  // Array brackets are short and contain only numbers, identifiers, or simple expressions
+
+  // Check for instruction pattern (NAME followed by open paren)
+  if (/[A-Z_][A-Z0-9_]*\(/i.test(content)) {
+    return true
+  }
+
+  // Check if comma is at top level (not inside parentheses) = branch separator
+  let parenDepth = 0
+  for (const char of content) {
+    if (char === '(') parenDepth++
+    else if (char === ')') parenDepth--
+    else if (char === ',' && parenDepth === 0) return true
+  }
+
+  return false
+}
+
+/**
+ * Parse rung text into structured sections
+ * Rockwell format: INSTR()[BRANCH1,BRANCH2,...]INSTR()
+ */
+function parseRungStructure(rungText: string): ParsedRungStructure {
+  const result: ParsedRungStructure = {
+    sharedPrefix: [],
+    branches: [],
+    sharedSuffix: [],
+    hasBranches: false
+  }
+
+  // Find the bracket structure for branches (skip array index brackets)
+  let bracketStart = -1
+  let bracketEnd = -1
   let depth = 0
-  let currentBranch = ''
-  const topLevelParts: string[] = []
+  let parenDepth = 0
 
   for (let i = 0; i < rungText.length; i++) {
     const char = rungText[i]
-    if (char === '[') {
+    if (char === '(') {
+      parenDepth++
+    } else if (char === ')') {
+      parenDepth--
+    } else if (char === '[' && parenDepth === 0) {
+      // Only consider brackets outside of instruction operands
+      if (depth === 0) {
+        // Check if this is a branch bracket, not an array index
+        if (isBranchBracket(rungText, i)) {
+          bracketStart = i
+          depth++
+        }
+      } else {
+        depth++
+      }
+    } else if (char === ']' && parenDepth === 0 && depth > 0) {
+      depth--
+      if (depth === 0) {
+        bracketEnd = i
+        break // Only handle first top-level bracket group
+      }
+    }
+  }
+
+  if (bracketStart === -1 || bracketEnd === -1) {
+    // No branch brackets - simple linear rung
+    result.sharedPrefix = extractInstructions(rungText)
+    return result
+  }
+
+  result.hasBranches = true
+
+  // Extract prefix (before brackets)
+  const prefixText = rungText.substring(0, bracketStart)
+  result.sharedPrefix = extractInstructions(prefixText)
+
+  // Extract suffix (after brackets)
+  const suffixText = rungText.substring(bracketEnd + 1)
+  result.sharedSuffix = extractInstructions(suffixText)
+
+  // Extract branches from inside brackets
+  const branchContent = rungText.substring(bracketStart + 1, bracketEnd)
+
+  // Split by commas at depth 0 (within this bracket level, outside parens)
+  const branchTexts: string[] = []
+  let currentBranch = ''
+  depth = 0
+  parenDepth = 0
+
+  for (const char of branchContent) {
+    if (char === '(') {
+      parenDepth++
+      currentBranch += char
+    } else if (char === ')') {
+      parenDepth--
+      currentBranch += char
+    } else if (char === '[') {
       depth++
       currentBranch += char
     } else if (char === ']') {
       depth--
       currentBranch += char
-    } else if (char === ',' && depth === 1) {
-      // Top-level comma inside brackets = branch separator
-      topLevelParts.push(currentBranch.trim())
+    } else if (char === ',' && depth === 0 && parenDepth === 0) {
+      branchTexts.push(currentBranch.trim())
       currentBranch = ''
     } else {
       currentBranch += char
     }
   }
   if (currentBranch.trim()) {
-    topLevelParts.push(currentBranch.trim())
+    branchTexts.push(currentBranch.trim())
   }
 
-  // If we found multiple parts, we have branches
-  if (topLevelParts.length > 1) {
-    return topLevelParts.map(part => {
-      const regex = /([A-Z_][A-Z0-9_]*)\(([^)]*)\)/gi
-      const instrs: string[] = []
-      let match
-      while ((match = regex.exec(part)) !== null) {
-        instrs.push(`${match[1].toUpperCase()}(${match[2]})`)
-      }
-      return instrs
-    })
-  }
+  // Parse instructions in each branch
+  result.branches = branchTexts.map(bt => extractInstructions(bt))
 
-  // No branch structure detected - return all instructions as single branch
-  const regex = /([A-Z_][A-Z0-9_]*)\(([^)]*)\)/gi
-  const allInstrs: string[] = []
+  return result
+}
+
+/**
+ * Extract instruction strings from a text segment
+ */
+function extractInstructions(text: string): string[] {
+  const instructions: string[] = []
+  // Match instructions - looking for NAME( pattern
+  const regex = /([A-Z_][A-Z0-9_]*)\(/gi
   let match
-  while ((match = regex.exec(rungText)) !== null) {
-    allInstrs.push(`${match[1].toUpperCase()}(${match[2]})`)
+
+  while ((match = regex.exec(text)) !== null) {
+    const instrName = match[1].toUpperCase()
+    const startIdx = match.index + match[0].length
+
+    // Find matching closing paren, only count () for depth (not [] which are array indexes)
+    let depth = 1
+    let endIdx = startIdx
+    while (endIdx < text.length && depth > 0) {
+      if (text[endIdx] === '(') depth++
+      else if (text[endIdx] === ')') depth--
+      endIdx++
+    }
+
+    const operands = text.substring(startIdx, endIdx - 1)
+    instructions.push(`${instrName}(${operands})`)
   }
-  return [allInstrs]
+
+  return instructions
 }
 
 /**
@@ -1991,12 +2104,33 @@ function isConditionInstruction(instruction: string): boolean {
   return ['XIC', 'XIO', 'EQU', 'NEQ', 'GRT', 'GEQ', 'LES', 'LEQ', 'LIM', 'CMP', 'MEQ'].includes(instruction)
 }
 
+/**
+ * Get explanation for an instruction string like "XIC(tag)"
+ */
+function getInstructionExplanationFromString(
+  instrString: string,
+  mode: ExplanationMode
+): { instruction: string; operands: string[]; explanation: string } | null {
+  const match = instrString.match(/([A-Z_][A-Z0-9_]*)\(([^)]*)\)/i)
+  if (!match) return null
+
+  const instruction = match[1].toUpperCase()
+  const operands = parseOperands(match[2])
+  const explanation = getInstructionExplanation(instruction, operands, mode)
+
+  return {
+    instruction,
+    operands,
+    explanation: explanation || `${instruction}(${operands.join(', ')})`
+  }
+}
+
 export function generateFullRungExplanation(
   rungText: string,
   mode: ExplanationMode,
   includeRaw: boolean = false
 ): string {
-  const branches = detectBranches(rungText)
+  const structure = parseRungStructure(rungText)
   const allInstructions = explainRungInstructions(rungText, mode)
 
   if (allInstructions.length === 0) {
@@ -2006,37 +2140,76 @@ export function generateFullRungExplanation(
   let explanation = ''
 
   if (mode === 'friendly') {
-    if (branches.length > 1) {
-      // Multiple branches - explain each separately
-      explanation = 'This rung has parallel branches:\n'
-      branches.forEach((branch, idx) => {
-        const branchInstrs = branch.map(instrText => {
-          const match = instrText.match(/([A-Z_][A-Z0-9_]*)\(([^)]*)\)/i)
-          if (match) {
-            const found = allInstructions.find(i =>
-              i.instruction === match[1].toUpperCase() &&
-              i.operands.join(',') === match[2]
-            )
-            return found || { instruction: match[1], explanation: instrText }
+    // Get shared prefix conditions
+    const prefixParts = structure.sharedPrefix
+      .map(s => getInstructionExplanationFromString(s, mode))
+      .filter(Boolean)
+    const prefixConditions = prefixParts.filter(p => isConditionInstruction(p!.instruction))
+
+    // Get shared suffix outputs
+    const suffixParts = structure.sharedSuffix
+      .map(s => getInstructionExplanationFromString(s, mode))
+      .filter(Boolean)
+
+    if (structure.hasBranches && structure.branches.some(b => b.length > 0)) {
+      // Has parallel branches
+      const nonEmptyBranches = structure.branches.filter(b => b.length > 0)
+
+      if (nonEmptyBranches.length > 1) {
+        // Multiple non-empty branches
+        explanation = 'When '
+        if (prefixConditions.length > 0) {
+          explanation += prefixConditions.map(c => c!.explanation).join(' AND ')
+          explanation += ', one of these parallel paths executes:\n'
+        } else {
+          explanation += 'one of these parallel paths executes:\n'
+        }
+
+        nonEmptyBranches.forEach((branch, idx) => {
+          const branchParts = branch
+            .map(s => getInstructionExplanationFromString(s, mode))
+            .filter(Boolean)
+
+          const branchConditions = branchParts.filter(p => isConditionInstruction(p!.instruction))
+          const branchOutputs = branchParts.filter(p => !isConditionInstruction(p!.instruction))
+
+          explanation += `  ${idx + 1}. `
+          if (branchConditions.length > 0) {
+            explanation += `If ${branchConditions.map(c => c!.explanation).join(' AND ')}`
           }
-          return null
-        }).filter(Boolean)
+          if (branchOutputs.length > 0) {
+            if (branchConditions.length > 0) explanation += ' → '
+            explanation += branchOutputs.map(o => o!.explanation).join(', ')
+          }
+          explanation += '\n'
+        })
+      } else if (nonEmptyBranches.length === 1) {
+        // Single non-empty branch (other branch was empty - unconditional parallel path)
+        const branchParts = nonEmptyBranches[0]
+          .map(s => getInstructionExplanationFromString(s, mode))
+          .filter(Boolean)
 
-        const conditions = branchInstrs.filter(i => i && isConditionInstruction(i.instruction))
-        const outputs = branchInstrs.filter(i => i && !isConditionInstruction(i.instruction))
+        const branchConditions = branchParts.filter(p => isConditionInstruction(p!.instruction))
+        const branchOutputs = branchParts.filter(p => !isConditionInstruction(p!.instruction))
 
-        explanation += `  ${idx + 1}. `
-        if (conditions.length > 0) {
-          explanation += `If ${conditions.map(c => c!.explanation).join(' AND ')}`
+        const allConditions = [...prefixConditions, ...branchConditions]
+        const allOutputs = [...branchOutputs]
+
+        if (allConditions.length > 0 && allOutputs.length > 0) {
+          explanation = `If ${allConditions.map(c => c!.explanation).join(' AND ')} → ${allOutputs.map(o => o!.explanation).join(', ')}`
+        } else if (allConditions.length > 0) {
+          explanation = `Check: ${allConditions.map(c => c!.explanation).join(' AND ')}`
+        } else if (allOutputs.length > 0) {
+          explanation = `Execute: ${allOutputs.map(o => o!.explanation).join(', ')}`
         }
-        if (outputs.length > 0) {
-          if (conditions.length > 0) explanation += ' → '
-          explanation += outputs.map(o => o!.explanation).join(', ')
-        }
-        explanation += '\n'
-      })
+      }
+
+      // Add suffix outputs
+      if (suffixParts.length > 0) {
+        explanation += `\nAlso: ${suffixParts.map(s => s!.explanation).join(', ')}`
+      }
     } else {
-      // Single branch - use simple format
+      // Simple linear rung - no branches
       const conditions = allInstructions.filter(i => isConditionInstruction(i.instruction))
       const outputs = allInstructions.filter(i => !isConditionInstruction(i.instruction))
 

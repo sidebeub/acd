@@ -81,6 +81,14 @@ model Project {
   tasks           PlcTask[]
   modules         Module[]
   dataTypes       DataType[]
+  chatSessions    ChatSession[]
+  analysis        ProjectAnalysis?
+
+  // New relations
+  addOnInstructions AddOnInstruction[]
+  alarms            AlarmDefinition[]
+  messages          MessageConfig[]
+  trends            TrendConfig[]
 
   @@index([userId])
 }
@@ -140,6 +148,7 @@ model Routine {
   description     String?
 
   rungs           Rung[]
+  analysis        RoutineAnalysis?
 
   @@unique([programId, name])
   @@index([programId])
@@ -237,6 +246,107 @@ model DataType {
 }
 
 // ============================================
+// Add-On Instructions (AOI)
+// ============================================
+
+model AddOnInstruction {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  description     String?
+  revision        String?
+  vendor          String?
+
+  // Parameters (JSON array)
+  parameters      String?   // JSON: [{name, dataType, usage, required, visible, description}]
+
+  // Local tags (JSON array)
+  localTags       String?   // JSON: [{name, dataType, description}]
+
+  // Logic (JSON - routines with rungs)
+  logic           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+// ============================================
+// Alarms
+// ============================================
+
+model AlarmDefinition {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  alarmType       String    // "digital" or "analog"
+  inputTag        String?   // Tag that triggers the alarm
+  message         String?   // Alarm message text
+  severity        String?   // "low", "medium", "high", "urgent"
+
+  // Analog alarm limits
+  highHighLimit   Float?
+  highLimit       Float?
+  lowLimit        Float?
+  lowLowLimit     Float?
+  deadband        Float?
+
+  enabled         Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+
+  @@index([projectId])
+  @@index([projectId, alarmType])
+}
+
+// ============================================
+// Message Instructions
+// ============================================
+
+model MessageConfig {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  messageType     String?   // "CIP", "PCCC", etc.
+  path            String?   // Communication path
+  sourceTag       String?
+  destinationTag  String?
+  description     String?
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+// ============================================
+// Trends / Data Logs
+// ============================================
+
+model TrendConfig {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  description     String?
+  samplePeriodMs  Float?
+  tags            String?   // JSON array of tag names
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+// ============================================
 // Cross-Reference & Analysis
 // ============================================
 
@@ -305,4 +415,84 @@ model RungExplanationCache {
   updatedAt       DateTime  @updatedAt
 
   @@index([rungHash])
+}
+
+// ============================================
+// AI Chat Sessions
+// ============================================
+
+model ChatSession {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title           String?   // Auto-generated from first message
+  messages        ChatMessage[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([projectId])
+}
+
+model ChatMessage {
+  id              String    @id @default(cuid())
+  sessionId       String
+  session         ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role            String    // 'user' | 'assistant'
+  content         String    @db.Text
+  metadata        Json?     // For code blocks, referenced rungs, etc.
+
+  createdAt       DateTime  @default(now())
+
+  @@index([sessionId])
+}
+
+// ============================================
+// Pre-computed Project Analysis (Cost Optimization)
+// ============================================
+
+model ProjectAnalysis {
+  id              String    @id @default(cuid())
+  projectId       String    @unique
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // High-level analysis
+  overview        String    @db.Text  // Overall project summary
+  architecture    String    @db.Text  // Program structure and flow
+  safetyNotes     String?   @db.Text  // Safety considerations
+  concerns        String?   @db.Text  // Potential issues identified
+  patterns        String?   @db.Text  // Common patterns detected
+
+  // Tag analysis
+  keyTags         String?   @db.Text  // Important tags and their purposes
+  ioSummary       String?   @db.Text  // I/O organization summary
+
+  // Status
+  status          String    @default("pending") // pending, analyzing, complete, failed
+  tokensUsed      Int?      // Track API usage
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model RoutineAnalysis {
+  id              String    @id @default(cuid())
+  routineId       String    @unique
+  routine         Routine   @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  // Routine analysis
+  purpose         String    @db.Text  // What this routine does
+  sequenceFlow    String?   @db.Text  // Step-by-step sequence explanation
+  keyLogic        String?   @db.Text  // Important logic patterns
+  dependencies    String?   @db.Text  // Other routines it calls/depends on
+  safetyNotes     String?   @db.Text  // Safety-related observations
+
+  // Status
+  status          String    @default("pending") // pending, analyzing, complete, failed
+  tokensUsed      Int?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }

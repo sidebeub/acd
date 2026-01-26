@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { analyzeProject } from '@/lib/project-analysis'
 
 // Parser API URL - set in environment
 const PARSER_API_URL = process.env.PARSER_API_URL || 'http://localhost:8000'
@@ -317,21 +318,148 @@ export async function POST(request: NextRequest) {
           }))
         },
         dataTypes: {
-          create: (project.data_types || []).map((dt: {
-            name: string
-            family?: string
-            description?: string
-            members?: Array<{
+          create: (() => {
+            const seen = new Set<string>()
+            return (project.data_types || [])
+              .filter((dt: { name: string }) => {
+                if (!dt.name || seen.has(dt.name)) return false
+                seen.add(dt.name)
+                return true
+              })
+              .map((dt: {
+                name: string
+                family?: string
+                description?: string
+                members?: Array<{
+                  name: string
+                  data_type: string
+                  dimension?: number
+                }>
+              }) => ({
+                name: dt.name,
+                family: dt.family || null,
+                description: dt.description || null,
+                members: JSON.stringify(dt.members || [])
+              }))
+          })()
+        },
+        // Add-On Instructions (deduplicated)
+        addOnInstructions: {
+          create: (() => {
+            const seen = new Set<string>()
+            return (project.add_on_instructions || [])
+              .filter((aoi: { name: string }) => {
+                if (!aoi.name || seen.has(aoi.name)) return false
+                seen.add(aoi.name)
+                return true
+              })
+              .map((aoi: {
+                name: string
+                description?: string
+                revision?: string
+                vendor?: string
+                parameters?: Array<{
+                  name: string
+                  data_type: string
+                  usage?: string
+                  required?: boolean
+                  visible?: boolean
+                  description?: string
+                }>
+                local_tags?: Array<{
+                  name: string
+                  data_type: string
+                  description?: string
+                }>
+              }) => ({
+                name: aoi.name,
+                description: aoi.description || null,
+                revision: aoi.revision || null,
+                vendor: aoi.vendor || null,
+                parameters: JSON.stringify(aoi.parameters || []),
+                localTags: JSON.stringify(aoi.local_tags || [])
+              }))
+          })()
+        },
+        // Alarms (no unique constraint, just filter empty names)
+        alarms: {
+          create: (project.alarms || [])
+            .filter((alarm: { name: string }) => alarm.name)
+            .map((alarm: {
               name: string
-              data_type: string
-              dimension?: number
-            }>
-          }) => ({
-            name: dt.name,
-            family: dt.family || null,
-            description: dt.description || null,
-            members: JSON.stringify(dt.members || [])
-          }))
+              alarm_type?: string
+              input_tag?: string
+              message?: string
+              severity?: string
+              high_high_limit?: number
+              high_limit?: number
+              low_limit?: number
+              low_low_limit?: number
+              deadband?: number
+              enabled?: boolean
+            }) => ({
+              name: alarm.name,
+              alarmType: alarm.alarm_type || 'digital',
+              inputTag: alarm.input_tag || null,
+              message: alarm.message || null,
+              severity: alarm.severity || null,
+              highHighLimit: alarm.high_high_limit || null,
+              highLimit: alarm.high_limit || null,
+              lowLimit: alarm.low_limit || null,
+              lowLowLimit: alarm.low_low_limit || null,
+              deadband: alarm.deadband || null,
+              enabled: alarm.enabled !== false
+            }))
+        },
+        // Message configs (deduplicated)
+        messages: {
+          create: (() => {
+            const seen = new Set<string>()
+            return (project.messages || [])
+              .filter((msg: { name: string }) => {
+                if (!msg.name || seen.has(msg.name)) return false
+                seen.add(msg.name)
+                return true
+              })
+              .map((msg: {
+                name: string
+                message_type?: string
+                path?: string
+                source_tag?: string
+                destination_tag?: string
+                description?: string
+              }) => ({
+                name: msg.name,
+                messageType: msg.message_type || null,
+                path: msg.path || null,
+                sourceTag: msg.source_tag || null,
+                destinationTag: msg.destination_tag || null,
+                description: msg.description || null
+              }))
+          })()
+        },
+        // Trends (deduplicated)
+        trends: {
+          create: (() => {
+            const seen = new Set<string>()
+            return (project.trends || [])
+              .filter((trend: { name: string }) => {
+                if (!trend.name || seen.has(trend.name)) return false
+                seen.add(trend.name)
+                return true
+              })
+              .map((trend: {
+                name: string
+                description?: string
+                sample_period_ms?: number
+                tags?: string[]
+              }) => ({
+                name: trend.name,
+                description: trend.description || null,
+                samplePeriodMs: trend.sample_period_ms || null,
+                tags: JSON.stringify(trend.tags || [])
+              }))
+          })()
         }
       }
     })
@@ -341,12 +469,23 @@ export async function POST(request: NextRequest) {
       console.log('Parse warnings:', parseResult.warnings)
     }
 
+    // Start project analysis in background (for cost-optimized chat)
+    // This runs asynchronously - we don't wait for it
+    console.log(`[Analysis] Starting background analysis for project ${dbProject.id}`)
+    analyzeProject(dbProject.id).catch(err => {
+      console.error('[Analysis] Background analysis failed:', err)
+    })
+
     return NextResponse.json({
       id: dbProject.id,
       name: dbProject.name,
       tagCount: project.tags?.length || 0,
       programCount: project.programs?.length || 0,
-      warnings: parseResult.warnings || []
+      moduleCount: project.modules?.length || 0,
+      aoiCount: project.add_on_instructions?.length || 0,
+      dataTypeCount: project.data_types?.length || 0,
+      warnings: parseResult.warnings || [],
+      analysisStarted: true
     }, { status: 201 })
 
   } catch (error) {
