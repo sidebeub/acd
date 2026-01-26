@@ -202,7 +202,19 @@ export async function POST(request: NextRequest) {
           trends: []
         }
 
-        console.log(`[Upload] RSS parsing complete: ${parsedProject.programs.length} programs, ${parsedProject.tags.length} tags`)
+        // Detailed logging for RSS parsing debug
+        console.log(`[Upload] RSS parsing complete:`)
+        console.log(`  - Programs: ${parsedProject.programs.length}`)
+        console.log(`  - Tags: ${parsedProject.tags.length}`)
+        for (const prog of parsedProject.programs) {
+          console.log(`  - Program "${prog.name}": ${prog.routines.length} routines`)
+          for (const routine of prog.routines) {
+            console.log(`    - Routine "${routine.name}": ${routine.rungs.length} rungs`)
+            if (routine.rungs.length > 0) {
+              console.log(`      First rung: ${JSON.stringify(routine.rungs[0]).slice(0, 200)}`)
+            }
+          }
+        }
         warnings.push('RSLogix 500 (.RSS) support is experimental - some features may be limited')
       } catch (rssError) {
         console.error('[Upload] RSS parsing failed:', rssError)
