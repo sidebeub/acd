@@ -1,6 +1,9 @@
 import { XMLParser } from 'fast-xml-parser'
 import JSZip from 'jszip'
 
+// Re-export RSS parser
+export { parseRSS, isRSSFile, parseRss500Address, formatRss500Address } from './rss-parser'
+
 // Types for parsed PLC data
 export interface PlcProject {
   name: string
@@ -458,4 +461,35 @@ function parseDataType(dataType: Record<string, unknown>): PlcDataType {
   }
 
   return result
+}
+
+/**
+ * Detect file type from buffer contents
+ */
+export function detectFileType(buffer: ArrayBuffer): 'l5x' | 'acd' | 'rss' | 'unknown' {
+  const header = new Uint8Array(buffer.slice(0, 8))
+
+  // OLE Compound Document signature: D0 CF 11 E0 A1 B1 1A E1
+  // This is used by RSS (RSLogix 500) files
+  if (header[0] === 0xD0 && header[1] === 0xCF && header[2] === 0x11 && header[3] === 0xE0) {
+    return 'rss'
+  }
+
+  // ZIP signature: PK (0x50 0x4B)
+  // This is used by ACD files
+  if (header[0] === 0x50 && header[1] === 0x4B) {
+    return 'acd'
+  }
+
+  // Check for XML (L5X)
+  try {
+    const textCheck = new TextDecoder().decode(new Uint8Array(buffer.slice(0, 100)))
+    if (textCheck.includes('<?xml') || textCheck.includes('<RSLogix')) {
+      return 'l5x'
+    }
+  } catch {
+    // Not text, continue
+  }
+
+  return 'unknown'
 }

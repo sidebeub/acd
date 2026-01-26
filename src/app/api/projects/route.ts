@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { analyzeProject } from '@/lib/project-analysis'
 import { requireAuth } from '@/lib/auth'
+import { parseRSS } from '@/lib/rss-parser'
 
 // Parser API URL - set in environment
 const PARSER_API_URL = process.env.PARSER_API_URL || 'http://localhost:8000'
@@ -74,9 +75,9 @@ export async function POST(request: NextRequest) {
     const fileName = file.name.toLowerCase()
 
     // Validate file type
-    if (!fileName.endsWith('.l5x') && !fileName.endsWith('.acd')) {
+    if (!fileName.endsWith('.l5x') && !fileName.endsWith('.acd') && !fileName.endsWith('.rss')) {
       return NextResponse.json(
-        { error: 'Invalid file type. Please upload an .L5X or .ACD file.' },
+        { error: 'Invalid file type. Please upload an .L5X, .ACD, or .RSS file.' },
         { status: 400 }
       )
     }
@@ -123,37 +124,126 @@ export async function POST(request: NextRequest) {
       }, { status: 200 })
     }
 
-    // Send file to Parser API
-    const parserFormData = new FormData()
-    parserFormData.append('file', file)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let project: any
+    const warnings: string[] = []
 
-    console.log(`Sending ${file.name} to parser API at ${PARSER_API_URL}`)
+    // Handle RSS files locally (RSLogix 500 / SLC 500 / MicroLogix)
+    if (fileName.endsWith('.rss')) {
+      console.log(`[Upload] Parsing RSS file locally: ${file.name}`)
+      try {
+        const buffer = await file.arrayBuffer()
+        const parsedProject = await parseRSS(buffer)
 
-    // ACD files take longer to parse (binary extraction), so use a 10 minute timeout
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000)
+        // Convert to parser API format
+        project = {
+          controller: {
+            name: parsedProject.name,
+            processor_type: parsedProject.processorType,
+            software_version: parsedProject.softwareVersion
+          },
+          tags: parsedProject.tags.map(t => ({
+            name: t.name,
+            data_type: t.dataType,
+            scope: t.scope === 'controller' ? 'controller' : 'program',
+            scope_name: t.scope === 'controller' ? undefined : t.scope,
+            description: t.description
+          })),
+          programs: parsedProject.programs.map(p => ({
+            name: p.name,
+            description: p.description,
+            main_routine: p.mainRoutineName,
+            disabled: p.disabled,
+            tags: p.localTags.map(t => ({
+              name: t.name,
+              data_type: t.dataType,
+              description: t.description
+            })),
+            routines: p.routines.map(r => ({
+              name: r.name,
+              type: r.type,
+              description: r.description,
+              rungs: r.rungs.map(rung => ({
+                number: rung.number,
+                comment: rung.comment,
+                raw_text: rung.rawText,
+                instructions: rung.instructions.map(inst => ({
+                  type: inst.type,
+                  operands: inst.operands
+                }))
+              }))
+            }))
+          })),
+          tasks: parsedProject.tasks.map(t => ({
+            name: t.name,
+            type: t.type,
+            rate_ms: t.rate,
+            priority: t.priority,
+            watchdog_ms: t.watchdog,
+            inhibited: t.inhibitTask,
+            programs: t.scheduledPrograms
+          })),
+          modules: parsedProject.modules.map(m => ({
+            name: m.name,
+            catalog_number: m.catalogNumber,
+            vendor: m.vendor,
+            slot: m.slot,
+            parent_module: m.parentModule
+          })),
+          data_types: parsedProject.dataTypes.map(dt => ({
+            name: dt.name,
+            family: dt.family,
+            description: dt.description,
+            members: dt.members
+          })),
+          add_on_instructions: [],
+          alarms: [],
+          messages: [],
+          trends: []
+        }
 
-    const parserResponse = await fetch(`${PARSER_API_URL}/parse`, {
-      method: 'POST',
-      body: parserFormData,
-      signal: controller.signal
-    })
+        console.log(`[Upload] RSS parsing complete: ${parsedProject.programs.length} programs, ${parsedProject.tags.length} tags`)
+        warnings.push('RSLogix 500 (.RSS) support is experimental - some features may be limited')
+      } catch (rssError) {
+        console.error('[Upload] RSS parsing failed:', rssError)
+        throw new Error(`Failed to parse RSS file: ${rssError instanceof Error ? rssError.message : String(rssError)}`)
+      }
+    } else {
+      // Send L5X/ACD files to Parser API
+      const parserFormData = new FormData()
+      parserFormData.append('file', file)
 
-    clearTimeout(timeoutId)
+      console.log(`Sending ${file.name} to parser API at ${PARSER_API_URL}`)
 
-    if (!parserResponse.ok) {
-      const errorText = await parserResponse.text()
-      console.error('Parser API error:', errorText)
-      throw new Error(`Parser API returned ${parserResponse.status}: ${errorText}`)
+      // ACD files take longer to parse (binary extraction), so use a 10 minute timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000)
+
+      const parserResponse = await fetch(`${PARSER_API_URL}/parse`, {
+        method: 'POST',
+        body: parserFormData,
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!parserResponse.ok) {
+        const errorText = await parserResponse.text()
+        console.error('Parser API error:', errorText)
+        throw new Error(`Parser API returned ${parserResponse.status}: ${errorText}`)
+      }
+
+      const parseResult = await parserResponse.json()
+
+      if (!parseResult.success) {
+        throw new Error(parseResult.error || 'Failed to parse file')
+      }
+
+      project = parseResult.project
+      if (parseResult.warnings) {
+        warnings.push(...parseResult.warnings)
+      }
     }
-
-    const parseResult = await parserResponse.json()
-
-    if (!parseResult.success) {
-      throw new Error(parseResult.error || 'Failed to parse file')
-    }
-
-    const project = parseResult.project
 
     // Debug: Log what we received from the parser
     console.log('[DEBUG] Programs received:', project.programs?.length || 0)
@@ -531,8 +621,8 @@ export async function POST(request: NextRequest) {
     })
 
     // Log any warnings from parsing
-    if (parseResult.warnings?.length > 0) {
-      console.log('Parse warnings:', parseResult.warnings)
+    if (warnings.length > 0) {
+      console.log('Parse warnings:', warnings)
     }
 
     // Start project analysis in background (for cost-optimized chat)
@@ -550,7 +640,7 @@ export async function POST(request: NextRequest) {
       moduleCount: project.modules?.length || 0,
       aoiCount: project.add_on_instructions?.length || 0,
       dataTypeCount: project.data_types?.length || 0,
-      warnings: parseResult.warnings || [],
+      warnings,
       analysisStarted: true
     }, { status: 201 })
 

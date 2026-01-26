@@ -12,8 +12,8 @@ export default function Home() {
 
   const handleFile = async (file: File) => {
     const fileName = file.name.toLowerCase()
-    if (!fileName.endsWith('.l5x') && !fileName.endsWith('.acd')) {
-      setError('Please upload an .L5X or .ACD file')
+    if (!fileName.endsWith('.l5x') && !fileName.endsWith('.acd') && !fileName.endsWith('.rss')) {
+      setError('Please upload an .L5X, .ACD, or .RSS file')
       return
     }
 
@@ -140,7 +140,7 @@ export default function Home() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                 </svg>
-                Upload L5X / ACD File
+                Upload PLC File
               </a>
               <a href="#how-it-works" className="btn btn-secondary text-base px-8 py-3">
                 See How It Works
@@ -264,7 +264,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Upload Your File</h3>
                 <p style={{ color: 'var(--text-secondary)' }}>
-                  Drop an L5X export or ACD file from Studio 5000. The file is parsed instantly in your browser.
+                  Drop an L5X, ACD, or RSS file. Supports Studio 5000 (ControlLogix/CompactLogix) and RSLogix 500 (SLC 500/MicroLogix).
                 </p>
               </div>
 
@@ -435,10 +435,10 @@ export default function Home() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  No Studio 5000 Required
+                  No PLC Software Required
                 </h3>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                  View and analyze PLC programs without expensive software licenses. Works with exported L5X and ACD files.
+                  View and analyze PLC programs without expensive software licenses. Works with L5X, ACD, and RSS files.
                 </p>
               </div>
             </div>
@@ -566,7 +566,7 @@ export default function Home() {
                 Ready to get started?
               </h2>
               <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
-                Upload your L5X or ACD file and start exploring your PLC program.
+                Upload your L5X, ACD, or RSS file and start exploring your PLC program.
               </p>
             </div>
 
@@ -585,7 +585,7 @@ export default function Home() {
             >
               <input
                 type="file"
-                accept=".l5x,.acd"
+                accept=".l5x,.acd,.rss"
                 onChange={handleInputChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={isUploading}
@@ -637,6 +637,7 @@ export default function Home() {
                   <div className="flex items-center justify-center gap-4">
                     <span className="tech-badge">.L5X</span>
                     <span className="tech-badge">.ACD</span>
+                    <span className="tech-badge">.RSS</span>
                   </div>
                 </div>
               )}
@@ -680,7 +681,7 @@ export default function Home() {
               </div>
 
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                Compatible with Allen-Bradley ControlLogix, CompactLogix, and GuardLogix controllers
+                Compatible with Allen-Bradley ControlLogix, CompactLogix, GuardLogix, SLC 500, and MicroLogix
               </p>
             </div>
           </div>
