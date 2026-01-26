@@ -359,7 +359,7 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
 
   // Try to parse binary ladder structure first
   const binaryResult = parseBinaryLadder(programData)
-  console.log(`[RSS Parser] Binary parsing found ${binaryResult.rungs.length} rungs, ${binaryResult.addresses.size} addresses`)
+  console.log(`[RSS Parser] Binary parsing found ${binaryResult.rungs.length} rungs, ${binaryResult.addresses.size} addresses, ${binaryResult.ladderFiles.length} ladder files`)
 
   // Extract all visible addresses from text as fallback
   const addresses = binaryResult.addresses.size > 0 ? binaryResult.addresses : extractAddresses(text)
@@ -450,136 +450,171 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
 
 /**
  * Parse binary ladder logic from PROGRAM FILES stream
- * RSLogix 500 uses a proprietary binary format for storing ladder logic
+ * RSLogix 500 stores ladder data with text markers and ASCII addresses
+ * Structure: CProgHolder > CLadFile > CRung > CIns/CBranchLeg
  */
-function parseBinaryLadder(data: Buffer): { rungs: PlcRung[], addresses: Set<string> } {
+function parseBinaryLadder(data: Buffer): { rungs: PlcRung[], addresses: Set<string>, ladderFiles: string[] } {
   const rungs: PlcRung[] = []
   const addresses = new Set<string>()
+  const ladderFiles: string[] = []
 
-  // Skip past header if present (typically starts with version info)
-  let offset = 0
+  const text = data.toString('latin1')
 
-  // Check for common RSS header patterns
-  if (data.length > 16) {
-    const version = data.readUInt32LE(0)
-    const headerSize = data.readUInt32LE(4)
+  // Extract all valid SLC 500 addresses from the text
+  // Address patterns: B3:0/15, N7:5, T4:0.DN, I:0/0, O:0/0, etc.
+  const addressPattern = /\b([BIOTCRNFSAL])(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?\b/gi
+  const ioPattern = /\b([IO]):(\d+)(?:\/(\d+))?\b/gi
 
-    // Valid header typically has version 0-2 and headerSize 16
-    if ((version === 0 || version === 2) && headerSize === 16) {
-      offset = headerSize
-      console.log(`[RSS Parser] Skipping ${headerSize}-byte header`)
+  // Find all addresses
+  let match
+  while ((match = addressPattern.exec(text)) !== null) {
+    const addr = match[0].toUpperCase()
+    // Validate reasonable file numbers (0-255) and elements (0-999)
+    const fileNum = parseInt(match[2])
+    const element = parseInt(match[3])
+    if (fileNum <= 255 && element <= 999) {
+      addresses.add(addr)
     }
   }
 
-  // Look for ladder file markers
-  // RSLogix 500 ladder files start with specific signatures
-  const ladderMarkers: number[] = []
+  while ((match = ioPattern.exec(text)) !== null) {
+    addresses.add(match[0].toUpperCase())
+  }
 
-  // Search for patterns that indicate ladder file starts
-  // Common pattern: 0x00 followed by file number then content
-  for (let i = offset; i < data.length - 8; i++) {
-    // Look for file header pattern
-    // Ladder files often start with a length word followed by file metadata
-    const b0 = data[i]
-    const b1 = data[i + 1]
-    const b2 = data[i + 2]
-    const b3 = data[i + 3]
+  console.log(`[RSS Parser] Found ${addresses.size} unique addresses in decompressed data`)
 
-    // Pattern 1: Look for "LAD" text marker followed by file number
-    if (b0 === 0x4C && b1 === 0x41 && b2 === 0x44) { // "LAD"
-      ladderMarkers.push(i)
-      console.log(`[RSS Parser] Found LAD marker at offset ${i}`)
-    }
-
-    // Pattern 2: Look for typical rung start sequence
-    // Rungs often start with specific byte patterns
-    if (b0 === 0x00 && b1 > 0 && b1 < 0x10 && b2 === 0x00 && b3 > 0) {
-      // Could be: [rungLength low] [rungLength high] [type] [data...]
+  // Find ladder file names (e.g., MAIN, LAD 3, etc.)
+  const ladFilePattern = /CLadFile[^\x00]*?([A-Z][A-Z0-9_]{0,10})/gi
+  while ((match = ladFilePattern.exec(text)) !== null) {
+    const name = match[1]
+    if (name && name !== 'CLadFile' && !ladderFiles.includes(name)) {
+      ladderFiles.push(name)
     }
   }
 
-  // If no explicit markers, try scanning for instruction patterns
-  // SLC 500 instructions are typically 4 bytes each:
-  // [opcode] [file type] [file number] [element]
-  const foundInstructions: Array<{offset: number, opcode: number, instruction: string, address: string}> = []
+  // Also look for routine names after specific patterns
+  const routinePattern = /\x00([A-Z][A-Z0-9_]{2,15})\x00/g
+  while ((match = routinePattern.exec(text)) !== null) {
+    const name = match[1]
+    if (name && !['CProgHolder', 'CLadFile', 'CRung', 'CIns', 'CBranch', 'CBranchLeg'].includes(name)) {
+      if (!ladderFiles.includes(name)) {
+        ladderFiles.push(name)
+      }
+    }
+  }
 
-  for (let i = offset; i < data.length - 4; i++) {
-    const opcode = data[i]
+  console.log(`[RSS Parser] Found ladder files: ${ladderFiles.join(', ') || 'none'}`)
 
-    // Check if this looks like a valid instruction opcode
-    if (SLC500_OPCODES[opcode]) {
-      const fileType = data[i + 1]
-      const fileNum = data[i + 2]
-      const element = data[i + 3]
+  // Parse rungs by finding CRung markers
+  // Each CRung contains CIns (instructions) and optionally CBranchLeg (parallel branches)
+  const rungMarker = 'CRung'
+  const insMarker = 'CIns'
+  let rungStart = text.indexOf(rungMarker)
+  let rungNumber = 0
 
-      // Validate the operand looks reasonable
-      const fileTypeName = SLC500_FILE_TYPES_BINARY[fileType & 0x0F]
-      if (fileTypeName && fileNum < 100 && element < 256) {
-        const address = formatBinaryAddress(fileType, fileNum, element)
-        if (address) {
-          foundInstructions.push({
-            offset: i,
-            opcode,
-            instruction: SLC500_OPCODES[opcode],
-            address
-          })
-          addresses.add(address)
+  while (rungStart !== -1) {
+    // Find the next rung or end of data
+    const nextRung = text.indexOf(rungMarker, rungStart + rungMarker.length)
+    const rungEnd = nextRung !== -1 ? nextRung : text.length
+    const rungData = text.substring(rungStart, rungEnd)
+
+    // Extract instructions from this rung
+    const rungInstructions: PlcInstruction[] = []
+    const rungAddresses: string[] = []
+
+    // Find all addresses in this rung section
+    const rungAddrPattern = /\b([BIOTCRNFSAL])(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?\b/gi
+    const rungIoPattern = /\b([IO]):(\d+)(?:\/(\d+))?\b/gi
+
+    let addrMatch
+    while ((addrMatch = rungAddrPattern.exec(rungData)) !== null) {
+      const addr = addrMatch[0].toUpperCase()
+      const fileNum = parseInt(addrMatch[2])
+      const element = parseInt(addrMatch[3])
+      if (fileNum <= 255 && element <= 999) {
+        rungAddresses.push(addr)
+      }
+    }
+    while ((addrMatch = rungIoPattern.exec(rungData)) !== null) {
+      rungAddresses.push(addrMatch[0].toUpperCase())
+    }
+
+    // Deduplicate addresses in order
+    const uniqueAddrs = [...new Set(rungAddresses)]
+
+    if (uniqueAddrs.length > 0) {
+      // Try to determine instruction types based on address type and position
+      // Inputs (I:, B for examine) at start, outputs at end
+      for (let i = 0; i < uniqueAddrs.length; i++) {
+        const addr = uniqueAddrs[i]
+        const isLast = i === uniqueAddrs.length - 1
+
+        // Guess instruction type based on address type and position
+        let instType = 'XIC' // Default to examine
+        if (addr.startsWith('O:') || addr.startsWith('O0:')) {
+          instType = 'OTE'
+        } else if (addr.startsWith('T') && addr.includes('.')) {
+          // Timer with subfield
+          if (addr.includes('.DN')) instType = 'XIC'
+          else if (addr.includes('.TT')) instType = 'XIC'
+          else instType = 'TON'
+        } else if (addr.startsWith('C') && addr.includes('.')) {
+          // Counter with subfield
+          if (addr.includes('.DN')) instType = 'XIC'
+          else instType = 'CTU'
+        } else if (addr.startsWith('B') && isLast) {
+          instType = 'OTE' // Bit at end is likely output
+        } else if (addr.startsWith('N') && isLast) {
+          instType = 'MOV' // Integer at end could be move
         }
-      }
-    }
-  }
 
-  console.log(`[RSS Parser] Found ${foundInstructions.length} potential instructions in binary scan`)
-
-  // Group instructions into rungs
-  // Output instructions (OTE, OTL, OTU, etc.) typically end a rung
-  if (foundInstructions.length > 0) {
-    let currentInstructions: PlcInstruction[] = []
-    let currentRawText = ''
-    let rungNumber = 0
-    const outputOpcodes = [0x03, 0x04, 0x05, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x20, 0x21, 0x22, 0x23, 0x26, 0x40, 0x42]
-
-    for (const inst of foundInstructions) {
-      currentInstructions.push({
-        type: inst.instruction,
-        operands: [inst.address]
-      })
-      currentRawText += `${inst.instruction}(${inst.address})`
-
-      // End rung on output instruction
-      if (outputOpcodes.includes(inst.opcode) || currentInstructions.length >= 10) {
-        rungs.push({
-          number: rungNumber++,
-          rawText: currentRawText,
-          instructions: currentInstructions
+        rungInstructions.push({
+          type: instType,
+          operands: [addr]
         })
-        currentInstructions = []
-        currentRawText = ''
       }
-    }
 
-    // Add remaining instructions
-    if (currentInstructions.length > 0) {
+      const rawText = rungInstructions.map(i => `${i.type}(${i.operands.join(',')})`).join(' ')
+
       rungs.push({
         number: rungNumber++,
-        rawText: currentRawText,
-        instructions: currentInstructions
+        rawText,
+        instructions: rungInstructions
+      })
+    }
+
+    rungStart = nextRung
+  }
+
+  // If no CRung markers found, try alternative parsing
+  if (rungs.length === 0 && addresses.size > 0) {
+    console.log('[RSS Parser] No CRung markers found, creating rungs from addresses')
+
+    // Group addresses into synthetic rungs
+    const addrArray = [...addresses]
+    const ADDRS_PER_RUNG = 5
+
+    for (let i = 0; i < addrArray.length; i += ADDRS_PER_RUNG) {
+      const rungAddrs = addrArray.slice(i, i + ADDRS_PER_RUNG)
+      const instructions: PlcInstruction[] = rungAddrs.map((addr, idx) => {
+        const isLast = idx === rungAddrs.length - 1
+        let type = 'XIC'
+        if (addr.startsWith('O:')) type = 'OTE'
+        else if (isLast && addr.startsWith('B')) type = 'OTE'
+        return { type, operands: [addr] }
+      })
+
+      rungs.push({
+        number: rungNumber++,
+        rawText: instructions.map(i => `${i.type}(${i.operands[0]})`).join(' '),
+        instructions
       })
     }
   }
 
-  // Alternative approach: Look for ASCII instruction names in the binary
-  // Some RSS files store instructions as text
-  const text = data.toString('latin1')
-  const instPattern = /\b(XIC|XIO|OTE|OTL|OTU|TON|TOF|CTU|CTD|RES|MOV|ADD|SUB|MUL|DIV|EQU|NEQ|LES|GRT|JMP|JSR|LBL)\b/g
-  const textInstructions = [...text.matchAll(instPattern)]
+  console.log(`[RSS Parser] Parsed ${rungs.length} rungs from structure markers`)
 
-  if (textInstructions.length > 5 && rungs.length === 0) {
-    console.log(`[RSS Parser] Found ${textInstructions.length} text instruction names, trying text-based extraction`)
-    // This will be handled by extractRungs as fallback
-  }
-
-  return { rungs, addresses }
+  return { rungs, addresses, ladderFiles }
 }
 
 /**
