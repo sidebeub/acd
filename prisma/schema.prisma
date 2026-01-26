@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -266,7 +266,7 @@ model AddOnInstruction {
   localTags       String?   // JSON: [{name, dataType, description}]
 
   // Logic (JSON - routines with rungs)
-  logic           String?   @db.Text
+  logic           String?
 
   createdAt       DateTime  @default(now())
 
@@ -441,7 +441,7 @@ model ChatMessage {
   session         ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   role            String    // 'user' | 'assistant'
-  content         String    @db.Text
+  content         String
   metadata        Json?     // For code blocks, referenced rungs, etc.
 
   createdAt       DateTime  @default(now())
@@ -459,15 +459,15 @@ model ProjectAnalysis {
   project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // High-level analysis
-  overview        String    @db.Text  // Overall project summary
-  architecture    String    @db.Text  // Program structure and flow
-  safetyNotes     String?   @db.Text  // Safety considerations
-  concerns        String?   @db.Text  // Potential issues identified
-  patterns        String?   @db.Text  // Common patterns detected
+  overview        String    // Overall project summary
+  architecture    String    // Program structure and flow
+  safetyNotes     String?   // Safety considerations
+  concerns        String?   // Potential issues identified
+  patterns        String?   // Common patterns detected
 
   // Tag analysis
-  keyTags         String?   @db.Text  // Important tags and their purposes
-  ioSummary       String?   @db.Text  // I/O organization summary
+  keyTags         String?   // Important tags and their purposes
+  ioSummary       String?   // I/O organization summary
 
   // Status
   status          String    @default("pending") // pending, analyzing, complete, failed
@@ -483,11 +483,11 @@ model RoutineAnalysis {
   routine         Routine   @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
   // Routine analysis
-  purpose         String    @db.Text  // What this routine does
-  sequenceFlow    String?   @db.Text  // Step-by-step sequence explanation
-  keyLogic        String?   @db.Text  // Important logic patterns
-  dependencies    String?   @db.Text  // Other routines it calls/depends on
-  safetyNotes     String?   @db.Text  // Safety-related observations
+  purpose         String    // What this routine does
+  sequenceFlow    String?   // Step-by-step sequence explanation
+  keyLogic        String?   // Important logic patterns
+  dependencies    String?   // Other routines it calls/depends on
+  safetyNotes     String?   // Safety-related observations
 
   // Status
   status          String    @default("pending") // pending, analyzing, complete, failed

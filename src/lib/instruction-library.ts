@@ -224,6 +224,2372 @@ const FRIENDLY_ANALOGIES: Record<string, string[]> = {
     'Call {0} - run the communication handler',
     'Jump to {0} - perform the alarm check routine',
   ],
+
+  // ONS - One Shot (pulse on rising edge)
+  ONS: [
+    'One-shot pulse using {0} - fires once per button press, like a single cycle start',
+    'Trigger once with {0} - captures the rising edge, perfect for counting parts',
+    'Single pulse via {0} - prevents double-triggering on slow inputs',
+    'Edge detect using {0} - like a momentary start button that only fires once',
+    'One-shot {0} - triggers one scan only, good for incrementing counters',
+    'Pulse generator {0} - catches the instant the signal goes true',
+    'Rising edge latch {0} - fires once even if operator holds the button',
+    'Single-fire trigger {0} - like a part-present sensor counting pieces',
+  ],
+
+  // OSR - One Shot Rising (retentive one-shot)
+  OSR: [
+    'One-shot rising {0} → {1} - pulses once when input goes true',
+    'Rising edge detect {0} → {1} - like catching a proximity sensor trigger',
+    'Pulse on rising {0} → {1} - fires one scan when condition turns ON',
+    'OSR {0} → {1} - captures the ON transition for counting',
+    'Edge trigger {0} → {1} - like detecting a photo-eye beam break',
+    'Rising pulse {0} → {1} - triggers once per cycle start',
+    'Catch the ON with {0} → {1} - single pulse for batch counting',
+    'Detect transition {0} → {1} - like sensing a part entering a station',
+  ],
+
+  // OSF - One Shot Falling (falling edge detect)
+  OSF: [
+    'One-shot falling {0} → {1} - pulses once when input goes false',
+    'Falling edge detect {0} → {1} - like catching when a sensor clears',
+    'Pulse on falling {0} → {1} - fires when condition turns OFF',
+    'OSF {0} → {1} - captures the OFF transition',
+    'Detect release with {0} → {1} - like when operator releases a button',
+    'Falling pulse {0} → {1} - triggers when part leaves sensor',
+    'Catch the OFF with {0} → {1} - pulse when signal drops',
+    'Detect exit {0} → {1} - like sensing a part leaving a station',
+  ],
+
+  // NEQ - Not Equal
+  NEQ: [
+    'Check if {0} ≠ {1} - is step number different from target?',
+    'Test if {0} is not {1} - recipe mismatch detection',
+    'Is {0} different from {1}? - verify not at fault state',
+    'Compare {0} against {1} for difference - position error check',
+    '{0} not equal to {1}? - detect when value has changed',
+    'Check mismatch: {0} vs {1} - alarm if not at setpoint',
+    'Verify {0} differs from {1} - state change detection',
+    'Test inequality: {0} ≠ {1} - fault code check',
+  ],
+
+  // GEQ - Greater Than or Equal
+  GEQ: [
+    'Check if {0} ≥ {1} - is level at or above minimum?',
+    'Test if {0} is at least {1} - pressure sufficient for operation?',
+    'Is {0} greater or equal to {1}? - temperature reached setpoint?',
+    'Verify {0} ≥ {1} - counter hit or passed target?',
+    '{0} at or above {1}? - enough parts in buffer?',
+    'Compare {0} ≥ {1} - is speed up to requirements?',
+    'Check {0} meets or exceeds {1} - ready threshold reached?',
+    'Test if {0} is {1} or more - minimum condition met?',
+  ],
+
+  // LEQ - Less Than or Equal
+  LEQ: [
+    'Check if {0} ≤ {1} - is level at or below maximum?',
+    'Test if {0} is at most {1} - temperature not exceeded?',
+    'Is {0} less or equal to {1}? - pressure within safe limits?',
+    'Verify {0} ≤ {1} - count at or under limit?',
+    '{0} at or below {1}? - torque within range?',
+    'Compare {0} ≤ {1} - speed not too high?',
+    'Check {0} does not exceed {1} - max limit check',
+    'Test if {0} is {1} or less - upper boundary check',
+  ],
+
+  // SUB - Subtraction
+  SUB: [
+    'Subtract {1} from {0} → {2} - calculate remaining parts',
+    '{0} minus {1} = {2} - find the difference in position',
+    'Calculate {0} - {1} → {2} - determine error from setpoint',
+    'Deduct {1} from {0}, store in {2} - track consumed material',
+    '{0} - {1} → {2} - calculate shortage or overage',
+    'Subtract to get {2} from {0} and {1} - find delta between values',
+    'Difference: {0} - {1} = {2} - position error calculation',
+    'Remove {1} from {0} → {2} - calculate net quantity',
+  ],
+
+  // MUL - Multiplication
+  MUL: [
+    'Multiply {0} × {1} → {2} - calculate total pieces in batch',
+    '{0} times {1} = {2} - scale the analog value',
+    'Calculate {0} * {1} → {2} - convert units',
+    'Product of {0} and {1} in {2} - calculate area or volume',
+    '{0} × {1} → {2} - scale recipe quantity',
+    'Multiply to get {2} - engineering unit conversion',
+    'Scale {0} by {1} → {2} - apply calibration factor',
+    '{0} * {1} = {2} - calculate pallets needed from case count',
+  ],
+
+  // DIV - Division
+  DIV: [
+    'Divide {0} by {1} → {2} - calculate rate or average',
+    '{0} ÷ {1} = {2} - convert raw counts to engineering units',
+    'Calculate {0} / {1} → {2} - find pieces per layer',
+    '{0} divided by {1} in {2} - calculate cycle time',
+    '{0} / {1} → {2} - descale analog value',
+    'Divide to get {2} - parts per minute calculation',
+    'Split {0} by {1} → {2} - calculate batches from total',
+    'Quotient: {0} ÷ {1} = {2} - efficiency calculation',
+  ],
+
+  // MOD - Modulo (Remainder)
+  MOD: [
+    'Remainder of {0} ÷ {1} → {2} - find position in cycle',
+    '{0} mod {1} = {2} - which station in the pattern?',
+    'Calculate remainder {0} / {1} → {2} - layer position',
+    'Modulo: {0} % {1} = {2} - column in the pick pattern',
+    '{0} modulo {1} → {2} - which nozzle in sequence?',
+    'Find remainder to get {2} - position within case pattern',
+    '{0} % {1} = {2} - index within recipe step',
+    'Cyclical position: {0} mod {1} → {2}',
+  ],
+
+  // COP - Copy Array
+  COP: [
+    'Copy array {0} to {1} ({2} elements) - back up recipe data',
+    'Duplicate {0} into {1}, {2} elements - save fault snapshot',
+    'Array copy {0} → {1} ({2} items) - transfer production data',
+    'Copy {2} elements from {0} to {1} - load recipe parameters',
+    'Block copy {0} to {1} - move configuration data',
+    'Transfer array {0} → {1} ({2}) - swap active recipe',
+    'Duplicate {2} items: {0} → {1} - archive position data',
+    'Copy block: {0} to {1}, length {2} - batch data transfer',
+  ],
+
+  // FLL - File Fill
+  FLL: [
+    'Fill {1} with value {0} ({2} elements) - clear the data array',
+    'Set all {2} elements of {1} to {0} - initialize recipe to defaults',
+    'Fill array {1} with {0}, {2} items - zero out fault buffer',
+    'Initialize {1} to {0} ({2} elements) - reset production counts',
+    'Flood {1} with value {0} - clear status flags',
+    'Set {2} elements in {1} = {0} - preset all stations',
+    'Fill {1}: {2} copies of {0} - initialize pattern data',
+    'Bulk set {1} to {0} - clear alarm history array',
+  ],
+
+  // JMP - Jump to Label
+  JMP: [
+    'Jump to {0} - skip ahead in the logic',
+    'Branch to label {0} - bypass fault-check logic when clear',
+    'Skip to {0} - jump past optional steps',
+    'Goto {0} - branch around manual mode logic',
+    'Jump ahead to {0} - skip diagnostics when not needed',
+    'Branch to {0} - bypass calibration when valid',
+    'Hop to label {0} - skip over disabled features',
+    'Jump over to {0} - conditional logic bypass',
+  ],
+
+  // RET - Return from Subroutine
+  RET: [
+    'Return from subroutine - go back to the calling routine',
+    'Exit routine - done with this section, return to caller',
+    'Return to caller - subroutine complete',
+    'End subroutine and return - motor control done, go back',
+    'Return from {0} - exit the fault handler',
+    'Go back to calling routine - homing sequence finished',
+    'Exit and return - valve sequence complete',
+    'Return from this logic - rejoin main routine',
+  ],
+
+  // MSG - Message Instruction
+  MSG: [
+    'Send message {0} - communicate with remote device',
+    'Execute message {0} - read/write to drive parameters',
+    'Message {0} - transfer data to HMI',
+    'Communication {0} - exchange data with barcode scanner',
+    'Send/receive {0} - talk to remote I/O rack',
+    'Message instruction {0} - update VFD speed reference',
+    'Network message {0} - read robot position',
+    'Data exchange {0} - communicate with vision system',
+  ],
+
+  // RTO - Retentive Timer On
+  RTO: [
+    'Retentive timer {0} - accumulates time, keeps value on power loss',
+    'Retentive on-delay {0} - like tracking total run hours',
+    'RTO {0} - counts up and remembers accumulated time',
+    'Accumulating timer {0} - track time-in-state across cycles',
+    'Retentive timing {0} - sum up total cycle time',
+    'Keep-counting timer {0} - maintenance hour tracking',
+    'Persistent timer {0} - accumulate dwell time across batches',
+    'Running total timer {0} - track machine utilization',
+  ],
+
+  // CTUD - Count Up/Down
+  CTUD: [
+    'Bidirectional counter {0} - can count up or down',
+    'Up/down counter {0} - track inventory in buffer',
+    'CTUD {0} - increment or decrement based on direction',
+    'Two-way counter {0} - parts in minus parts out',
+    'Reversible counter {0} - track position with encoder pulses',
+    'Count both ways {0} - material balance tracking',
+    'Up-down counter {0} - queue length management',
+    'Bidirectional count {0} - track plus and minus adjustments',
+  ],
+
+  // CLR - Clear
+  CLR: [
+    'Clear {0} to zero - reset the value',
+    'Zero out {0} - initialize the register',
+    'Clear {0} - wipe the accumulator',
+    'Reset {0} to 0 - clear the counter value',
+    'Initialize {0} to zero - start fresh',
+    'Blank out {0} - clear the fault code',
+    'Zero {0} - reset the position reference',
+    'Clear value {0} - initialize for new cycle',
+  ],
+
+  // SBR - Subroutine (entry point)
+  SBR: [
+    'Subroutine entry {0} - start of called routine',
+    'Begin subroutine with parameters {0}',
+    'SBR entry point - receive values from JSR call',
+    'Subroutine start {0} - motor control logic begins here',
+    'Enter routine with {0} - passed parameters received',
+    'Subroutine header {0} - fault handling starts here',
+    'Begin with inputs {0} - valve sequence parameters',
+    'Routine entry {0} - recipe step logic begins',
+  ],
+
+  // LBL - Label
+  LBL: [
+    'Label {0} - jump target location',
+    'Mark position {0} - JMP destination',
+    'Label target {0} - branch destination',
+    'Location marker {0} - skip-to point',
+    'Label {0} - logic resumes here after jump',
+    'Branch target {0} - conditional logic landing',
+    'Jump destination {0} - logic continues here',
+    'Marker {0} - labeled position in routine',
+  ],
+
+  // GSV - Get System Value
+  GSV: [
+    'Get system value {0}.{1} → {2} - read controller data',
+    'Read system attribute {0}.{1} into {2} - check task status',
+    'GSV {0}.{1} → {2} - get module fault info',
+    'Fetch system data {0}.{1} to {2} - read axis status',
+    'Get {0}.{1} → {2} - retrieve program name',
+    'System read {0}.{1} into {2} - check safety status',
+    'Read controller info {0}.{1} → {2} - get time/date',
+    'Retrieve {0}.{1} to {2} - read fault code details',
+  ],
+
+  // SSV - Set System Value
+  SSV: [
+    'Set system value {0}.{1} ← {2} - write controller data',
+    'Write system attribute {0}.{1} from {2} - update task config',
+    'SSV {0}.{1} ← {2} - configure module parameter',
+    'Store to system {0}.{1} from {2} - set axis parameter',
+    'Set {0}.{1} = {2} - update program attribute',
+    'System write {0}.{1} from {2} - configure safety zone',
+    'Write controller data {0}.{1} ← {2} - set date/time',
+    'Update {0}.{1} to {2} - change controller mode',
+  ],
+
+  // ============================================================================
+  // ADDITIONAL BIT INSTRUCTIONS
+  // ============================================================================
+
+  // OSRI - One Shot Rising with Input
+  OSRI: [
+    'One-shot rising {0} → {1} - pulse output on input transition to ON',
+    'Rising edge trigger {0} → {1} - catch the moment sensor activates',
+    'OSRI {0} → {1} - single pulse when input goes true',
+    'Edge-triggered pulse {0} → {1} - count parts entering station',
+    'Detect ON transition {0} → {1} - trigger on button press',
+    'Rising one-shot {0} → {1} - pulse for each cycle start',
+    'Input edge detect {0} → {1} - catch proximity sensor trigger',
+    'Pulse on true {0} → {1} - single scan output on input rise',
+  ],
+
+  // OSFI - One Shot Falling with Input
+  OSFI: [
+    'One-shot falling {0} → {1} - pulse output on input transition to OFF',
+    'Falling edge trigger {0} → {1} - catch the moment sensor clears',
+    'OSFI {0} → {1} - single pulse when input goes false',
+    'Edge-triggered pulse {0} → {1} - count parts leaving station',
+    'Detect OFF transition {0} → {1} - trigger on button release',
+    'Falling one-shot {0} → {1} - pulse for each cycle end',
+    'Input edge detect {0} → {1} - catch sensor going clear',
+    'Pulse on false {0} → {1} - single scan output on input fall',
+  ],
+
+  // ============================================================================
+  // ADDITIONAL TIMER INSTRUCTIONS
+  // ============================================================================
+
+  // TONR - Timer On with Reset
+  TONR: [
+    'Timer on with reset {0} - times when enabled, resets when disabled',
+    'TONR {0} - on-delay timer with automatic reset',
+    'Auto-reset timer {0} - restarts timing each enable cycle',
+    'Resetting on-delay {0} - timer clears when input drops',
+    'Timer {0} with built-in reset - no separate RES needed',
+    'Self-clearing timer {0} - times up, then resets on disable',
+    'On-delay {0} - accumulator clears automatically',
+    'Timer with auto-zero {0} - convenient for cycle timing',
+  ],
+
+  // TOFR - Timer Off with Reset
+  TOFR: [
+    'Timer off with reset {0} - off-delay with automatic reset',
+    'TOFR {0} - keeps output on briefly after input drops, then resets',
+    'Auto-reset off-delay {0} - coast-down timer that self-clears',
+    'Resetting off-delay {0} - extends output, then zeroes',
+    'Timer {0} off-delay with reset - like a cooling fan run-on',
+    'Self-clearing off-delay {0} - no manual reset needed',
+    'Off-delay {0} with auto-zero - convenient for shutdown sequences',
+    'Post-delay timer {0} - holds output, then clears',
+  ],
+
+  // ============================================================================
+  // COMPARISON INSTRUCTIONS
+  // ============================================================================
+
+  // CMP - Compare Expression
+  CMP: [
+    'Compare expression {0} - evaluate complex comparison',
+    'CMP {0} - test mathematical expression result',
+    'Expression compare {0} - check formula result',
+    'Evaluate {0} - complex condition check',
+    'Test expression {0} - like checking (A+B) > (C*D)',
+    'Compare formula {0} - evaluate multi-operand condition',
+    'Expression test {0} - check calculated comparison',
+    'Complex compare {0} - evaluate expression as boolean',
+  ],
+
+  // LIM - Limit Test
+  LIM: [
+    'Limit test: {0} ≤ {1} ≤ {2} - check if value is within range',
+    'Range check: is {1} between {0} and {2}?',
+    'LIM {0}/{1}/{2} - verify value is within acceptable limits',
+    'Band check: {1} within {0} to {2} - like temperature in range',
+    'Within limits? {0} ≤ {1} ≤ {2} - pressure band check',
+    'Range test: {1} inside {0}-{2} window - position tolerance',
+    'Limit check: {1} between {0} and {2} - speed within bounds',
+    'In-band test: is {1} in the {0} to {2} range?',
+  ],
+
+  // MEQ - Masked Equal
+  MEQ: [
+    'Masked compare: ({0} AND {1}) = {2} - check specific bits',
+    'MEQ {0} masked by {1} equals {2} - bit pattern match',
+    'Test bits: {0} with mask {1} = {2} - check status word',
+    'Masked equal: filter {0} through {1}, compare to {2}',
+    'Bit compare: {0} & {1} == {2} - input card status check',
+    'Pattern match: {0} masked = {2} - check fault bits',
+    'Selective compare: only check bits in {1} of {0} vs {2}',
+    'Masked test: {0} filtered by {1} equals {2}',
+  ],
+
+  // ============================================================================
+  // MATH INSTRUCTIONS
+  // ============================================================================
+
+  // NEG - Negate
+  NEG: [
+    'Negate {0} → {1} - flip the sign, positive becomes negative',
+    'Reverse sign {0} → {1} - invert the value',
+    'NEG {0} → {1} - multiply by -1',
+    'Sign flip {0} → {1} - like reversing motor direction',
+    'Invert {0} → {1} - change polarity of value',
+    'Make negative {0} → {1} - flip from + to - or - to +',
+    'Polarity swap {0} → {1} - reverse the sign',
+    'Negate value {0} → {1} - useful for bidirectional moves',
+  ],
+
+  // ABS - Absolute Value
+  ABS: [
+    'Absolute value {0} → {1} - always positive result',
+    'ABS {0} → {1} - remove the sign, get magnitude only',
+    'Magnitude of {0} → {1} - strip negative sign',
+    'Make positive {0} → {1} - like measuring distance regardless of direction',
+    'Absolute {0} → {1} - convert -5 to 5, 5 stays 5',
+    'Distance value {0} → {1} - useful for error magnitude',
+    'Unsigned value {0} → {1} - always positive',
+    'Get magnitude {0} → {1} - ignore direction, get size',
+  ],
+
+  // SQR - Square Root
+  SQR: [
+    'Square root of {0} → {1} - find the root',
+    'SQR {0} → {1} - calculate √{0}',
+    'Root of {0} → {1} - square root calculation',
+    'Calculate √{0} → {1} - like flow from differential pressure',
+    'Square root {0} → {1} - common in flow calculations',
+    'Sqrt {0} → {1} - root extraction',
+    'Find root {0} → {1} - math function',
+    'Root value {0} → {1} - square root result',
+  ],
+
+  // SQRT - Square Root (alternate)
+  SQRT: [
+    'Square root of {0} → {1} - calculate √{0}',
+    'SQRT {0} → {1} - find the root value',
+    'Root calculation {0} → {1} - common for flow measurement',
+    'Calculate square root {0} → {1} - like DP flow conversion',
+    'Square root {0} → {1} - √{0} result in {1}',
+    'Sqrt {0} → {1} - root extraction function',
+    'Find √{0} → {1} - mathematical root',
+    'Root of {0} → {1} - square root output',
+  ],
+
+  // CPT - Compute
+  CPT: [
+    'Compute {0} = {1} - calculate expression and store result',
+    'CPT {0} = {1} - evaluate formula',
+    'Calculate {1} → {0} - complex math expression',
+    'Expression {1} result in {0} - like (A*B)+(C/D)',
+    'Math compute {0} = {1} - evaluate and store',
+    'Formula {1} → {0} - multi-operator calculation',
+    'Compute expression {1} into {0} - complex calculation',
+    'Evaluate {1}, store in {0} - computed result',
+  ],
+
+  // ============================================================================
+  // MOVE/LOGICAL INSTRUCTIONS
+  // ============================================================================
+
+  // MVM - Masked Move
+  MVM: [
+    'Masked move {0} through {1} → {2} - copy only certain bits',
+    'MVM {0} & {1} → {2} - selective bit copy',
+    'Copy bits: {0} masked by {1} to {2} - update specific bits only',
+    'Selective copy {0} → {2} using mask {1} - preserve other bits',
+    'Masked transfer {0} → {2} - only bits set in {1}',
+    'Bit-selective move {0} to {2} with mask {1}',
+    'Partial copy: {0} through mask {1} into {2}',
+    'Move masked bits {0} & {1} → {2} - update selected bits',
+  ],
+
+  // BTD - Bit Field Distribute
+  BTD: [
+    'Bit distribute {0}.{1} → {2}.{3}, {4} bits - copy bit field',
+    'BTD: copy {4} bits from {0} position {1} to {2} position {3}',
+    'Extract and place bits - move bit pattern',
+    'Bit field copy {0} to {2} - reposition bits',
+    'Distribute bits from {0} to {2} - field transfer',
+    'Copy bit field - extract from source, insert to dest',
+    'Bit transfer {0} → {2} - copy specific bit range',
+    'Field move: {4} bits from {0}.{1} to {2}.{3}',
+  ],
+
+  // SWPB - Swap Byte
+  SWPB: [
+    'Swap bytes in {0} → {1} - reverse byte order',
+    'SWPB {0} → {1} - change endianness',
+    'Byte swap {0} → {1} - like converting from big to little endian',
+    'Reverse bytes {0} → {1} - flip byte order for comms',
+    'Endian swap {0} → {1} - network byte order conversion',
+    'Byte order flip {0} → {1} - communication data conversion',
+    'Swap {0} bytes → {1} - reorder for protocol',
+    'Flip byte order {0} → {1} - endian conversion',
+  ],
+
+  // ============================================================================
+  // ARRAY/FILE INSTRUCTIONS
+  // ============================================================================
+
+  // CPS - Synchronous Copy
+  CPS: [
+    'Synchronous copy {0} → {1} ({2} elements) - uninterruptible array copy',
+    'CPS {0} to {1} - copy array without task interruption',
+    'Safe array copy {0} → {1} - prevents data corruption',
+    'Atomic copy {0} → {1}, {2} items - can\'t be interrupted',
+    'Protected transfer {0} → {1} - synchronous for data integrity',
+    'Sync copy {0} to {1} ({2}) - completes in one scan',
+    'Uninterruptible copy {0} → {1} - safe for shared data',
+    'Synchronous transfer {0} → {1}, {2} elements',
+  ],
+
+  // FAL - File Arithmetic/Logic
+  FAL: [
+    'File arithmetic {0} - process array with expression',
+    'FAL {0} - apply math across array elements',
+    'Array operation {0} - arithmetic on file data',
+    'Bulk calculate {0} - expression applied to array',
+    'File math {0} - process multiple elements',
+    'Array expression {0} - like scaling all recipe values',
+    'FAL operation {0} - arithmetic on data table',
+    'Process array {0} - apply formula to file',
+  ],
+
+  // FSC - File Search/Compare
+  FSC: [
+    'File search {0} - find value in array',
+    'FSC {0} - search array with expression',
+    'Array search {0} - locate matching element',
+    'Scan file {0} - find value in data table',
+    'Search array {0} - like finding fault code in history',
+    'File compare {0} - search for match',
+    'Find in array {0} - locate specific value',
+    'Data search {0} - scan table for match',
+  ],
+
+  // SIZE - Size in Elements
+  SIZE: [
+    'Get size of {0} → {1} - how many elements in array',
+    'SIZE {0} → {1} - array length',
+    'Array size {0} → {1} - count of elements',
+    'Element count {0} → {1} - find array dimension',
+    'Get length {0} → {1} - size of data structure',
+    'Dimension of {0} → {1} - array element count',
+    'Count elements {0} → {1} - array size',
+    'Size check {0} → {1} - how big is the array',
+  ],
+
+  // ============================================================================
+  // FIFO/LIFO INSTRUCTIONS
+  // ============================================================================
+
+  // FFL - FIFO Load
+  FFL: [
+    'FIFO load {0} into {1} - add to queue (first in, first out)',
+    'FFL {0} → {1} - push value onto queue',
+    'Queue add {0} to {1} - like parts entering a buffer',
+    'Load FIFO {0} → {1} - add to end of queue',
+    'Push to queue {0} → {1} - insert at tail',
+    'FIFO push {0} into {1} - enqueue the value',
+    'Add to buffer {0} → {1} - queue the data',
+    'Queue insert {0} → {1} - FIFO load operation',
+  ],
+
+  // FFU - FIFO Unload
+  FFU: [
+    'FIFO unload {0} from {1} - remove from queue (oldest first)',
+    'FFU {0} ← {1} - pop value from queue',
+    'Queue remove {0} from {1} - like parts leaving a buffer',
+    'Unload FIFO {0} ← {1} - remove from front of queue',
+    'Pop from queue {0} ← {1} - retrieve oldest entry',
+    'FIFO pop {0} from {1} - dequeue the value',
+    'Remove from buffer {0} ← {1} - unqueue the data',
+    'Queue extract {0} ← {1} - FIFO unload operation',
+  ],
+
+  // LFL - LIFO Load
+  LFL: [
+    'LIFO load {0} into {1} - add to stack (last in, first out)',
+    'LFL {0} → {1} - push value onto stack',
+    'Stack push {0} → {1} - like plates stacking up',
+    'Load LIFO {0} → {1} - add to top of stack',
+    'Push to stack {0} → {1} - insert at top',
+    'LIFO push {0} into {1} - stack the value',
+    'Add to stack {0} → {1} - push the data',
+    'Stack insert {0} → {1} - LIFO load operation',
+  ],
+
+  // LFU - LIFO Unload
+  LFU: [
+    'LIFO unload {0} from {1} - remove from stack (newest first)',
+    'LFU {0} ← {1} - pop value from stack',
+    'Stack pop {0} from {1} - like taking top plate off',
+    'Unload LIFO {0} ← {1} - remove from top of stack',
+    'Pop from stack {0} ← {1} - retrieve newest entry',
+    'LIFO pop {0} from {1} - unstack the value',
+    'Remove from stack {0} ← {1} - pop the data',
+    'Stack extract {0} ← {1} - LIFO unload operation',
+  ],
+
+  // ============================================================================
+  // SHIFT REGISTER INSTRUCTIONS
+  // ============================================================================
+
+  // BSL - Bit Shift Left
+  BSL: [
+    'Bit shift left {0} - shift bits toward high end',
+    'BSL {0} - shift array left, new bit enters at position 0',
+    'Shift left {0} - move bits up, like a conveyor tracking',
+    'Left shift {0} - track product through zones',
+    'Bit shift {0} left - tracking register shift',
+    'Shift register {0} - move data left one position',
+    'BSL shift {0} - product tracking through stations',
+    'Left-moving shift {0} - zone tracking register',
+  ],
+
+  // BSR - Bit Shift Right
+  BSR: [
+    'Bit shift right {0} - shift bits toward low end',
+    'BSR {0} - shift array right, new bit enters at high end',
+    'Shift right {0} - move bits down, like reverse tracking',
+    'Right shift {0} - track product in reverse direction',
+    'Bit shift {0} right - tracking register shift',
+    'Shift register {0} - move data right one position',
+    'BSR shift {0} - product tracking reverse',
+    'Right-moving shift {0} - reverse zone tracking',
+  ],
+
+  // ============================================================================
+  // SEQUENCER INSTRUCTIONS
+  // ============================================================================
+
+  // SQI - Sequencer Input
+  SQI: [
+    'Sequencer input {0} - compare inputs to step data',
+    'SQI {0} - check if inputs match current step',
+    'Step input check {0} - verify conditions for step',
+    'Sequencer compare {0} - inputs vs step requirements',
+    'Input sequencer {0} - like checking step completion',
+    'SQI {0} - do inputs match this sequence step?',
+    'Sequencer test {0} - input conditions met?',
+    'Step verify {0} - inputs match step pattern?',
+  ],
+
+  // SQO - Sequencer Output
+  SQO: [
+    'Sequencer output {0} - set outputs for current step',
+    'SQO {0} - drive outputs from step data',
+    'Step output {0} - apply step pattern to outputs',
+    'Sequencer drive {0} - outputs per step',
+    'Output sequencer {0} - like drum controller output',
+    'SQO {0} - set outputs for this sequence step',
+    'Sequencer apply {0} - output pattern for step',
+    'Step apply {0} - drive outputs from sequence',
+  ],
+
+  // SQL - Sequencer Load
+  SQL: [
+    'Sequencer load {0} - capture inputs into step',
+    'SQL {0} - record current inputs to step data',
+    'Load sequencer {0} - store input pattern',
+    'Capture inputs {0} - save to sequencer array',
+    'Record step {0} - capture current state',
+    'SQL {0} - load inputs into sequence table',
+    'Sequencer record {0} - store input snapshot',
+    'Step capture {0} - save inputs to step',
+  ],
+
+  // ============================================================================
+  // PROGRAM CONTROL INSTRUCTIONS
+  // ============================================================================
+
+  // TND - Temporary End
+  TND: [
+    'Temporary end - stop scanning here this scan',
+    'TND - end routine early, continue next scan',
+    'Skip rest - don\'t scan remaining rungs this pass',
+    'Early exit - stop here, resume from top next scan',
+    'Temporary stop - like pausing execution',
+    'End scan here - remaining rungs skipped this scan',
+    'TND - conditional early termination',
+    'Stop scanning - rest of routine skipped',
+  ],
+
+  // MCR - Master Control Reset
+  MCR: [
+    'Master control {0} - enable/disable zone of rungs',
+    'MCR {0} - master control region boundary',
+    'Control zone {0} - outputs in zone go false when disabled',
+    'Master reset {0} - zone enable/disable',
+    'MCR boundary {0} - start or end control zone',
+    'Zone control {0} - like safety zone enable',
+    'Master control region {0} - conditional zone',
+    'MCR zone {0} - control region marker',
+  ],
+
+  // UID - User Interrupt Disable
+  UID: [
+    'Disable interrupts - prevent task interruption',
+    'UID - user interrupt disable, critical section start',
+    'Lock task - no interruptions allowed',
+    'Critical section start - protect this code',
+    'Interrupt off - ensure uninterrupted execution',
+    'UID - begin protected code region',
+    'Disable preemption - task runs uninterrupted',
+    'Start critical - block task switches',
+  ],
+
+  // UIE - User Interrupt Enable
+  UIE: [
+    'Enable interrupts - allow task interruption again',
+    'UIE - user interrupt enable, critical section end',
+    'Unlock task - interruptions allowed again',
+    'Critical section end - code protection off',
+    'Interrupt on - normal task switching resumes',
+    'UIE - end protected code region',
+    'Enable preemption - task can be interrupted',
+    'End critical - allow task switches',
+  ],
+
+  // AFI - Always False
+  AFI: [
+    'Always false - this rung never executes outputs',
+    'AFI - disable rung, like commenting out code',
+    'Rung disable - outputs never energize',
+    'Always off - this rung is inactive',
+    'AFI - placeholder, logic disabled',
+    'False rung - outputs always off',
+    'Disabled rung - like a code comment',
+    'Skip outputs - always false condition',
+  ],
+
+  // NOP - No Operation
+  NOP: [
+    'No operation - placeholder, does nothing',
+    'NOP - empty instruction, just continues',
+    'Do nothing - pass-through instruction',
+    'Placeholder - no action taken',
+    'NOP - used for spacing or future expansion',
+    'Empty instruction - no effect',
+    'Skip - no operation performed',
+    'Null instruction - placeholder only',
+  ],
+
+  // EOT - End of Transition
+  EOT: [
+    'End of transition - SFC transition complete',
+    'EOT - transition done, proceed to next step',
+    'Transition end - SFC flow continues',
+    'Complete transition - move to next state',
+    'EOT - Sequential Function Chart transition marker',
+    'Transition complete - advance sequence',
+    'End transition - SFC state machine continue',
+    'SFC advance - transition finished',
+  ],
+
+  // SFP - SFC Pause
+  SFP: [
+    'SFC pause {0} - halt sequential function chart',
+    'Pause SFC {0} - stop sequence execution',
+    'SFP {0} - freeze the sequence',
+    'Hold SFC {0} - pause at current step',
+    'Sequence pause {0} - temporary stop',
+    'SFC hold {0} - freeze state machine',
+    'Pause sequence {0} - halt progression',
+    'Stop SFC {0} - pause sequential execution',
+  ],
+
+  // SFR - SFC Reset
+  SFR: [
+    'SFC reset {0} - restart sequential function chart',
+    'Reset SFC {0} - return to initial step',
+    'SFR {0} - reinitialize the sequence',
+    'Restart SFC {0} - go back to step 1',
+    'Sequence reset {0} - start over',
+    'SFC restart {0} - reset state machine',
+    'Reset sequence {0} - initialize to beginning',
+    'Reinit SFC {0} - restart sequential chart',
+  ],
+
+  // EVENT - Event Task Trigger
+  EVENT: [
+    'Trigger event task {0} - execute event routine',
+    'EVENT {0} - fire the event task',
+    'Event trigger {0} - run event routine now',
+    'Fire event {0} - execute event handler',
+    'Trigger {0} - activate event task',
+    'EVENT instruction {0} - event execution',
+    'Event fire {0} - run associated task',
+    'Activate event {0} - trigger handler',
+  ],
+
+  // FOR/BRK/NXT - Loop Control
+  FOR: [
+    'For loop start {0} - begin loop iteration',
+    'FOR {0} - loop from index to limit',
+    'Loop start {0} - iterate through range',
+    'Begin loop {0} - repeat until limit reached',
+    'FOR loop {0} - iterate count times',
+    'Start iteration {0} - loop control',
+    'Loop begin {0} - process array elements',
+    'Iterate {0} - for loop control',
+  ],
+
+  BRK: [
+    'Break loop - exit FOR loop early',
+    'BRK - stop looping, continue after NXT',
+    'Exit loop - leave iteration early',
+    'Loop exit - break out of FOR',
+    'Break out - stop iterating',
+    'BRK - early loop termination',
+    'Stop loop - exit before limit',
+    'Loop break - jump to after NXT',
+  ],
+
+  NXT: [
+    'Next iteration - end of FOR loop body',
+    'NXT - continue to next loop iteration',
+    'Loop end - go back to FOR',
+    'Continue loop - next iteration',
+    'NXT marker - loop body boundary',
+    'Iteration end - return to FOR',
+    'Loop bottom - back to top',
+    'Next pass - FOR loop continue',
+  ],
+
+  // ============================================================================
+  // LOGICAL OPERATIONS
+  // ============================================================================
+
+  AND: [
+    'Bitwise AND {0} & {1} → {2} - both bits must be 1',
+    'AND {0} with {1} → {2} - logical AND of bits',
+    'Bit AND {0} & {1} = {2} - mask operation',
+    'Logical AND {0}, {1} → {2} - extract specific bits',
+    'AND operation {0} & {1} → {2} - bit masking',
+    'Bitwise {0} AND {1} = {2} - filter bits',
+    'AND bits {0} & {1} → {2} - combine masks',
+    'Mask {0} with {1} → {2} - AND operation',
+  ],
+
+  OR: [
+    'Bitwise OR {0} | {1} → {2} - either bit can be 1',
+    'OR {0} with {1} → {2} - logical OR of bits',
+    'Bit OR {0} | {1} = {2} - combine operation',
+    'Logical OR {0}, {1} → {2} - merge bits',
+    'OR operation {0} | {1} → {2} - bit combining',
+    'Bitwise {0} OR {1} = {2} - combine flags',
+    'OR bits {0} | {1} → {2} - union of bits',
+    'Combine {0} with {1} → {2} - OR operation',
+  ],
+
+  XOR: [
+    'Bitwise XOR {0} ^ {1} → {2} - bits differ = 1',
+    'XOR {0} with {1} → {2} - exclusive OR',
+    'Bit XOR {0} ^ {1} = {2} - toggle operation',
+    'Exclusive OR {0}, {1} → {2} - difference bits',
+    'XOR operation {0} ^ {1} → {2} - toggle bits',
+    'Bitwise {0} XOR {1} = {2} - flip specific bits',
+    'XOR bits {0} ^ {1} → {2} - find differences',
+    'Toggle {0} by {1} → {2} - XOR operation',
+  ],
+
+  NOT: [
+    'Bitwise NOT {0} → {1} - flip all bits',
+    'NOT {0} → {1} - invert every bit',
+    'Bit NOT {0} = {1} - complement operation',
+    'Logical NOT {0} → {1} - all bits flip',
+    'NOT operation {0} → {1} - ones complement',
+    'Invert {0} → {1} - all bits toggle',
+    'NOT bits {0} → {1} - complement',
+    'Flip all {0} → {1} - NOT operation',
+  ],
+
+  // Boolean AND/OR/XOR/NOT
+  BAND: [
+    'Boolean AND {0} && {1} → {2} - both must be true',
+    'BAND {0}, {1} → {2} - logical AND result',
+    'Bool AND {0} && {1} = {2} - true if both true',
+    'Logical BAND {0}, {1} → {2} - AND of conditions',
+    'Boolean {0} AND {1} → {2} - combined condition',
+    'BAND operation {0} && {1} = {2}',
+    'Both true? {0} && {1} → {2}',
+    'AND conditions {0}, {1} → {2}',
+  ],
+
+  BOR: [
+    'Boolean OR {0} || {1} → {2} - either can be true',
+    'BOR {0}, {1} → {2} - logical OR result',
+    'Bool OR {0} || {1} = {2} - true if either true',
+    'Logical BOR {0}, {1} → {2} - OR of conditions',
+    'Boolean {0} OR {1} → {2} - either condition',
+    'BOR operation {0} || {1} = {2}',
+    'Either true? {0} || {1} → {2}',
+    'OR conditions {0}, {1} → {2}',
+  ],
+
+  BXOR: [
+    'Boolean XOR {0} ^ {1} → {2} - exactly one true',
+    'BXOR {0}, {1} → {2} - exclusive OR result',
+    'Bool XOR {0} ^ {1} = {2} - true if different',
+    'Logical BXOR {0}, {1} → {2} - one or the other',
+    'Boolean {0} XOR {1} → {2} - differ check',
+    'BXOR operation {0} ^ {1} = {2}',
+    'One true? {0} ^ {1} → {2}',
+    'XOR conditions {0}, {1} → {2}',
+  ],
+
+  BNOT: [
+    'Boolean NOT {0} → {1} - flip true/false',
+    'BNOT {0} → {1} - logical inversion',
+    'Bool NOT {0} = {1} - opposite value',
+    'Logical BNOT {0} → {1} - invert condition',
+    'Boolean NOT {0} → {1} - true becomes false',
+    'BNOT operation {0} → {1}',
+    'Invert condition {0} → {1}',
+    'NOT condition {0} → {1}',
+  ],
+
+  // ============================================================================
+  // CONVERSION INSTRUCTIONS
+  // ============================================================================
+
+  // TOD - To BCD
+  TOD: [
+    'Convert to BCD {0} → {1} - integer to BCD format',
+    'TOD {0} → {1} - convert for 7-segment display',
+    'To BCD {0} → {1} - like for thumbwheel output',
+    'Integer to BCD {0} → {1} - display encoding',
+    'Convert {0} to BCD {1} - for BCD devices',
+    'TOD conversion {0} → {1} - decimal to BCD',
+    'BCD encode {0} → {1} - for display output',
+    'Make BCD {0} → {1} - digit encoding',
+  ],
+
+  // FRD - From BCD
+  FRD: [
+    'Convert from BCD {0} → {1} - BCD to integer format',
+    'FRD {0} → {1} - read BCD thumbwheel input',
+    'From BCD {0} → {1} - like reading BCD switches',
+    'BCD to integer {0} → {1} - decode BCD input',
+    'Convert {0} from BCD {1} - read BCD devices',
+    'FRD conversion {0} → {1} - BCD to decimal',
+    'BCD decode {0} → {1} - from BCD input',
+    'Read BCD {0} → {1} - digit decoding',
+  ],
+
+  // TRN - Truncate
+  TRN: [
+    'Truncate {0} → {1} - drop decimal portion',
+    'TRN {0} → {1} - convert to integer by truncation',
+    'Truncate {0} → {1} - like rounding toward zero',
+    'Drop decimals {0} → {1} - integer part only',
+    'TRN conversion {0} → {1} - remove fraction',
+    'Truncate float {0} → {1} - keep whole number',
+    'Integer from {0} → {1} - by truncation',
+    'Cut decimals {0} → {1} - truncate operation',
+  ],
+
+  // DEG - Radians to Degrees
+  DEG: [
+    'Radians to degrees {0} → {1} - convert angle unit',
+    'DEG {0} → {1} - radian angle to degrees',
+    'To degrees {0} → {1} - like converting trig result',
+    'Rad to deg {0} → {1} - angle conversion',
+    'DEG conversion {0} → {1} - radian input to degrees',
+    'Convert {0} rad to deg {1} - angle unit change',
+    'Degrees from radians {0} → {1}',
+    'Angle to degrees {0} → {1}',
+  ],
+
+  // RAD - Degrees to Radians
+  RAD: [
+    'Degrees to radians {0} → {1} - convert angle unit',
+    'RAD {0} → {1} - degree angle to radians',
+    'To radians {0} → {1} - like preparing for trig',
+    'Deg to rad {0} → {1} - angle conversion',
+    'RAD conversion {0} → {1} - degree input to radians',
+    'Convert {0} deg to rad {1} - angle unit change',
+    'Radians from degrees {0} → {1}',
+    'Angle to radians {0} → {1}',
+  ],
+
+  // ============================================================================
+  // TRIG FUNCTIONS
+  // ============================================================================
+
+  SIN: [
+    'Sine of {0} → {1} - trig function',
+    'SIN {0} → {1} - calculate sine value',
+    'Sine {0} → {1} - for position calculations',
+    'Calculate sin({0}) → {1} - trig result',
+    'SIN function {0} → {1} - sinusoidal',
+    'Sine wave {0} → {1} - oscillation calc',
+    'Sin({0}) = {1} - trigonometry',
+    'Trig sine {0} → {1}',
+  ],
+
+  COS: [
+    'Cosine of {0} → {1} - trig function',
+    'COS {0} → {1} - calculate cosine value',
+    'Cosine {0} → {1} - for position calculations',
+    'Calculate cos({0}) → {1} - trig result',
+    'COS function {0} → {1} - cosine wave',
+    'Cosine wave {0} → {1} - oscillation calc',
+    'Cos({0}) = {1} - trigonometry',
+    'Trig cosine {0} → {1}',
+  ],
+
+  TAN: [
+    'Tangent of {0} → {1} - trig function',
+    'TAN {0} → {1} - calculate tangent value',
+    'Tangent {0} → {1} - for angle calculations',
+    'Calculate tan({0}) → {1} - trig result',
+    'TAN function {0} → {1} - tangent',
+    'Tangent calc {0} → {1} - slope calculation',
+    'Tan({0}) = {1} - trigonometry',
+    'Trig tangent {0} → {1}',
+  ],
+
+  ASN: [
+    'Arc sine of {0} → {1} - inverse sin',
+    'ASN {0} → {1} - calculate arcsine angle',
+    'Arcsine {0} → {1} - find angle from ratio',
+    'Calculate asin({0}) → {1} - inverse trig',
+    'ASN function {0} → {1} - angle from sine',
+    'Inverse sine {0} → {1} - angle result',
+    'Asin({0}) = {1} - inverse trig',
+    'Angle from sin {0} → {1}',
+  ],
+
+  ACS: [
+    'Arc cosine of {0} → {1} - inverse cos',
+    'ACS {0} → {1} - calculate arccosine angle',
+    'Arccosine {0} → {1} - find angle from ratio',
+    'Calculate acos({0}) → {1} - inverse trig',
+    'ACS function {0} → {1} - angle from cosine',
+    'Inverse cosine {0} → {1} - angle result',
+    'Acos({0}) = {1} - inverse trig',
+    'Angle from cos {0} → {1}',
+  ],
+
+  ATN: [
+    'Arc tangent of {0} → {1} - inverse tan',
+    'ATN {0} → {1} - calculate arctangent angle',
+    'Arctangent {0} → {1} - find angle from ratio',
+    'Calculate atan({0}) → {1} - inverse trig',
+    'ATN function {0} → {1} - angle from tangent',
+    'Inverse tangent {0} → {1} - angle result',
+    'Atan({0}) = {1} - inverse trig',
+    'Angle from tan {0} → {1}',
+  ],
+
+  LN: [
+    'Natural log of {0} → {1} - ln function',
+    'LN {0} → {1} - calculate natural logarithm',
+    'Natural log {0} → {1} - base e logarithm',
+    'Calculate ln({0}) → {1} - log base e',
+    'LN function {0} → {1} - natural log',
+    'Log base e {0} → {1} - natural logarithm',
+    'Ln({0}) = {1} - natural log result',
+    'Natural logarithm {0} → {1}',
+  ],
+
+  LOG: [
+    'Log base 10 of {0} → {1} - common log',
+    'LOG {0} → {1} - calculate common logarithm',
+    'Log10 {0} → {1} - base 10 logarithm',
+    'Calculate log({0}) → {1} - log base 10',
+    'LOG function {0} → {1} - common log',
+    'Log base 10 {0} → {1} - common logarithm',
+    'Log({0}) = {1} - log10 result',
+    'Common logarithm {0} → {1}',
+  ],
+
+  XPY: [
+    'X to power Y: {0}^{1} → {2} - exponentiation',
+    'XPY {0}^{1} → {2} - raise to power',
+    'Power {0}^{1} = {2} - exponential calc',
+    'Calculate {0}^{1} → {2} - power function',
+    'Exponent {0}^{1} → {2} - X raised to Y',
+    '{0} to the {1} power → {2}',
+    'Power of {0}^{1} = {2} - exponential',
+    'Raise {0} to {1} → {2}',
+  ],
+
+  // ============================================================================
+  // STRING INSTRUCTIONS
+  // ============================================================================
+
+  CONCAT: [
+    'Concatenate {0} + {1} → {2} - join strings',
+    'CONCAT {0} with {1} → {2} - combine text',
+    'Join strings {0} + {1} = {2} - append text',
+    'String join {0} + {1} → {2} - combine messages',
+    'Append {1} to {0} → {2} - build string',
+    'Combine text {0} + {1} → {2} - concatenate',
+    'Merge strings {0}, {1} → {2}',
+    'Text join {0} + {1} → {2}',
+  ],
+
+  MID: [
+    'Extract middle {0} from position {1}, {2} chars → {3}',
+    'MID {0} at {1} for {2} → {3} - substring extraction',
+    'Substring {0} from {1}, length {2} → {3}',
+    'Get chars from {0} at position {1} → {3}',
+    'Extract portion {0}[{1}:{2}] → {3}',
+    'Middle of string {0} → {3}',
+    'Substring extract {0} → {3}',
+    'Pull chars from {0} position {1} → {3}',
+  ],
+
+  DELETE: [
+    'Delete from {0} at position {1}, {2} chars → {3}',
+    'DELETE {2} chars from {0} at {1} → {3}',
+    'Remove chars from {0} → {3} - delete portion',
+    'String delete {0} → {3} - remove substring',
+    'Cut from {0} at {1}, length {2} → {3}',
+    'Remove portion from {0} → {3}',
+    'Delete substring {0} → {3}',
+    'Strip chars from {0} → {3}',
+  ],
+
+  INSERT: [
+    'Insert {1} into {0} at position {2} → {3}',
+    'INSERT {1} in {0} at {2} → {3} - add text',
+    'Add string {1} to {0} at position {2}',
+    'String insert {1} into {0} → {3}',
+    'Put {1} in {0} at {2} → {3}',
+    'Insert text {1} into {0} → {3}',
+    'Add {1} to string {0} → {3}',
+    'Inject {1} at {0}[{2}] → {3}',
+  ],
+
+  FIND: [
+    'Find {1} in {0} starting at {2} → {3} - search string',
+    'FIND {1} within {0} → {3} - locate substring',
+    'Search {0} for {1} → {3} - find position',
+    'Locate {1} in {0} → {3} - string search',
+    'Find text {1} in {0} → position {3}',
+    'Search string {0} for {1} → {3}',
+    'Substring position {1} in {0} → {3}',
+    'Find occurrence {1} in {0} → {3}',
+  ],
+
+  DTOS: [
+    'DINT to string {0} → {1} - convert number to text',
+    'DTOS {0} → {1} - integer to string',
+    'Number to text {0} → {1} - for display',
+    'Convert DINT {0} to string {1}',
+    'Int to string {0} → {1} - numeric format',
+    'Format number {0} → {1} - to text',
+    'Stringify {0} → {1} - DINT to STRING',
+    'Number as text {0} → {1}',
+  ],
+
+  STOD: [
+    'String to DINT {0} → {1} - convert text to number',
+    'STOD {0} → {1} - string to integer',
+    'Text to number {0} → {1} - parse string',
+    'Convert string {0} to DINT {1}',
+    'Parse number {0} → {1} - from text',
+    'String to int {0} → {1} - numeric parse',
+    'Parse {0} → {1} - STRING to DINT',
+    'Text as number {0} → {1}',
+  ],
+
+  RTOS: [
+    'REAL to string {0} → {1} - convert float to text',
+    'RTOS {0} → {1} - real to string',
+    'Float to text {0} → {1} - for display',
+    'Convert REAL {0} to string {1}',
+    'Real to string {0} → {1} - decimal format',
+    'Format real {0} → {1} - to text',
+    'Stringify {0} → {1} - REAL to STRING',
+    'Float as text {0} → {1}',
+  ],
+
+  STOR: [
+    'String to REAL {0} → {1} - convert text to float',
+    'STOR {0} → {1} - string to real',
+    'Text to float {0} → {1} - parse string',
+    'Convert string {0} to REAL {1}',
+    'Parse real {0} → {1} - from text',
+    'String to float {0} → {1} - decimal parse',
+    'Parse {0} → {1} - STRING to REAL',
+    'Text as float {0} → {1}',
+  ],
+
+  UPPER: [
+    'To uppercase {0} → {1} - convert string',
+    'UPPER {0} → {1} - make all caps',
+    'Uppercase {0} → {1} - all letters capital',
+    'Capitalize {0} → {1} - to upper case',
+    'Make upper {0} → {1} - uppercase string',
+    'All caps {0} → {1} - convert to upper',
+    'String to upper {0} → {1}',
+    'Uppercase text {0} → {1}',
+  ],
+
+  LOWER: [
+    'To lowercase {0} → {1} - convert string',
+    'LOWER {0} → {1} - make all lowercase',
+    'Lowercase {0} → {1} - all letters small',
+    'Decapitalize {0} → {1} - to lower case',
+    'Make lower {0} → {1} - lowercase string',
+    'All small {0} → {1} - convert to lower',
+    'String to lower {0} → {1}',
+    'Lowercase text {0} → {1}',
+  ],
+
+  // ============================================================================
+  // SELECT/MUX INSTRUCTIONS
+  // ============================================================================
+
+  SEL: [
+    'Select {0}: if false use {1}, if true use {2} → {3}',
+    'SEL {0} ? {2} : {1} → {3} - conditional select',
+    'Choose based on {0}: {1} or {2} → {3}',
+    'Select value {0} → {3} - pick from two options',
+    'Conditional {0}: pick {1} or {2} → {3}',
+    'If {0} then {2} else {1} → {3}',
+    'Select output based on {0} → {3}',
+    'Binary select {0} → {3}',
+  ],
+
+  MUX: [
+    'Multiplex {0} → select from {1} array → {2}',
+    'MUX {0} → {2} - select by index',
+    'Index select {0} from array → {2}',
+    'Multiplexer {0} selects from {1} → {2}',
+    'Select element [{0}] from {1} → {2}',
+    'Choose by index {0} → {2}',
+    'Array select {0} from {1} → {2}',
+    'Pick by number {0} → {2}',
+  ],
+
+  // ============================================================================
+  // STATISTICAL INSTRUCTIONS
+  // ============================================================================
+
+  AVE: [
+    'Average of {0} → {1} - calculate mean',
+    'AVE {0} → {1} - array average',
+    'Calculate average {0} → {1} - mean value',
+    'Mean of {0} → {1} - sum divided by count',
+    'Average array {0} → {1} - statistical mean',
+    'Find average {0} → {1} - arithmetic mean',
+    'Compute mean {0} → {1}',
+    'Array mean {0} → {1}',
+  ],
+
+  STD: [
+    'Standard deviation of {0} → {1} - calculate spread',
+    'STD {0} → {1} - array std dev',
+    'Calculate std dev {0} → {1} - variation measure',
+    'Std dev of {0} → {1} - statistical spread',
+    'Standard dev {0} → {1} - data variation',
+    'Find std dev {0} → {1} - sigma value',
+    'Compute std dev {0} → {1}',
+    'Array deviation {0} → {1}',
+  ],
+
+  SRT: [
+    'Sort array {0} - arrange in order',
+    'SRT {0} - sort elements ascending',
+    'Sort {0} - order the array',
+    'Arrange {0} - sort ascending',
+    'Order array {0} - smallest to largest',
+    'Sort data {0} - arrange elements',
+    'Array sort {0} - organize values',
+    'Sort elements {0} - in order',
+  ],
+
+  // ============================================================================
+  // ALARM INSTRUCTIONS
+  // ============================================================================
+
+  ALMD: [
+    'Digital alarm {0} - level-based alarm detection',
+    'ALMD {0} - discrete alarm condition',
+    'Alarm digital {0} - on/off alarm check',
+    'Digital alarm {0} - like limit switch alarm',
+    'Level alarm {0} - binary condition',
+    'Discrete alarm {0} - state-based',
+    'ALMD {0} - digital alarm detection',
+    'Binary alarm {0} - true/false condition',
+  ],
+
+  ALMA: [
+    'Analog alarm {0} - level monitoring alarm',
+    'ALMA {0} - process variable alarm',
+    'Alarm analog {0} - high/low limit check',
+    'Analog alarm {0} - like temperature alarm',
+    'Level monitoring {0} - analog limits',
+    'Process alarm {0} - variable monitoring',
+    'ALMA {0} - analog alarm detection',
+    'Variable alarm {0} - continuous monitoring',
+  ],
+
+  // ============================================================================
+  // PROCESS CONTROL
+  // ============================================================================
+
+  PID: [
+    'PID loop {0} - proportional-integral-derivative control',
+    'PID {0} - closed-loop process control',
+    'Process control {0} - PID regulation',
+    'PID controller {0} - like temperature control',
+    'Loop control {0} - PID algorithm',
+    'Regulate {0} - PID feedback loop',
+    'PID {0} - setpoint tracking control',
+    'Control loop {0} - process regulation',
+  ],
+
+  PIDE: [
+    'Enhanced PID {0} - advanced process control',
+    'PIDE {0} - enhanced closed-loop control',
+    'Advanced PID {0} - with anti-windup',
+    'PIDE controller {0} - industrial process control',
+    'Enhanced loop {0} - PIDE algorithm',
+    'Process control {0} - enhanced PID',
+    'PIDE {0} - professional process control',
+    'Advanced control {0} - enhanced features',
+  ],
+
+  SCL: [
+    'Scale {0} to {1} - linear scaling',
+    'SCL {0} → {1} - input to output scaling',
+    'Linear scale {0} → {1} - range conversion',
+    'Scale value {0} → {1} - like 4-20mA to engineering',
+    'Range scale {0} → {1} - input/output mapping',
+    'Scale {0} → {1} - linear transformation',
+    'Scaling {0} → {1} - range mapping',
+    'Convert range {0} → {1} - linear scale',
+  ],
+
+  TOT: [
+    'Totalizer {0} - accumulate over time',
+    'TOT {0} - running total of rate',
+    'Totalize {0} - like flow totalizer',
+    'Accumulate {0} - rate integration',
+    'Total {0} - sum rate over time',
+    'Totalizer {0} - gallons from GPM',
+    'TOT {0} - integrate rate',
+    'Running total {0} - accumulator',
+  ],
+
+  // ============================================================================
+  // MOTION INSTRUCTIONS (abbreviated set)
+  // ============================================================================
+
+  MSO: [
+    'Motion servo on {0} - enable axis servo',
+    'MSO {0} - turn on servo drive',
+    'Servo on {0} - enable axis control',
+    'Enable servo {0} - motor power on',
+    'Axis on {0} - servo enable',
+    'Servo enable {0} - axis ready',
+    'MSO {0} - start servo control',
+    'Power axis {0} - servo on',
+  ],
+
+  MSF: [
+    'Motion servo off {0} - disable axis servo',
+    'MSF {0} - turn off servo drive',
+    'Servo off {0} - disable axis control',
+    'Disable servo {0} - motor power off',
+    'Axis off {0} - servo disable',
+    'Servo disable {0} - axis shutdown',
+    'MSF {0} - stop servo control',
+    'Depower axis {0} - servo off',
+  ],
+
+  MAJ: [
+    'Motion axis jog {0} - jog axis at velocity',
+    'MAJ {0} - jog move continuous',
+    'Jog axis {0} - continuous velocity move',
+    'Axis jog {0} - manual jogging',
+    'Jog {0} - continuous motion',
+    'MAJ {0} - velocity mode jog',
+    'Jog move {0} - axis jogging',
+    'Continuous jog {0} - velocity motion',
+  ],
+
+  MAM: [
+    'Motion axis move {0} - move to position',
+    'MAM {0} - absolute or incremental move',
+    'Axis move {0} - position move',
+    'Move axis {0} - point to point',
+    'Position move {0} - MAM command',
+    'MAM {0} - motion move',
+    'Move to position {0} - axis move',
+    'Point move {0} - position motion',
+  ],
+
+  MAS: [
+    'Motion axis stop {0} - stop axis motion',
+    'MAS {0} - commanded stop',
+    'Stop axis {0} - halt motion',
+    'Axis stop {0} - motion halt',
+    'Stop motion {0} - MAS command',
+    'MAS {0} - stop move',
+    'Halt axis {0} - stop motion',
+    'Motion stop {0} - axis halt',
+  ],
+
+  MAH: [
+    'Motion axis home {0} - home the axis',
+    'MAH {0} - homing sequence',
+    'Home axis {0} - find home position',
+    'Axis home {0} - reference search',
+    'Home {0} - MAH command',
+    'MAH {0} - home move',
+    'Find home {0} - axis homing',
+    'Reference axis {0} - home sequence',
+  ],
+
+  MAG: [
+    'Motion axis gear {0} - electronic gearing',
+    'MAG {0} - gear to master axis',
+    'Gear axis {0} - follow master',
+    'Electronic gear {0} - slave to master',
+    'Axis gear {0} - MAG command',
+    'MAG {0} - gearing enable',
+    'Gear follow {0} - sync to master',
+    'Ratio follow {0} - electronic gearing',
+  ],
+
+  MASD: [
+    'Motion axis shutdown {0} - emergency shutdown',
+    'MASD {0} - axis shutdown',
+    'Shutdown axis {0} - emergency stop',
+    'Axis shutdown {0} - MASD command',
+    'Emergency shutdown {0} - axis halt',
+    'MASD {0} - shutdown motion',
+    'Axis emergency stop {0}',
+    'Shutdown {0} - motion halt',
+  ],
+
+  MASR: [
+    'Motion axis shutdown reset {0} - clear shutdown',
+    'MASR {0} - reset axis after shutdown',
+    'Reset shutdown {0} - clear axis fault',
+    'Axis reset {0} - MASR command',
+    'Clear shutdown {0} - axis recovery',
+    'MASR {0} - shutdown reset',
+    'Reset axis {0} - clear fault',
+    'Recover axis {0} - reset shutdown',
+  ],
+
+  MRP: [
+    'Motion redefine position {0} - set axis position',
+    'MRP {0} - redefine current position',
+    'Redefine position {0} - set new reference',
+    'Set position {0} - MRP command',
+    'Position redefine {0} - change reference',
+    'MRP {0} - new position',
+    'Reset position {0} - redefine location',
+    'Define position {0} - axis reference',
+  ],
+
+  // ============================================================================
+  // I/O INSTRUCTIONS
+  // ============================================================================
+
+  IOT: [
+    'Immediate output {0} - update output now',
+    'IOT {0} - immediate I/O transfer',
+    'Output now {0} - don\'t wait for scan end',
+    'Immediate I/O {0} - force output update',
+    'IOT {0} - real-time output',
+    'Update output {0} - immediate write',
+    'Force output {0} - instant I/O',
+    'Real-time out {0} - immediate transfer',
+  ],
+
+  // ============================================================================
+  // ASCII SERIAL INSTRUCTIONS
+  // ============================================================================
+
+  ABL: [
+    'ASCII buffer line {0} - count chars in buffer',
+    'ABL {0} - get available buffer length',
+    'Buffer length {0} - chars available',
+    'Line count {0} - ASCII buffer status',
+    'ABL {0} - check buffer contents',
+    'Buffer status {0} - available data',
+    'Check buffer {0} - char count',
+    'Buffer chars {0} - available length',
+  ],
+
+  ACB: [
+    'ASCII chars in buffer {0} - count all chars',
+    'ACB {0} - total buffer content count',
+    'Char count {0} - ASCII buffer total',
+    'Buffer total {0} - all characters',
+    'ACB {0} - buffer character count',
+    'Total chars {0} - in buffer',
+    'Count buffer {0} - all chars',
+    'Buffer size {0} - char count',
+  ],
+
+  AHL: [
+    'ASCII handshake lines {0} - control serial signals',
+    'AHL {0} - set/get handshake status',
+    'Handshake {0} - serial control lines',
+    'Serial handshake {0} - DTR/RTS control',
+    'AHL {0} - modem control lines',
+    'Control lines {0} - serial handshake',
+    'Handshake lines {0} - serial status',
+    'Serial control {0} - handshake',
+  ],
+
+  ARD: [
+    'ASCII read {0} - read from serial buffer',
+    'ARD {0} - receive serial data',
+    'Read serial {0} - get ASCII data',
+    'Serial receive {0} - ARD command',
+    'ARD {0} - ASCII input',
+    'Receive data {0} - serial read',
+    'Get serial {0} - read buffer',
+    'Read chars {0} - serial input',
+  ],
+
+  ARL: [
+    'ASCII read line {0} - read until terminator',
+    'ARL {0} - receive serial line',
+    'Read line {0} - get ASCII line',
+    'Serial line read {0} - ARL command',
+    'ARL {0} - ASCII line input',
+    'Receive line {0} - serial read',
+    'Get line {0} - read to terminator',
+    'Read serial line {0}',
+  ],
+
+  AWA: [
+    'ASCII write append {0} - send with terminator',
+    'AWA {0} - transmit with auto append',
+    'Write append {0} - send ASCII with suffix',
+    'Serial send {0} - AWA command',
+    'AWA {0} - ASCII output with terminator',
+    'Send with terminator {0} - serial write',
+    'Transmit append {0} - auto suffix',
+    'Write with suffix {0} - serial output',
+  ],
+
+  AWT: [
+    'ASCII write {0} - send serial data',
+    'AWT {0} - transmit ASCII data',
+    'Write serial {0} - send data',
+    'Serial transmit {0} - AWT command',
+    'AWT {0} - ASCII output',
+    'Send data {0} - serial write',
+    'Transmit {0} - serial output',
+    'Write chars {0} - serial send',
+  ],
+
+  ACL: [
+    'ASCII clear {0} - clear serial buffer',
+    'ACL {0} - flush serial buffer',
+    'Clear buffer {0} - ASCII clear',
+    'Serial flush {0} - ACL command',
+    'ACL {0} - empty buffer',
+    'Flush serial {0} - clear data',
+    'Clear serial {0} - reset buffer',
+    'Buffer clear {0} - serial flush',
+  ],
+
+  // ============================================================================
+  // DIAGNOSTIC/SPECIAL
+  // ============================================================================
+
+  FBC: [
+    'File bit compare {0} - compare bit files',
+    'FBC {0} - find bit differences',
+    'Bit file compare {0} - diagnostic check',
+    'Compare bits {0} - file diagnostic',
+    'FBC {0} - bit comparison',
+    'Diagnostic compare {0} - bit check',
+    'Bit check {0} - file compare',
+    'Compare file bits {0}',
+  ],
+
+  DDT: [
+    'Diagnostic detect {0} - find differences',
+    'DDT {0} - diagnostic comparison',
+    'Detect differences {0} - diagnostic test',
+    'Diagnostic {0} - DDT check',
+    'DDT {0} - detect changes',
+    'Find differences {0} - diagnostic',
+    'Diagnostic detect {0} - compare',
+    'Difference detect {0}',
+  ],
+
+  DTR: [
+    'Data transition {0} - capture transitions',
+    'DTR {0} - detect data changes',
+    'Transition detect {0} - state change',
+    'Data change {0} - DTR capture',
+    'DTR {0} - transition capture',
+    'Capture transitions {0} - data log',
+    'State transition {0} - detect change',
+    'Transition capture {0}',
+  ],
+
+  PFL: [
+    'Program fault log {0} - record fault info',
+    'PFL {0} - log program fault',
+    'Fault log {0} - capture error',
+    'Log fault {0} - PFL record',
+    'PFL {0} - program error log',
+    'Record fault {0} - diagnostic',
+    'Fault record {0} - program log',
+    'Error log {0} - PFL',
+  ],
+
+  // ============================================================================
+  // ADDITIONAL MOTION INSTRUCTIONS
+  // ============================================================================
+
+  MAFR: [
+    'Motion axis fault reset {0} - clear axis fault',
+    'MAFR {0} - reset motion fault',
+    'Axis fault reset {0} - clear error',
+    'Reset axis fault {0} - recover from error',
+    'MAFR {0} - clear motion error',
+    'Fault reset {0} - axis recovery',
+    'Clear axis fault {0} - reset error',
+    'Motion fault clear {0}',
+  ],
+
+  MAHD: [
+    'Motion axis hold {0} - hold current position',
+    'MAHD {0} - axis position hold',
+    'Hold axis {0} - maintain position',
+    'Position hold {0} - lock in place',
+    'MAHD {0} - hold motion',
+    'Axis hold {0} - freeze position',
+    'Hold position {0} - axis lock',
+    'Lock axis {0} - position hold',
+  ],
+
+  MRHD: [
+    'Motion resume hold {0} - release position hold',
+    'MRHD {0} - resume from hold',
+    'Resume axis {0} - release hold',
+    'Release hold {0} - continue motion',
+    'MRHD {0} - release position hold',
+    'Resume motion {0} - end hold',
+    'End hold {0} - resume axis',
+    'Continue axis {0} - release hold',
+  ],
+
+  MAW: [
+    'Motion axis watch {0} - monitor axis position',
+    'MAW {0} - position watch trigger',
+    'Watch position {0} - axis monitoring',
+    'Axis watch {0} - position trigger',
+    'MAW {0} - monitor motion',
+    'Position monitor {0} - axis watch',
+    'Watch axis {0} - position event',
+    'Motion watch {0} - position trigger',
+  ],
+
+  MDW: [
+    'Motion direct write {0} - write axis parameter',
+    'MDW {0} - direct drive write',
+    'Direct write {0} - axis parameter',
+    'Write axis {0} - direct access',
+    'MDW {0} - drive parameter write',
+    'Parameter write {0} - direct motion',
+    'Axis parameter {0} - direct write',
+    'Direct axis write {0}',
+  ],
+
+  MRAT: [
+    'Motion run assemble test {0} - test assembly',
+    'MRAT {0} - motion assembly test',
+    'Assembly test {0} - check configuration',
+    'Run test {0} - verify assembly',
+    'MRAT {0} - test axis config',
+    'Test motion {0} - assembly check',
+    'Assemble test {0} - verify setup',
+    'Config test {0} - motion assembly',
+  ],
+
+  MDRT: [
+    'Motion direct read test {0} - test direct read',
+    'MDRT {0} - read test',
+    'Direct read test {0} - verify read',
+    'Test read {0} - direct access',
+    'MDRT {0} - drive read test',
+    'Read test {0} - direct motion',
+    'Axis read test {0}',
+    'Direct test {0} - read verify',
+  ],
+
+  MCD: [
+    'Motion change dynamics {0} - modify motion profile',
+    'MCD {0} - change speed/accel on the fly',
+    'Change dynamics {0} - update motion parameters',
+    'Dynamics change {0} - adjust speed profile',
+    'MCD {0} - modify motion speed',
+    'Motion profile change {0}',
+    'Update dynamics {0} - motion change',
+    'Change motion {0} - dynamics update',
+  ],
+
+  MAPC: [
+    'Motion axis position cam {0} - cam profiling',
+    'MAPC {0} - position-based cam',
+    'Position cam {0} - cam table follow',
+    'Cam profile {0} - position sync',
+    'MAPC {0} - cam master',
+    'Cam axis {0} - position profile',
+    'Position profile {0} - cam follow',
+    'Axis cam {0} - profile sync',
+  ],
+
+  MATC: [
+    'Motion axis time cam {0} - time-based cam',
+    'MATC {0} - time cam profile',
+    'Time cam {0} - timed motion profile',
+    'Cam time {0} - time-based profile',
+    'MATC {0} - temporal cam',
+    'Timed cam {0} - motion profile',
+    'Time profile {0} - cam motion',
+    'Temporal profile {0} - axis cam',
+  ],
+
+  MAOC: [
+    'Motion axis output cam {0} - cam output',
+    'MAOC {0} - output during cam',
+    'Output cam {0} - cam-triggered output',
+    'Cam output {0} - position-based output',
+    'MAOC {0} - cam digital output',
+    'Output profile {0} - cam trigger',
+    'Cam trigger {0} - output event',
+    'Position output {0} - cam event',
+  ],
+
+  MDAC: [
+    'Motion direct axis control {0} - direct control',
+    'MDAC {0} - direct axis command',
+    'Direct control {0} - axis command',
+    'Axis control {0} - direct mode',
+    'MDAC {0} - direct motion control',
+    'Direct command {0} - axis direct',
+    'Control direct {0} - axis command',
+    'Direct axis {0} - control command',
+  ],
+
+  MDCC: [
+    'Motion direct command control {0} - command control',
+    'MDCC {0} - direct command',
+    'Command control {0} - direct mode',
+    'Direct command {0} - motion control',
+    'MDCC {0} - direct motion command',
+    'Command direct {0} - control mode',
+    'Control command {0} - direct access',
+    'Direct control {0} - command mode',
+  ],
+
+  MDOC: [
+    'Motion direct output cam {0} - direct output',
+    'MDOC {0} - direct cam output',
+    'Direct output {0} - cam control',
+    'Output direct {0} - cam signal',
+    'MDOC {0} - direct cam trigger',
+    'Direct cam {0} - output control',
+    'Cam direct {0} - output signal',
+    'Direct signal {0} - cam output',
+  ],
+
+  // Motion Group Instructions
+  MGS: [
+    'Motion group stop {0} - stop motion group',
+    'MGS {0} - group stop command',
+    'Group stop {0} - halt all axes',
+    'Stop group {0} - motion halt',
+    'MGS {0} - stop coordinated motion',
+    'Halt group {0} - stop all',
+    'Motion group halt {0}',
+    'Coordinated stop {0}',
+  ],
+
+  MGSD: [
+    'Motion group shutdown {0} - shutdown group',
+    'MGSD {0} - group emergency shutdown',
+    'Group shutdown {0} - emergency stop',
+    'Shutdown group {0} - E-stop',
+    'MGSD {0} - motion group shutdown',
+    'Emergency shutdown {0} - group',
+    'Group E-stop {0} - shutdown',
+    'Motion shutdown {0} - group',
+  ],
+
+  MGSR: [
+    'Motion group shutdown reset {0} - reset group',
+    'MGSR {0} - group shutdown reset',
+    'Group reset {0} - clear shutdown',
+    'Reset group {0} - recovery',
+    'MGSR {0} - clear group fault',
+    'Shutdown reset {0} - group',
+    'Group recovery {0} - reset',
+    'Reset shutdown {0} - group',
+  ],
+
+  MGSP: [
+    'Motion group strobe position {0} - capture positions',
+    'MGSP {0} - group position capture',
+    'Strobe positions {0} - capture all',
+    'Group capture {0} - position strobe',
+    'MGSP {0} - capture group positions',
+    'Position capture {0} - group strobe',
+    'Capture all {0} - group positions',
+    'Strobe group {0} - positions',
+  ],
+
+  // Coordinated Motion Instructions
+  MCCP: [
+    'Motion coordinated change path {0} - change path',
+    'MCCP {0} - path change',
+    'Change path {0} - coordinated motion',
+    'Path change {0} - modify trajectory',
+    'MCCP {0} - trajectory change',
+    'Modify path {0} - coordinated',
+    'Coordinated path {0} - change',
+    'Trajectory modify {0}',
+  ],
+
+  MCCM: [
+    'Motion coordinated circular move {0} - circular path',
+    'MCCM {0} - circular interpolation',
+    'Circular move {0} - arc motion',
+    'Arc move {0} - coordinated circular',
+    'MCCM {0} - circle path',
+    'Circle motion {0} - coordinated',
+    'Coordinated arc {0} - circular',
+    'Arc interpolation {0}',
+  ],
+
+  MCLM: [
+    'Motion coordinated linear move {0} - linear path',
+    'MCLM {0} - linear interpolation',
+    'Linear move {0} - straight line motion',
+    'Straight move {0} - coordinated linear',
+    'MCLM {0} - line path',
+    'Line motion {0} - coordinated',
+    'Coordinated line {0} - linear',
+    'Linear interpolation {0}',
+  ],
+
+  MCPM: [
+    'Motion coordinated position move {0} - position move',
+    'MCPM {0} - coordinated position',
+    'Position move {0} - coordinated axes',
+    'Coordinated move {0} - position',
+    'MCPM {0} - multi-axis position',
+    'Multi-axis move {0} - coordinated',
+    'Coordinated position {0} - move',
+    'Position coordinated {0}',
+  ],
+
+  MCS: [
+    'Motion coordinated stop {0} - stop coordinated',
+    'MCS {0} - coordinated stop',
+    'Coordinated stop {0} - halt motion',
+    'Stop coordinated {0} - motion halt',
+    'MCS {0} - stop multi-axis',
+    'Halt coordinated {0} - stop',
+    'Multi-axis stop {0}',
+    'Coordinated halt {0}',
+  ],
+
+  MCSD: [
+    'Motion coordinated shutdown {0} - shutdown coordinated',
+    'MCSD {0} - coordinated shutdown',
+    'Coordinated shutdown {0} - emergency',
+    'Shutdown coordinated {0} - E-stop',
+    'MCSD {0} - multi-axis shutdown',
+    'Emergency shutdown {0} - coordinated',
+    'Multi-axis E-stop {0}',
+    'Coordinated emergency {0}',
+  ],
+
+  MCSR: [
+    'Motion coordinated shutdown reset {0} - reset',
+    'MCSR {0} - reset coordinated shutdown',
+    'Coordinated reset {0} - clear fault',
+    'Reset coordinated {0} - recovery',
+    'MCSR {0} - clear coordinated fault',
+    'Multi-axis reset {0} - recovery',
+    'Clear fault {0} - coordinated',
+    'Coordinated recovery {0}',
+  ],
+
+  MCT: [
+    'Motion coordinated transform {0} - coordinate transform',
+    'MCT {0} - transform coordinates',
+    'Transform {0} - coordinate system',
+    'Coordinate transform {0} - motion',
+    'MCT {0} - motion transform',
+    'System transform {0} - coordinates',
+    'Transform coordinates {0}',
+    'Coordinated transform {0}',
+  ],
+
+  MCTP: [
+    'Motion calculate transform position {0} - calc position',
+    'MCTP {0} - transform position calc',
+    'Calculate transform {0} - position',
+    'Transform position {0} - calculate',
+    'MCTP {0} - position transform calc',
+    'Calc position {0} - transform',
+    'Position calculate {0} - transform',
+    'Transform calc {0} - position',
+  ],
+
+  // ============================================================================
+  // PROCESS CONTROL INSTRUCTIONS
+  // ============================================================================
+
+  RMPS: [
+    'Ramp/soak {0} - temperature profile control',
+    'RMPS {0} - ramp soak profile',
+    'Ramp soak {0} - heat treat profile',
+    'Temperature profile {0} - ramp/soak',
+    'RMPS {0} - profile control',
+    'Profile {0} - ramp and soak',
+    'Soak ramp {0} - temperature control',
+    'Heat profile {0} - ramp soak',
+  ],
+
+  POSP: [
+    'Position proportional {0} - position control',
+    'POSP {0} - proportional positioning',
+    'Position control {0} - proportional',
+    'Proportional position {0} - control',
+    'POSP {0} - valve positioning',
+    'Positioning {0} - proportional',
+    'Control position {0} - proportional',
+    'Proportional {0} - position',
+  ],
+
+  SRTP: [
+    'Split range time proportional {0} - split control',
+    'SRTP {0} - split range output',
+    'Split range {0} - time proportional',
+    'Time proportional {0} - split range',
+    'SRTP {0} - dual output control',
+    'Split control {0} - time prop',
+    'Range split {0} - proportional',
+    'Dual output {0} - split range',
+  ],
+
+  LDLG: [
+    'Lead lag {0} - lead/lag compensation',
+    'LDLG {0} - lead lag filter',
+    'Lead lag {0} - process compensation',
+    'Compensation {0} - lead/lag',
+    'LDLG {0} - filter lead lag',
+    'Process lead lag {0}',
+    'Lead/lag filter {0}',
+    'Compensate {0} - lead lag',
+  ],
+
+  FGEN: [
+    'Function generator {0} - signal generation',
+    'FGEN {0} - generate waveform',
+    'Signal generator {0} - function',
+    'Waveform {0} - function gen',
+    'FGEN {0} - waveform output',
+    'Generate signal {0} - function',
+    'Function {0} - signal gen',
+    'Generate {0} - waveform',
+  ],
+
+  DEDT: [
+    'Deadtime {0} - process dead time',
+    'DEDT {0} - dead time delay',
+    'Dead time {0} - transport delay',
+    'Process delay {0} - dead time',
+    'DEDT {0} - transport lag',
+    'Delay {0} - dead time',
+    'Transport delay {0} - process',
+    'Dead band time {0}',
+  ],
+
+  HPF: [
+    'High pass filter {0} - filter high frequencies',
+    'HPF {0} - high pass',
+    'High pass {0} - filter low out',
+    'Filter {0} - high pass',
+    'HPF {0} - pass high frequencies',
+    'High frequency {0} - filter',
+    'Pass high {0} - filter low',
+    'Filter high {0} - pass',
+  ],
+
+  LPF: [
+    'Low pass filter {0} - filter low frequencies',
+    'LPF {0} - low pass',
+    'Low pass {0} - filter high out',
+    'Filter {0} - low pass',
+    'LPF {0} - pass low frequencies',
+    'Low frequency {0} - filter',
+    'Pass low {0} - filter high',
+    'Filter low {0} - pass',
+  ],
+
+  NTCH: [
+    'Notch filter {0} - remove specific frequency',
+    'NTCH {0} - notch filter',
+    'Notch {0} - band reject',
+    'Filter {0} - notch reject',
+    'NTCH {0} - frequency reject',
+    'Band reject {0} - notch',
+    'Reject frequency {0} - notch',
+    'Notch reject {0} - filter',
+  ],
+
+  INTG: [
+    'Integrator {0} - integrate signal',
+    'INTG {0} - integration',
+    'Integrate {0} - accumulate',
+    'Integration {0} - signal sum',
+    'INTG {0} - running integral',
+    'Signal integrate {0}',
+    'Accumulate {0} - integrate',
+    'Running sum {0} - integral',
+  ],
+
+  DERV: [
+    'Derivative {0} - rate of change',
+    'DERV {0} - differentiate',
+    'Derivative {0} - calculate rate',
+    'Rate of change {0} - derivative',
+    'DERV {0} - slope calculation',
+    'Differentiate {0} - rate',
+    'Rate calc {0} - derivative',
+    'Slope {0} - rate of change',
+  ],
+
+  SCLE: [
+    'Scale with EU {0} - engineering unit scale',
+    'SCLE {0} - engineering scaling',
+    'EU scale {0} - engineering units',
+    'Scale EU {0} - unit conversion',
+    'SCLE {0} - unit scaling',
+    'Engineering scale {0} - units',
+    'Unit conversion {0} - SCLE',
+    'Scale to EU {0} - conversion',
+  ],
+
+  PI: [
+    'PI control {0} - proportional integral',
+    'PI {0} - P+I control',
+    'Proportional integral {0} - control',
+    'Control {0} - PI loop',
+    'PI {0} - process control',
+    'P+I loop {0} - control',
+    'Loop control {0} - PI',
+    'PI controller {0}',
+  ],
+
+  PMUL: [
+    'Pulse multiplier {0} - multiply pulses',
+    'PMUL {0} - pulse multiplication',
+    'Multiply pulses {0} - scale',
+    'Pulse scale {0} - multiply',
+    'PMUL {0} - pulse scaling',
+    'Scale pulses {0} - multiply',
+    'Pulse multiply {0}',
+    'Multiplier {0} - pulses',
+  ],
+
+  SCRV: [
+    'S-curve {0} - motion profile',
+    'SCRV {0} - S-curve profile',
+    'S-curve profile {0} - smooth motion',
+    'Smooth profile {0} - S-curve',
+    'SCRV {0} - smooth acceleration',
+    'Profile S-curve {0}',
+    'Smooth motion {0} - S-curve',
+    'S-curve ramp {0}',
+  ],
+
+  UPDN: [
+    'Up/down accumulator {0} - count up/down',
+    'UPDN {0} - bidirectional count',
+    'Up down {0} - accumulator',
+    'Accumulator {0} - up/down',
+    'UPDN {0} - count both ways',
+    'Count up/down {0}',
+    'Bidirectional {0} - accumulator',
+    'Up/down count {0}',
+  ],
+
+  HHS: [
+    'High/high select {0} - select highest',
+    'HHS {0} - high high selector',
+    'High select {0} - pick highest',
+    'Select highest {0} - HHS',
+    'HHS {0} - max of inputs',
+    'Highest select {0}',
+    'Max select {0} - high high',
+    'Pick highest {0}',
+  ],
+
+  LLS: [
+    'Low/low select {0} - select lowest',
+    'LLS {0} - low low selector',
+    'Low select {0} - pick lowest',
+    'Select lowest {0} - LLS',
+    'LLS {0} - min of inputs',
+    'Lowest select {0}',
+    'Min select {0} - low low',
+    'Pick lowest {0}',
+  ],
+
+  MAVE: [
+    'Moving average {0} - running average',
+    'MAVE {0} - moving avg filter',
+    'Moving avg {0} - smooth data',
+    'Average {0} - moving window',
+    'MAVE {0} - rolling average',
+    'Rolling avg {0} - filter',
+    'Smooth {0} - moving average',
+    'Filter {0} - moving avg',
+  ],
+
+  MAXC: [
+    'Maximum capture {0} - capture max value',
+    'MAXC {0} - track maximum',
+    'Max capture {0} - peak hold',
+    'Peak hold {0} - maximum',
+    'MAXC {0} - maximum tracking',
+    'Capture max {0} - peak',
+    'Track maximum {0}',
+    'Maximum hold {0}',
+  ],
+
+  MINC: [
+    'Minimum capture {0} - capture min value',
+    'MINC {0} - track minimum',
+    'Min capture {0} - valley hold',
+    'Valley hold {0} - minimum',
+    'MINC {0} - minimum tracking',
+    'Capture min {0} - valley',
+    'Track minimum {0}',
+    'Minimum hold {0}',
+  ],
+
+  ESEL: [
+    'Enhanced select {0} - select best signal',
+    'ESEL {0} - enhanced selector',
+    'Enhanced select {0} - signal selection',
+    'Signal select {0} - enhanced',
+    'ESEL {0} - smart selection',
+    'Best signal {0} - select',
+    'Select signal {0} - enhanced',
+    'Smart select {0}',
+  ],
+
+  HLL: [
+    'High/low limit {0} - clamp value',
+    'HLL {0} - value limiter',
+    'Limit {0} - high and low',
+    'Clamp {0} - high/low limit',
+    'HLL {0} - value clamping',
+    'Value limit {0} - high/low',
+    'Clamp value {0} - limits',
+    'Limit value {0}',
+  ],
+
+  RLIM: [
+    'Rate limit {0} - limit rate of change',
+    'RLIM {0} - rate limiter',
+    'Rate limit {0} - slew rate',
+    'Slew limit {0} - rate',
+    'RLIM {0} - change rate limit',
+    'Limit rate {0} - slew',
+    'Change limit {0} - rate',
+    'Rate of change limit {0}',
+  ],
+
+  SNEG: [
+    'Selectable negate {0} - conditional negate',
+    'SNEG {0} - selective negate',
+    'Negate {0} - selectable',
+    'Selective negate {0} - sign',
+    'SNEG {0} - conditional sign flip',
+    'Conditional negate {0}',
+    'Sign select {0} - negate',
+    'Selectable sign {0}',
+  ],
+
+  // ============================================================================
+  // PHASE INSTRUCTIONS
+  // ============================================================================
+
+  PSC: [
+    'Phase state complete {0} - phase done',
+    'PSC {0} - state complete',
+    'State complete {0} - phase',
+    'Phase complete {0} - state done',
+    'PSC {0} - phase state done',
+    'Complete state {0} - phase',
+    'Phase done {0} - state',
+    'State done {0}',
+  ],
+
+  PCMD: [
+    'Phase command {0} - send phase command',
+    'PCMD {0} - phase control',
+    'Phase command {0} - control',
+    'Command phase {0} - control',
+    'PCMD {0} - phase instruction',
+    'Control phase {0}',
+    'Phase control {0} - command',
+    'Send phase {0}',
+  ],
+
+  PCLF: [
+    'Phase clear failure {0} - clear phase fault',
+    'PCLF {0} - clear failure',
+    'Clear failure {0} - phase',
+    'Phase fault clear {0}',
+    'PCLF {0} - reset failure',
+    'Failure clear {0} - phase',
+    'Clear phase fault {0}',
+    'Reset phase failure {0}',
+  ],
+
+  PATT: [
+    'Phase attach {0} - attach to phase',
+    'PATT {0} - phase attachment',
+    'Attach phase {0} - equipment',
+    'Phase attach {0} - equipment',
+    'PATT {0} - attach equipment',
+    'Equipment attach {0} - phase',
+    'Attach to phase {0}',
+    'Phase equipment {0} - attach',
+  ],
+
+  PDET: [
+    'Phase detach {0} - detach from phase',
+    'PDET {0} - phase detachment',
+    'Detach phase {0} - equipment',
+    'Phase detach {0} - equipment',
+    'PDET {0} - detach equipment',
+    'Equipment detach {0} - phase',
+    'Detach from phase {0}',
+    'Phase equipment {0} - detach',
+  ],
+
+  POVR: [
+    'Phase override {0} - override phase',
+    'POVR {0} - phase override',
+    'Override phase {0} - control',
+    'Phase override {0} - command',
+    'POVR {0} - override command',
+    'Override {0} - phase',
+    'Phase command {0} - override',
+    'Override control {0} - phase',
+  ],
+
+  PRNP: [
+    'Phase run next phase {0} - advance phase',
+    'PRNP {0} - next phase run',
+    'Run next phase {0}',
+    'Next phase {0} - advance',
+    'PRNP {0} - phase advance',
+    'Advance phase {0}',
+    'Phase next {0} - run',
+    'Continue phase {0}',
+  ],
+
+  PPD: [
+    'Phase pause/dwell {0} - pause phase',
+    'PPD {0} - phase dwell',
+    'Pause phase {0} - dwell',
+    'Phase pause {0} - hold',
+    'PPD {0} - dwell time',
+    'Dwell {0} - phase pause',
+    'Hold phase {0} - pause',
+    'Phase hold {0} - dwell',
+  ],
+
+  PXRQ: [
+    'Phase external request {0} - external input',
+    'PXRQ {0} - external request',
+    'External request {0} - phase',
+    'Phase request {0} - external',
+    'PXRQ {0} - phase input',
+    'Request {0} - external phase',
+    'External phase {0} - request',
+    'Phase external {0}',
+  ],
+
+  // ============================================================================
+  // SAFETY INSTRUCTIONS
+  // ============================================================================
+
+  SASI: [
+    'Safety instruction input {0} - safety input',
+    'SASI {0} - safety input',
+    'Safety input {0} - SASI',
+    'Input safety {0}',
+    'SASI {0} - safety signal input',
+    'Safety signal {0} - input',
+    'Input {0} - safety',
+    'Safety {0} - input instruction',
+  ],
+
+  SCMD: [
+    'Safety command {0} - safety control',
+    'SCMD {0} - safety command',
+    'Safety command {0} - control',
+    'Command safety {0}',
+    'SCMD {0} - safety instruction',
+    'Safety control {0} - command',
+    'Control safety {0}',
+    'Safety {0} - command',
+  ],
+
+  SOVR: [
+    'Safety override {0} - override safety',
+    'SOVR {0} - safety override',
+    'Override safety {0}',
+    'Safety override {0} - command',
+    'SOVR {0} - override instruction',
+    'Override {0} - safety',
+    'Safety {0} - override',
+    'Override command {0} - safety',
+  ],
+
+  SDET: [
+    'Safety detach {0} - detach safety',
+    'SDET {0} - safety detachment',
+    'Detach safety {0}',
+    'Safety detach {0} - equipment',
+    'SDET {0} - detach from safety',
+    'Detach {0} - safety',
+    'Safety {0} - detach',
+    'Detachment {0} - safety',
+  ],
+
+  SCLF: [
+    'Safety clear failure {0} - clear safety fault',
+    'SCLF {0} - clear safety failure',
+    'Clear safety fault {0}',
+    'Safety fault clear {0}',
+    'SCLF {0} - reset safety failure',
+    'Clear {0} - safety fault',
+    'Safety {0} - clear failure',
+    'Reset safety {0}',
+  ],
+
+  SAFETYTASK: [
+    'Safety task {0} - safety controller task',
+    'SAFETYTASK {0} - safety task',
+    'Safety task {0}',
+    'Task {0} - safety controller',
+    'SAFETYTASK {0} - safety execution',
+    'Safety execution {0} - task',
+    'Task safety {0}',
+    'Safety {0} - task control',
+  ],
+
+  // ============================================================================
+  // MISCELLANEOUS
+  // ============================================================================
+
+  AOI: [
+    'Add-on instruction {0} - custom instruction',
+    'AOI {0} - user-defined instruction',
+    'Custom instruction {0} - AOI',
+    'User instruction {0} - add-on',
+    'AOI {0} - reusable logic block',
+    'Add-on {0} - custom logic',
+    'Instruction {0} - add-on',
+    'Reusable block {0} - AOI',
+  ],
+
+  BTDT: [
+    'Bit field distribute with target {0} - distribute bits',
+    'BTDT {0} - bit distribute with target',
+    'Distribute bits {0} - with target',
+    'Bit distribute {0} - target mode',
+    'BTDT {0} - targeted bit field',
+    'Targeted distribute {0} - bits',
+    'Bit field {0} - distribute target',
+    'Target distribute {0} - bits',
+  ],
 }
 
 // Simple hash function to get consistent number from string
