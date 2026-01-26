@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { analyzeProject } from '@/lib/project-analysis'
 
 // Parser API URL - set in environment
 const PARSER_API_URL = process.env.PARSER_API_URL || 'http://localhost:8000'
+
+// Calculate SHA256 hash of file contents
+async function calculateFileHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer()
+  const hash = createHash('sha256')
+  hash.update(Buffer.from(buffer))
+  return hash.digest('hex')
+}
 
 // PostgreSQL INT4 max value (signed 32-bit)
 const MAX_INT4 = 2147483647
@@ -57,6 +66,48 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid file type. Please upload an .L5X or .ACD file.' },
         { status: 400 }
       )
+    }
+
+    // Calculate file hash to check for duplicates
+    const fileHash = await calculateFileHash(file)
+    const fileSize = file.size
+
+    console.log(`[Upload] File: ${file.name}, Size: ${fileSize}, Hash: ${fileHash.substring(0, 16)}...`)
+
+    // Check if this exact file has been uploaded before
+    const existingProject = await prisma.project.findFirst({
+      where: { fileHash },
+      select: {
+        id: true,
+        name: true,
+        fileName: true,
+        createdAt: true,
+        _count: {
+          select: {
+            tags: true,
+            programs: true,
+            modules: true,
+            addOnInstructions: true,
+            dataTypes: true
+          }
+        }
+      }
+    })
+
+    if (existingProject) {
+      console.log(`[Upload] Found existing project ${existingProject.id} for file hash`)
+      return NextResponse.json({
+        id: existingProject.id,
+        name: existingProject.name,
+        tagCount: existingProject._count.tags,
+        programCount: existingProject._count.programs,
+        moduleCount: existingProject._count.modules,
+        aoiCount: existingProject._count.addOnInstructions,
+        dataTypeCount: existingProject._count.dataTypes,
+        warnings: [],
+        cached: true,
+        message: 'This file was previously uploaded. Using cached data to save processing time.'
+      }, { status: 200 })
     }
 
     // Send file to Parser API
@@ -113,6 +164,8 @@ export async function POST(request: NextRequest) {
       data: {
         name: project.controller?.name || project.file_name || 'Unknown Project',
         fileName: file.name,
+        fileHash: fileHash,
+        fileSize: fileSize,
         processorType: project.controller?.processor_type || null,
         softwareVersion: project.controller?.software_version || null,
         tags: {

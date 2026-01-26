@@ -343,13 +343,18 @@ export interface AnalyzedProjectContext {
     dependencies?: string | null
     safetyNotes?: string | null
   }>
-  // Basic structure info (lightweight)
+  // Full program structure with rung content
   programs: Array<{
     name: string
     routines: Array<{
       name: string
       type: string
       rungCount: number
+      rungs?: Array<{
+        number: number
+        comment?: string
+        rawText: string
+      }>
     }>
   }>
   tags: Array<{
@@ -380,10 +385,8 @@ export async function chatWithAnalyzedProject(
     max_tokens: 8192,
     system: `${CHAT_SYSTEM_PROMPT}
 
-## Current Project Context (Pre-Analyzed):
-${contextSummary}
-
-Note: This context is from a pre-computed analysis. If you need to see the actual raw ladder logic for specific rungs, tell the user which routine/rung you need and they can provide it.`,
+## Current Project Context (with Pre-Analyzed Summary + Full Ladder Logic):
+${contextSummary}`,
     messages
   })
 
@@ -469,11 +472,25 @@ function buildAnalyzedContextSummary(ctx: AnalyzedProjectContext): string {
     }
   }
 
-  // Program structure (lightweight)
+  // Full program content with ladder logic
   lines.push('')
-  lines.push('## Program Structure')
+  lines.push('## Full Program Content')
   for (const program of ctx.programs) {
-    lines.push(`- **${program.name}**: ${program.routines.map(r => `${r.name} (${r.rungCount} rungs)`).join(', ')}`)
+    lines.push('')
+    lines.push(`### Program: ${program.name}`)
+    for (const routine of program.routines) {
+      lines.push('')
+      lines.push(`#### ${routine.name} (${routine.type}, ${routine.rungCount} rungs)`)
+      if (routine.rungs && routine.rungs.length > 0) {
+        for (const rung of routine.rungs) {
+          lines.push('')
+          lines.push(`**Rung ${rung.number}**${rung.comment ? ` // ${rung.comment}` : ''}`)
+          lines.push('```')
+          lines.push(rung.rawText)
+          lines.push('```')
+        }
+      }
+    }
   }
 
   // Tags summary
@@ -513,10 +530,8 @@ export async function streamChatWithAnalyzedProject(
     max_tokens: 8192,
     system: `${CHAT_SYSTEM_PROMPT}
 
-## Current Project Context (Pre-Analyzed):
-${contextSummary}
-
-Note: This context is from a pre-computed analysis. If you need to see the actual raw ladder logic for specific rungs, tell the user which routine/rung you need and they can provide it.`,
+## Current Project Context (with Pre-Analyzed Summary + Full Ladder Logic):
+${contextSummary}`,
     messages
   })
 

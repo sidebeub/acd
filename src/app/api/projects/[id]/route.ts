@@ -20,7 +20,8 @@ export async function GET(
         include: {
           routines: {
             include: {
-              rungs: true
+              rungs: true,
+              analysis: true
             }
           },
           localTags: true
@@ -28,7 +29,8 @@ export async function GET(
       },
       tasks: true,
       modules: true,
-      dataTypes: true
+      dataTypes: true,
+      analysis: true
     }
   })
 

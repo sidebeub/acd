@@ -69,8 +69,8 @@ export async function POST(
     let analyzedContext: AnalyzedProjectContext | null = null
 
     if (projectAnalysis?.status === 'complete') {
-      // Use pre-analyzed context (cost optimized)
-      // Query only structure + analysis data, no rung content
+      // Use pre-analyzed context WITH full rung content
+      // Analysis provides understanding, rungs provide specifics for questions
       const project = await prisma.project.findUnique({
         where: { id: projectId },
         include: {
@@ -79,7 +79,13 @@ export async function POST(
             include: {
               routines: {
                 include: {
-                  _count: { select: { rungs: true } },
+                  rungs: {
+                    select: {
+                      number: true,
+                      comment: true,
+                      rawText: true
+                    }
+                  },
                   analysis: true
                 }
               }
@@ -121,7 +127,12 @@ export async function POST(
           routines: p.routines.map(r => ({
             name: r.name,
             type: r.type,
-            rungCount: r._count.rungs
+            rungCount: r.rungs.length,
+            rungs: r.rungs.map(rung => ({
+              number: rung.number,
+              comment: rung.comment || undefined,
+              rawText: rung.rawText
+            }))
           }))
         })),
         tags: project.tags.map(t => ({
@@ -131,7 +142,7 @@ export async function POST(
           scope: t.scope
         }))
       }
-      console.log('[Chat] Using pre-analyzed context (cost optimized)')
+      console.log('[Chat] Using pre-analyzed context with full rung content')
     } else {
       // Fallback: use raw project data (more expensive per message)
       // Need full rung content since no analysis available

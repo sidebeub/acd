@@ -70,6 +70,8 @@ model Project {
 
   name            String    // Project name from ACD file
   fileName        String    // Original uploaded file name
+  fileHash        String?   // SHA256 hash to detect duplicate uploads
+  fileSize        Int?      // File size in bytes
   processorType   String?   // e.g., "1756-L83E"
   softwareVersion String?   // Studio 5000 version
   createdAt       DateTime  @default(now())
@@ -91,6 +93,7 @@ model Project {
   trends            TrendConfig[]
 
   @@index([userId])
+  @@index([fileHash])
 }
 
 model Tag {

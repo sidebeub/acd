@@ -4780,10 +4780,35 @@ export const DEVICE_PATTERNS: DevicePattern[] = [
   },
 
   // =====================================================================
+  // SEQUENCE / STEP (must come before position sensors to avoid false matches)
+  // =====================================================================
+  {
+    pattern: /stepbit|_seq\.|seq\.|sequence|_stp\[/i,
+    deviceType: 'sequence_step',
+    friendlyName: 'Sequence Step',
+    icon: '📋',
+    signalType: 'internal',
+    quickChecks: [
+      'Check HMI for current step number',
+      'Review what conditions are needed to advance',
+      'Check if machine is waiting for something'
+    ],
+    troubleshooting: [
+      'Identify what step the sequence is stuck on',
+      'Check conditions required to advance to next step',
+      'Look for faulted sensors or actuators',
+      'Check for timeout conditions',
+      'Review step-specific diagnostics on HMI'
+    ],
+    stateOnMeaning: 'This step is currently active',
+    stateOffMeaning: 'This step is not active',
+  },
+
+  // =====================================================================
   // POSITION SENSORS - EXTENDED / FORWARD
   // =====================================================================
   {
-    pattern: /extend|ext_|_ext|forward|fwd|out_|_out|posout|pos.*out/i,
+    pattern: /extend|ext_|_ext|forward|fwd|posout|pos.*out|_out(?!.*step)/i,
     deviceType: 'extend_position',
     friendlyName: 'Extended Position Sensor',
     icon: '➡️',
@@ -4827,31 +4852,6 @@ export const DEVICE_PATTERNS: DevicePattern[] = [
     stateOnMeaning: 'Actuator is at RETRACTED/HOME position',
     stateOffMeaning: 'Actuator is NOT at retracted position',
     commonFailures: ['Actuator not reaching position', 'Sensor misaligned', 'Target missing/damaged'],
-  },
-
-  // =====================================================================
-  // SEQUENCE / STEP
-  // =====================================================================
-  {
-    pattern: /seq|step|_stp|stepbit|sequence/i,
-    deviceType: 'sequence_step',
-    friendlyName: 'Sequence Step',
-    icon: '📋',
-    signalType: 'internal',
-    quickChecks: [
-      'Check HMI for current step number',
-      'Review what conditions are needed to advance',
-      'Check if machine is waiting for something'
-    ],
-    troubleshooting: [
-      'Identify what step the sequence is stuck on',
-      'Check conditions required to advance to next step',
-      'Look for faulted sensors or actuators',
-      'Check for timeout conditions',
-      'Review step-specific diagnostics on HMI'
-    ],
-    stateOnMeaning: 'This step is currently active',
-    stateOffMeaning: 'This step is not active',
   },
 
   // =====================================================================
@@ -7311,6 +7311,255 @@ function getInstructionExplanationFromString(
   }
 }
 
+/**
+ * Detect sequence step from tag name like "Magazine_Seq.StepBit[2]" or "Seq.Out_StepBit[5]"
+ */
+function detectSequenceStep(tag: string): { seqName: string; stepNum: number } | null {
+  // Match patterns like Seq.StepBit[N], Seq.Out_StepBit[N], Name_Seq.StepBit[N]
+  const match = tag.match(/([A-Za-z_][A-Za-z0-9_]*(?:_Seq|Seq)?)\.(Out_)?StepBit\[(\d+)\]/i)
+  if (match) {
+    return {
+      seqName: match[1].replace(/_Seq$/i, '').replace(/Seq$/i, ''),
+      stepNum: parseInt(match[3], 10)
+    }
+  }
+  return null
+}
+
+/**
+ * Make tag name human readable
+ */
+function humanizeTagName(tag: string): string {
+  // Remove array indices for display
+  let name = tag.replace(/\[\d+\]/g, '')
+  // Remove common prefixes/suffixes
+  name = name.replace(/^(Local:|Program:)/i, '')
+  // Split on underscores and dots first
+  const parts = name.split(/[_.]/).filter(Boolean)
+  // Then split camelCase within each part and capitalize properly
+  const words: string[] = []
+  for (const part of parts) {
+    // Insert space before capitals (but not at start), handle sequences like "HMI" or "IO"
+    const splitCamel = part.replace(/([a-z])([A-Z])/g, '$1 $2')
+                          .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    // Split and capitalize each word
+    const subWords = splitCamel.split(' ').filter(Boolean)
+    for (const w of subWords) {
+      // Keep common acronyms uppercase, otherwise title case
+      if (/^(HMI|IO|PLC|AOI|UDT|MSG|PID|CMD|STS|FLT|SEQ)$/i.test(w)) {
+        words.push(w.toUpperCase())
+      } else {
+        words.push(w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      }
+    }
+  }
+  return words.join(' ')
+}
+
+/**
+ * Detect rung purpose from pattern analysis
+ */
+function detectRungPurpose(
+  allInstructions: Array<{ instruction: string; operands: string[]; explanation: string }>,
+  rungText: string
+): { purpose: string; details: string; consequence?: string; operationalNote?: string } | null {
+
+  const conditions = allInstructions.filter(i => isConditionInstruction(i.instruction))
+  const outputs = allInstructions.filter(i => !isConditionInstruction(i.instruction))
+
+  // Detect sequence step condition
+  const seqStepCondition = conditions.find(c =>
+    c.operands[0]?.match(/StepBit\[\d+\]/i)
+  )
+
+  // Detect advance signal output
+  const advanceOutput = outputs.find(o =>
+    (o.instruction === 'OTE' || o.instruction === 'OTL') &&
+    o.operands[0]?.toLowerCase().includes('advance')
+  )
+
+  // Detect common patterns
+  const hasEmptyCheck = conditions.some(c =>
+    c.instruction === 'XIO' && c.operands[0]?.toLowerCase().match(/empty|low|fault|error/)
+  )
+  const hasFullCheck = conditions.some(c =>
+    c.instruction === 'XIC' && c.operands[0]?.toLowerCase().match(/full|ready|complete|done/)
+  )
+  const hasPosCheck = conditions.some(c =>
+    c.operands[0]?.toLowerCase().match(/pos.*(out|in|home|ext|ret)|extended|retracted/)
+  )
+  const hasSensorCheck = conditions.some(c =>
+    c.operands[0]?.toLowerCase().match(/prox|photo|sensor|detect|present/)
+  )
+  const hasTimerDone = conditions.some(c =>
+    c.operands[0]?.toLowerCase().match(/\.dn|timer.*\.dn|tmr.*\.dn/)
+  )
+
+  // Detect "Command and Wait" pattern: OTL(Cmd) in one branch, OTU(Cmd) + advance in another
+  const latchOutputs = outputs.filter(o => o.instruction === 'OTL')
+  const unlatchOutputs = outputs.filter(o => o.instruction === 'OTU')
+
+  // Find command that is both latched and unlatched (command and wait pattern)
+  const commandTag = latchOutputs.find(l =>
+    unlatchOutputs.some(u => u.operands[0] === l.operands[0])
+  )?.operands[0]
+
+  // Check for position feedback (handles patterns like MagLiftUp, CylinderExtended, etc.)
+  const hasPosUp = conditions.some(c =>
+    c.operands[0]?.toLowerCase().match(/up$|lift.*up|raise|extended|extend|_up$/)
+  )
+  const hasPosDown = conditions.some(c =>
+    c.operands[0]?.toLowerCase().match(/down$|lift.*down|lower|retract|_down$/)
+  )
+  const hasPosOut = conditions.some(c =>
+    c.operands[0]?.toLowerCase().match(/out$|_out$|forward|extend|fwd/)
+  )
+  const hasPosIn = conditions.some(c =>
+    c.operands[0]?.toLowerCase().match(/in$|_in$|retract|home|back|ret/)
+  )
+  const hasAnyPosCheck = hasPosCheck || hasPosUp || hasPosDown || hasPosOut || hasPosIn
+
+  // Pattern: Sequence step + command + wait for position + advance (Command and Wait)
+  if (seqStepCondition && advanceOutput && commandTag) {
+    const stepInfo = detectSequenceStep(seqStepCondition.operands[0])
+    const stepNum = stepInfo?.stepNum ?? '?'
+    const cmdName = humanizeTagName(commandTag)
+
+    // Find the position feedback we're waiting for
+    let waitingFor = 'position confirmed'
+    const posConditions = conditions.filter(c => !c.operands[0]?.match(/StepBit|Mid/i))
+    if (posConditions.length > 0) {
+      waitingFor = posConditions.map(c => humanizeTagName(c.operands[0])).join(' AND ')
+    }
+
+    return {
+      purpose: `Step ${stepNum} - ${cmdName}, wait for ${waitingFor}`,
+      details: `Sends command, waits for position feedback, then clears command and advances to next step`,
+      consequence: `Sequence holds here until ${waitingFor} - check actuator operation`,
+      operationalNote: `If stuck: 1) Check if ${cmdName} output is ON, 2) Check position sensor feedback`
+    }
+  }
+
+  // Pattern: Sequence step + condition check + advance
+  if (seqStepCondition && advanceOutput) {
+    const stepInfo = detectSequenceStep(seqStepCondition.operands[0])
+    const stepNum = stepInfo?.stepNum ?? '?'
+
+    // Determine what condition we're waiting for
+    let waitingFor = 'condition'
+    let consequence = 'Sequence holds at this step until condition is met'
+
+    if (hasEmptyCheck) {
+      const emptyTag = conditions.find(c => c.operands[0]?.toLowerCase().match(/empty/))
+      waitingFor = `${humanizeTagName(emptyTag?.operands[0] || '')} is NOT active (has product/material)`
+      consequence = 'Sequence holds here if empty - waiting for material to be loaded'
+    } else if (hasFullCheck) {
+      const fullTag = conditions.find(c => c.operands[0]?.toLowerCase().match(/full|ready|complete|done/))
+      waitingFor = `${humanizeTagName(fullTag?.operands[0] || '')} is ready`
+      consequence = 'Sequence holds here until ready signal is received'
+    } else if (hasAnyPosCheck) {
+      const posTag = conditions.find(c =>
+        c.operands[0]?.toLowerCase().match(/pos|extended|retracted|up$|down$|out$|in$|forward|back|home|lift/)
+      )
+      waitingFor = `${humanizeTagName(posTag?.operands[0] || 'position')} confirmed`
+      consequence = 'Sequence holds here waiting for actuator to reach position'
+    } else if (hasSensorCheck) {
+      const sensorTag = conditions.find(c => c.operands[0]?.toLowerCase().match(/prox|photo|sensor|detect|present/))
+      waitingFor = `${humanizeTagName(sensorTag?.operands[0] || '')} sensor detection`
+      consequence = 'Sequence holds here waiting for sensor to detect'
+    } else if (hasTimerDone) {
+      waitingFor = 'timer to complete'
+      consequence = 'Sequence holds here during timed delay'
+    } else {
+      // Try to describe the condition from the tag name
+      const condTag = conditions.find(c => !c.operands[0]?.match(/StepBit/i))
+      if (condTag) {
+        waitingFor = humanizeTagName(condTag.operands[0])
+      }
+    }
+
+    return {
+      purpose: `Step ${stepNum} - Wait for ${waitingFor} before advancing`,
+      details: `When sequence reaches Step ${stepNum}, checks condition before allowing advance to next step`,
+      consequence,
+      operationalNote: 'If machine stops at this step, check the condition that must be satisfied'
+    }
+  }
+
+  // Pattern: Sequence step + control outputs (no advance) = step actions
+  if (seqStepCondition && outputs.length > 0 && !advanceOutput) {
+    const stepInfo = detectSequenceStep(seqStepCondition.operands[0])
+    const stepNum = stepInfo?.stepNum ?? '?'
+
+    const outputActions = outputs.map(o => humanizeTagName(o.operands[0])).join(', ')
+
+    return {
+      purpose: `Step ${stepNum} - Control outputs`,
+      details: `When sequence is on Step ${stepNum}, controls: ${outputActions}`,
+      operationalNote: 'These outputs are active only during this step'
+    }
+  }
+
+  // Pattern: Position feedback + command control
+  if (hasPosCheck && outputs.some(o => o.operands[0]?.toLowerCase().match(/cmd|command|out|extend|retract/))) {
+    const posTag = conditions.find(c => c.operands[0]?.toLowerCase().match(/pos|extended|retracted/))
+    const cmdTag = outputs.find(o => o.operands[0]?.toLowerCase().match(/cmd|command|out|extend|retract/))
+
+    return {
+      purpose: `Interlock - ${humanizeTagName(cmdTag?.operands[0] || 'Output')} based on ${humanizeTagName(posTag?.operands[0] || 'position')}`,
+      details: 'Controls output based on position feedback',
+      consequence: 'Output will not activate until position condition is met',
+      operationalNote: 'If output doesn\'t activate, check that position sensor is detecting'
+    }
+  }
+
+  // Pattern: Timer with output
+  if (outputs.some(o => ['TON', 'TOF', 'RTO'].includes(o.instruction))) {
+    const timerInstr = outputs.find(o => ['TON', 'TOF', 'RTO'].includes(o.instruction))
+    const timerType = timerInstr?.instruction === 'TON' ? 'On-Delay' :
+                      timerInstr?.instruction === 'TOF' ? 'Off-Delay' : 'Retentive'
+    return {
+      purpose: `${timerType} Timer - ${humanizeTagName(timerInstr?.operands[0] || 'Timer')}`,
+      details: `Starts ${timerType.toLowerCase()} timer when conditions are true`,
+      operationalNote: 'Check timer preset and accumulated values in tag monitor'
+    }
+  }
+
+  // Pattern: Counter
+  if (outputs.some(o => ['CTU', 'CTD'].includes(o.instruction))) {
+    const ctrInstr = outputs.find(o => ['CTU', 'CTD'].includes(o.instruction))
+    const ctrType = ctrInstr?.instruction === 'CTU' ? 'Count Up' : 'Count Down'
+    return {
+      purpose: `${ctrType} Counter - ${humanizeTagName(ctrInstr?.operands[0] || 'Counter')}`,
+      details: `Increments/decrements counter when conditions transition true`,
+      operationalNote: 'Check counter accumulated value and preset in tag monitor'
+    }
+  }
+
+  // Pattern: Simple condition → output
+  if (conditions.length > 0 && outputs.length > 0 && outputs.every(o => ['OTE', 'OTL', 'OTU'].includes(o.instruction))) {
+    const outputNames = outputs.map(o => humanizeTagName(o.operands[0])).join(', ')
+    const conditionNames = conditions.map(c => humanizeTagName(c.operands[0])).join(' AND ')
+
+    return {
+      purpose: `Control ${outputNames}`,
+      details: `Activates output when: ${conditionNames}`,
+      consequence: `${outputNames} will be ${outputs[0].instruction === 'OTU' ? 'cleared' : 'set'} when all conditions are true`
+    }
+  }
+
+  // Pattern: Data move/copy to HMI
+  if (outputs.some(o => o.instruction === 'COP' && o.operands[1]?.toLowerCase().includes('hmi'))) {
+    return {
+      purpose: 'HMI Status Update',
+      details: 'Copies status data to HMI for operator display',
+      operationalNote: 'This updates what operators see on the screen'
+    }
+  }
+
+  return null
+}
+
 export function generateFullRungExplanation(
   rungText: string,
   mode: ExplanationMode,
@@ -7335,12 +7584,22 @@ export function generateFullRungExplanation(
     return { instruction, operands, raw: instrString, explanation: expl }
   }
 
-  // Format a single instruction as "TAG → action"
-  const formatInstr = (instr: { instruction: string; operands: string[]; explanation: string | null }) => {
-    const tag = instr.operands[0] || ''
-    const action = instr.explanation || `${instr.instruction}(${instr.operands.join(', ')})`
-    return `${tag} → ${action}`
+  // Detect rung purpose
+  const purpose = detectRungPurpose(allInstructions, rungText)
+
+  if (purpose) {
+    explanation = `**Purpose:** ${purpose.purpose}\n\n`
+    if (purpose.details) {
+      explanation += `${purpose.details}\n\n`
+    }
   }
+
+  // Show the rung code
+  explanation += `**Rung Logic:**\n\`\`\`\n${rungText.trim()}\n\`\`\`\n\n`
+
+  // Logic Flow - numbered steps
+  explanation += '**Logic Flow:**\n'
+  let stepNum = 1
 
   // Get shared prefix (main conditions)
   const prefixParts = structure.sharedPrefix
@@ -7358,100 +7617,74 @@ export function generateFullRungExplanation(
     // Has parallel branches
     const nonEmptyBranches = structure.branches.filter(b => b.length > 0)
 
-    // Main Condition
-    if (prefixConditions.length > 0) {
-      explanation = '**Main Condition:**\n'
-      prefixConditions.forEach(c => {
-        explanation += `${c.operands[0]} → ${c.explanation}\n`
-      })
-    }
+    // Main Conditions as numbered steps
+    prefixConditions.forEach(c => {
+      const tag = c.operands[0] || ''
+      const device = detectDeviceType(tag)
+      const deviceInfo = device ? ` (${device.friendlyName})` : ''
+      explanation += `${stepNum}. **${c.raw}**${deviceInfo} — ${c.explanation}\n`
+      stepNum++
+    })
 
     // Branches
-    if (nonEmptyBranches.length > 0) {
-      nonEmptyBranches.forEach((branch, idx) => {
-        const branchParts = branch
-          .map(s => getInstrDetails(s))
-          .filter(Boolean) as { instruction: string; operands: string[]; raw: string; explanation: string | null }[]
-
-        const branchConditions = branchParts.filter(p => isConditionInstruction(p.instruction))
-        const branchOutputs = branchParts.filter(p => !isConditionInstruction(p.instruction))
-
-        // Determine branch label based on content
-        let branchLabel = `Branch ${idx + 1}`
-        const hasConditions = branchConditions.length > 0
-        const hasJumpLogic = branchParts.some(p =>
-          p.instruction === 'MOV' && p.operands[1]?.toLowerCase().includes('gotostep')
-        )
-        const hasAdvanceLogic = branchParts.some(p =>
-          (p.instruction === 'OTL' || p.instruction === 'OTE') &&
-          (p.operands[0]?.toLowerCase().includes('advance') || p.operands[0]?.toLowerCase().includes('inp_advance'))
-        )
-        const hasCopToHmi = branchParts.some(p =>
-          p.instruction === 'COP' && (p.operands[1]?.toLowerCase().includes('hmi') || p.operands[0]?.toLowerCase().includes('sts'))
-        )
-        const hasOnlyBitOutputs = branchOutputs.length > 0 && branchOutputs.every(p => ['OTE', 'OTL', 'OTU'].includes(p.instruction))
-
-        if (hasConditions && hasJumpLogic) {
-          branchLabel = `Branch ${idx + 1} (Wait → Jump)`
-        } else if (hasConditions && hasAdvanceLogic) {
-          branchLabel = `Branch ${idx + 1} (Wait → Advance)`
-        } else if (hasCopToHmi) {
-          branchLabel = `Branch ${idx + 1} (HMI Update)`
-        } else if (hasOnlyBitOutputs && !hasConditions) {
-          branchLabel = `Branch ${idx + 1} (Control)`
-        } else if (['TON', 'TOF', 'RTO'].some(t => branchParts.some(p => p.instruction === t))) {
-          branchLabel = `Branch ${idx + 1} (Timer)`
-        } else if (['CTU', 'CTD'].some(t => branchParts.some(p => p.instruction === t))) {
-          branchLabel = `Branch ${idx + 1} (Counter)`
-        } else if (hasConditions && hasOnlyBitOutputs) {
-          branchLabel = `Branch ${idx + 1} (Conditional Output)`
-        }
-
-        explanation += `\n**${branchLabel}:**\n`
-
-        // List all instructions in the branch
-        branchParts.forEach(p => {
-          // For COP, show destination instead of source
-          let tag = p.operands[0] || p.instruction
-          if (p.instruction === 'COP' && p.operands[1]) {
-            tag = p.operands[1]
-          }
-          // For MOV to specific destinations, show the destination
-          if (p.instruction === 'MOV' && p.operands[1]) {
-            tag = p.operands[1]
-          }
-          explanation += `${tag} → ${p.explanation}\n`
-        })
-      })
+    if (nonEmptyBranches.length > 1) {
+      explanation += `${stepNum}. If above conditions true, THEN (parallel branches):\n`
+      stepNum++
     }
+
+    nonEmptyBranches.forEach((branch, idx) => {
+      const branchParts = branch
+        .map(s => getInstrDetails(s))
+        .filter(Boolean) as { instruction: string; operands: string[]; raw: string; explanation: string | null }[]
+
+      if (nonEmptyBranches.length > 1) {
+        explanation += `\n   **Branch ${idx + 1}:**\n`
+      }
+
+      branchParts.forEach(p => {
+        let tag = p.operands[0] || p.instruction
+        if (p.instruction === 'COP' && p.operands[1]) tag = p.operands[1]
+        if (p.instruction === 'MOV' && p.operands[1]) tag = p.operands[1]
+
+        const device = detectDeviceType(tag)
+        const deviceInfo = device ? ` (${device.friendlyName})` : ''
+        const prefix = nonEmptyBranches.length > 1 ? '   ' : ''
+        explanation += `${prefix}${stepNum}. **${p.raw}**${deviceInfo} — ${p.explanation}\n`
+        stepNum++
+      })
+    })
 
     // Suffix
-    if (suffixParts.length > 0) {
-      explanation += '\n**Also:**\n'
-      suffixParts.forEach(s => {
-        explanation += `${s.operands[0] || s.instruction} → ${s.explanation}\n`
-      })
-    }
+    suffixParts.forEach(s => {
+      const device = detectDeviceType(s.operands[0] || '')
+      const deviceInfo = device ? ` (${device.friendlyName})` : ''
+      explanation += `${stepNum}. **${s.raw}**${deviceInfo} — ${s.explanation}\n`
+      stepNum++
+    })
 
   } else {
     // Simple linear rung - no branches
-    const conditions = allInstructions.filter(i => isConditionInstruction(i.instruction))
-    const outputs = allInstructions.filter(i => !isConditionInstruction(i.instruction))
+    allInstructions.forEach(i => {
+      let tag = i.operands[0] || i.instruction
+      if (i.instruction === 'COP' && i.operands[1]) tag = i.operands[1]
+      if (i.instruction === 'MOV' && i.operands[1]) tag = i.operands[1]
 
-    if (conditions.length > 0) {
-      explanation = '**Conditions:**\n'
-      conditions.forEach(c => {
-        explanation += `${c.operands[0] || c.instruction} → ${c.explanation}\n`
-      })
-    }
+      const device = i.device
+      const deviceInfo = device ? ` (${device.friendlyName})` : ''
+      const instrStr = `${i.instruction}(${i.operands.join(',')})`
+      explanation += `${stepNum}. **${instrStr}**${deviceInfo} — ${i.explanation}\n`
+      stepNum++
+    })
+  }
 
-    if (outputs.length > 0) {
-      if (conditions.length > 0) explanation += '\n'
-      explanation += '**Actions:**\n'
-      outputs.forEach(o => {
-        explanation += `${o.operands[0] || o.instruction} → ${o.explanation}\n`
-      })
-    }
+  // Add consequence/what happens if not true
+  if (purpose?.consequence) {
+    explanation += `\n**If conditions NOT met:** ${purpose.consequence}\n`
+  }
+
+  // Add operational note
+  if (purpose?.operationalNote) {
+    explanation += `\n💡 **Tip:** ${purpose.operationalNote}\n`
   }
 
   // Add quick checks (fast visual things to verify first)
@@ -7461,7 +7694,7 @@ export function generateFullRungExplanation(
 
   if (quickChecks.length > 0) {
     const uniqueChecks = Array.from(new Set(quickChecks)).slice(0, 4)
-    explanation += '\n\n👀 **Quick Checks:** ' + uniqueChecks.join(' • ')
+    explanation += '\n👀 **Quick Checks:** ' + uniqueChecks.join(' • ')
   }
 
   // Add troubleshooting tips (limit to 3 unique tips)
@@ -7475,7 +7708,7 @@ export function generateFullRungExplanation(
   }
 
   if (includeRaw) {
-    explanation += `\n\nRAW: ${rungText}`
+    explanation += `\n\n---\nRAW: ${rungText}`
   }
 
   return explanation.trim()
