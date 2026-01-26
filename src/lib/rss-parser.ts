@@ -449,6 +449,55 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
 }
 
 /**
+ * Create instructions from a list of addresses
+ * Infers instruction type based on address type and position
+ */
+function createInstructionsFromAddresses(addrs: string[]): PlcInstruction[] {
+  const instructions: PlcInstruction[] = []
+
+  for (let i = 0; i < addrs.length; i++) {
+    const addr = addrs[i]
+    const isLast = i === addrs.length - 1
+
+    // Determine instruction type based on address pattern and position
+    let instType = 'XIC' // Default to examine if closed
+
+    if (addr.startsWith('O:') || addr.startsWith('O0:')) {
+      instType = 'OTE'
+    } else if (addr.match(/^T\d+:\d+$/)) {
+      // Timer without subfield - this is the timer instruction itself
+      instType = 'TON'
+    } else if (addr.match(/^T\d+:\d+\.DN$/i)) {
+      instType = 'XIC' // Timer done bit - examine
+    } else if (addr.match(/^T\d+:\d+\.TT$/i)) {
+      instType = 'XIC' // Timer timing bit - examine
+    } else if (addr.match(/^T\d+:\d+\.(?:PRE|ACC)$/i)) {
+      instType = 'MOV' // Timer preset/acc - likely move target
+    } else if (addr.match(/^C\d+:\d+$/)) {
+      // Counter without subfield - counter instruction
+      instType = 'CTU'
+    } else if (addr.match(/^C\d+:\d+\.DN$/i)) {
+      instType = 'XIC' // Counter done bit
+    } else if (addr.match(/^C\d+:\d+\.(?:PRE|ACC)$/i)) {
+      instType = 'MOV' // Counter preset/acc
+    } else if (addr.startsWith('I:')) {
+      instType = 'XIC' // Physical input - examine
+    } else if (addr.match(/^B\d+:\d+\/\d+$/) && isLast) {
+      instType = 'OTE' // Bit at end of rung - likely output
+    } else if (addr.match(/^N\d+:\d+$/) && isLast) {
+      instType = 'MOV' // Integer at end - likely move destination
+    }
+
+    instructions.push({
+      type: instType,
+      operands: [addr]
+    })
+  }
+
+  return instructions
+}
+
+/**
  * Parse binary ladder logic from PROGRAM FILES stream
  * RSLogix 500 stores ladder data with text markers and ASCII addresses
  * Structure: CProgHolder > CLadFile > CRung > CIns/CBranchLeg
@@ -505,85 +554,89 @@ function parseBinaryLadder(data: Buffer): { rungs: PlcRung[], addresses: Set<str
 
   console.log(`[RSS Parser] Found ladder files: ${ladderFiles.join(', ') || 'none'}`)
 
-  // Parse rungs by finding CRung markers
-  // Each CRung contains CIns (instructions) and optionally CBranchLeg (parallel branches)
-  const rungMarker = 'CRung'
-  const insMarker = 'CIns'
-  let rungStart = text.indexOf(rungMarker)
+  // Parse rungs by finding addresses and splitting at output instructions
+  // RSLogix 500 rungs typically end with output instructions (OTE, OTL, OTU, TON, TOF, CTU, CTD, MOV, etc.)
+
+  // Collect all addresses in order of appearance (need new regex instances to reset lastIndex)
+  const allAddresses: string[] = []
+  const addrPattern2 = /\b([BIOTCRNFSAL])(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?\b/gi
+  const ioPattern2 = /\b([IO]):(\d+)(?:\/(\d+))?\b/gi
+
+  let addrMatch
+  while ((addrMatch = addrPattern2.exec(text)) !== null) {
+    const addr = addrMatch[0].toUpperCase()
+    const fileNum = parseInt(addrMatch[2])
+    const element = parseInt(addrMatch[3])
+    if (fileNum <= 255 && element <= 999) {
+      allAddresses.push(addr)
+    }
+  }
+  while ((addrMatch = ioPattern2.exec(text)) !== null) {
+    allAddresses.push(addrMatch[0].toUpperCase())
+  }
+
+  console.log(`[RSS Parser] Found ${allAddresses.length} total address references`)
+
+  // Group addresses into rungs
+  // A rung ends when we hit an output-type address
   let rungNumber = 0
+  let currentRungAddrs: string[] = []
 
-  while (rungStart !== -1) {
-    // Find the next rung or end of data
-    const nextRung = text.indexOf(rungMarker, rungStart + rungMarker.length)
-    const rungEnd = nextRung !== -1 ? nextRung : text.length
-    const rungData = text.substring(rungStart, rungEnd)
+  const isOutputAddress = (addr: string): boolean => {
+    // Output file addresses
+    if (addr.startsWith('O:') || addr.startsWith('O0:')) return true
+    // Timer preset/accumulated (not done/timing bits)
+    if (addr.match(/^T\d+:\d+\.(?:PRE|ACC)$/i)) return true
+    // Timer/Counter base address without subfield (likely instruction target)
+    if (addr.match(/^[TC]\d+:\d+$/)) return true
+    // Counter preset/accumulated
+    if (addr.match(/^C\d+:\d+\.(?:PRE|ACC)$/i)) return true
+    return false
+  }
 
-    // Extract instructions from this rung
-    const rungInstructions: PlcInstruction[] = []
-    const rungAddresses: string[] = []
+  for (let i = 0; i < allAddresses.length; i++) {
+    const addr = allAddresses[i]
+    currentRungAddrs.push(addr)
 
-    // Find all addresses in this rung section
-    const rungAddrPattern = /\b([BIOTCRNFSAL])(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?\b/gi
-    const rungIoPattern = /\b([IO]):(\d+)(?:\/(\d+))?\b/gi
+    // Check if this ends a rung (output address or we have enough addresses)
+    const isOutput = isOutputAddress(addr)
+    const hasEnoughAddrs = currentRungAddrs.length >= 3
 
-    let addrMatch
-    while ((addrMatch = rungAddrPattern.exec(rungData)) !== null) {
-      const addr = addrMatch[0].toUpperCase()
-      const fileNum = parseInt(addrMatch[2])
-      const element = parseInt(addrMatch[3])
-      if (fileNum <= 255 && element <= 999) {
-        rungAddresses.push(addr)
-      }
-    }
-    while ((addrMatch = rungIoPattern.exec(rungData)) !== null) {
-      rungAddresses.push(addrMatch[0].toUpperCase())
-    }
+    // End rung on output or if we have a reasonable number of addresses and next is a new input pattern
+    if (isOutput || (hasEnoughAddrs && i < allAddresses.length - 1)) {
+      // Check if next address starts a new logic chain (input types)
+      const nextAddr = allAddresses[i + 1]
+      const nextIsInput = nextAddr && (
+        nextAddr.startsWith('I:') ||
+        nextAddr.match(/^B\d+:\d+\/\d+$/) ||
+        nextAddr.match(/^[TC]\d+:\d+\.DN$/i)
+      )
 
-    // Deduplicate addresses in order
-    const uniqueAddrs = [...new Set(rungAddresses)]
-
-    if (uniqueAddrs.length > 0) {
-      // Try to determine instruction types based on address type and position
-      // Inputs (I:, B for examine) at start, outputs at end
-      for (let i = 0; i < uniqueAddrs.length; i++) {
-        const addr = uniqueAddrs[i]
-        const isLast = i === uniqueAddrs.length - 1
-
-        // Guess instruction type based on address type and position
-        let instType = 'XIC' // Default to examine
-        if (addr.startsWith('O:') || addr.startsWith('O0:')) {
-          instType = 'OTE'
-        } else if (addr.startsWith('T') && addr.includes('.')) {
-          // Timer with subfield
-          if (addr.includes('.DN')) instType = 'XIC'
-          else if (addr.includes('.TT')) instType = 'XIC'
-          else instType = 'TON'
-        } else if (addr.startsWith('C') && addr.includes('.')) {
-          // Counter with subfield
-          if (addr.includes('.DN')) instType = 'XIC'
-          else instType = 'CTU'
-        } else if (addr.startsWith('B') && isLast) {
-          instType = 'OTE' // Bit at end is likely output
-        } else if (addr.startsWith('N') && isLast) {
-          instType = 'MOV' // Integer at end could be move
+      if (isOutput || (hasEnoughAddrs && nextIsInput)) {
+        // Create rung from collected addresses
+        const instructions = createInstructionsFromAddresses(currentRungAddrs)
+        if (instructions.length > 0) {
+          rungs.push({
+            number: rungNumber++,
+            rawText: instructions.map(i => `${i.type}(${i.operands.join(',')})`).join(' '),
+            instructions
+          })
         }
-
-        rungInstructions.push({
-          type: instType,
-          operands: [addr]
-        })
+        currentRungAddrs = []
       }
+    }
+  }
 
-      const rawText = rungInstructions.map(i => `${i.type}(${i.operands.join(',')})`).join(' ')
-
+  // Add any remaining addresses as final rung
+  if (currentRungAddrs.length > 0) {
+    const instructions = createInstructionsFromAddresses(currentRungAddrs)
+    if (instructions.length > 0) {
       rungs.push({
         number: rungNumber++,
-        rawText,
-        instructions: rungInstructions
+        rawText: instructions.map(i => `${i.type}(${i.operands.join(',')})`).join(' '),
+        instructions
       })
     }
-
-    rungStart = nextRung
   }
 
   // If no CRung markers found, try alternative parsing
