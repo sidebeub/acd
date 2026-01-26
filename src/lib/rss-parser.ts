@@ -9,65 +9,6 @@ import CFB from 'cfb'
 import { inflateSync } from 'zlib'
 import type { PlcProject, PlcProgram, PlcRoutine, PlcRung, PlcInstruction, PlcTag } from './l5x-parser'
 
-// RSLogix 500 instruction codes to names (common ones)
-const RSS500_INSTRUCTION_MAP: Record<number, string> = {
-  0x00: 'XIC',    // Examine If Closed
-  0x01: 'XIO',    // Examine If Open
-  0x02: 'OTE',    // Output Energize
-  0x03: 'OTL',    // Output Latch
-  0x04: 'OTU',    // Output Unlatch
-  0x05: 'ONS',    // One Shot
-  0x06: 'OSR',    // One Shot Rising
-  0x07: 'OSF',    // One Shot Falling
-  0x10: 'TON',    // Timer On Delay
-  0x11: 'TOF',    // Timer Off Delay
-  0x12: 'RTO',    // Retentive Timer On
-  0x13: 'CTU',    // Count Up
-  0x14: 'CTD',    // Count Down
-  0x15: 'RES',    // Reset
-  0x20: 'ADD',    // Add
-  0x21: 'SUB',    // Subtract
-  0x22: 'MUL',    // Multiply
-  0x23: 'DIV',    // Divide
-  0x24: 'NEG',    // Negate
-  0x25: 'CLR',    // Clear
-  0x30: 'MOV',    // Move
-  0x31: 'MVM',    // Masked Move
-  0x32: 'AND',    // AND
-  0x33: 'OR',     // OR
-  0x34: 'XOR',    // Exclusive OR
-  0x35: 'NOT',    // NOT
-  0x40: 'COP',    // Copy File
-  0x41: 'FLL',    // Fill File
-  0x50: 'EQU',    // Equal
-  0x51: 'NEQ',    // Not Equal
-  0x52: 'LES',    // Less Than
-  0x53: 'LEQ',    // Less Than or Equal
-  0x54: 'GRT',    // Greater Than
-  0x55: 'GEQ',    // Greater Than or Equal
-  0x56: 'LIM',    // Limit Test
-  0x57: 'MEQ',    // Masked Comparison for Equal
-  0x60: 'JMP',    // Jump to Label
-  0x61: 'LBL',    // Label
-  0x62: 'JSR',    // Jump to Subroutine
-  0x63: 'SBR',    // Subroutine
-  0x64: 'RET',    // Return from Subroutine
-  0x65: 'MCR',    // Master Control Reset
-  0x70: 'SQO',    // Sequencer Output
-  0x71: 'SQI',    // Sequencer Input
-  0x72: 'SQC',    // Sequencer Compare
-  0x73: 'SQL',    // Sequencer Load
-  0x80: 'BSL',    // Bit Shift Left
-  0x81: 'BSR',    // Bit Shift Right
-  0x82: 'FFL',    // FIFO Load
-  0x83: 'FFU',    // FIFO Unload
-  0x84: 'LFL',    // LIFO Load
-  0x85: 'LFU',    // LIFO Unload
-  0x90: 'MSG',    // Message
-  0x91: 'SVC',    // Service Communication
-  0xA0: 'PID',    // PID Control
-}
-
 // RSLogix 500 data file type prefixes
 export const RSS500_FILE_TYPES: Record<string, { name: string; description: string }> = {
   'O': { name: 'Output', description: 'Physical outputs' },
@@ -110,310 +51,352 @@ const TIMER_COUNTER_SUBFIELDS: Record<string, string> = {
  * Parse an RSS file (RSLogix 500 format)
  */
 export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
-  // Read OLE compound document
   const data = new Uint8Array(buffer)
   const cfb = CFB.read(data, { type: 'array' })
 
-  console.log('[RSS Parser] OLE entries:', CFB.utils.cfb_new().FullPaths)
-
-  // List all entries for debugging
+  // List all entries
   const entries = cfb.FullPaths || []
-  console.log('[RSS Parser] Found entries:', entries)
+  console.log('[RSS Parser] Found OLE entries:', entries)
 
-  // Look for PROGRAM FILES stream (contains ladder logic)
-  let programData: Buffer | null = null
+  // Collect all stream data for analysis
+  const streams: { path: string; content: Buffer; decompressed?: Buffer }[] = []
 
   for (const path of entries) {
     const entry = CFB.find(cfb, path)
     if (entry && entry.content && entry.content.length > 0) {
-      console.log(`[RSS Parser] Entry: ${path}, size: ${entry.content.length}`)
+      const content = Buffer.from(entry.content)
+      console.log(`[RSS Parser] Entry: "${path}", size: ${content.length}, first bytes: ${content.slice(0, 16).toString('hex')}`)
 
-      // Check if this might be the program files
-      if (path.toLowerCase().includes('program') ||
-          path.toLowerCase().includes('ladder') ||
-          path.toLowerCase().includes('logic')) {
-        // Try to decompress if it's zlib compressed
-        try {
-          const content = Buffer.from(entry.content)
-          if (content[0] === 0x78) { // zlib magic byte
-            programData = inflateSync(content)
-            console.log(`[RSS Parser] Decompressed ${path}: ${programData.length} bytes`)
-          } else {
-            programData = content
-          }
-          break
-        } catch (e) {
-          console.log(`[RSS Parser] Could not decompress ${path}:`, e)
-        }
-      }
-    }
-  }
+      const streamInfo: { path: string; content: Buffer; decompressed?: Buffer } = { path, content }
 
-  // If no program files found, try looking for any compressed stream
-  if (!programData) {
-    for (const path of entries) {
-      const entry = CFB.find(cfb, path)
-      if (entry && entry.content && entry.content.length > 100) {
+      // Try to decompress if it looks like zlib
+      if (content[0] === 0x78) {
         try {
-          const content = Buffer.from(entry.content)
-          if (content[0] === 0x78) { // zlib magic byte
-            const decompressed = inflateSync(content)
-            // Check if decompressed data contains ladder logic markers
-            const text = decompressed.toString('latin1')
-            if (text.includes('CRung') || text.includes('CIns') || text.includes('CLadFile')) {
-              programData = decompressed
-              console.log(`[RSS Parser] Found ladder logic in ${path}: ${programData.length} bytes`)
-              break
-            }
-          }
+          streamInfo.decompressed = inflateSync(content)
+          console.log(`[RSS Parser]   -> Decompressed to ${streamInfo.decompressed.length} bytes`)
         } catch {
-          // Not compressed or invalid
+          // Not zlib compressed
         }
       }
+
+      streams.push(streamInfo)
     }
   }
 
-  // Try direct binary search for ladder logic markers in any entry
-  if (!programData) {
-    for (const path of entries) {
-      const entry = CFB.find(cfb, path)
-      if (entry && entry.content && entry.content.length > 100) {
-        const content = Buffer.from(entry.content)
-        const text = content.toString('latin1')
-        if (text.includes('CRung') || text.includes('CIns') || text.includes('MAIN')) {
-          programData = content
-          console.log(`[RSS Parser] Found markers in ${path}: ${programData.length} bytes`)
-          break
-        }
-      }
-    }
-  }
-
-  if (!programData) {
-    throw new Error('No ladder logic program data found in RSS file')
-  }
-
-  // Parse the binary ladder logic data
-  return parseLadderBinary(programData)
-}
-
-/**
- * Parse the decompressed binary ladder logic data
- */
-function parseLadderBinary(data: Buffer): PlcProject {
-  const text = data.toString('latin1')
-
-  // Extract project name from the data
+  // Find the best stream to parse
+  let programData: Buffer | null = null
   let projectName = 'RSLogix 500 Project'
-  const nameMatch = text.match(/CLadFile\x00+([A-Za-z0-9_]+)/)
-  if (nameMatch) {
-    projectName = nameMatch[1]
-  }
-
-  // Try to find processor type
   let processorType = 'SLC 500'
-  if (text.includes('MicroLogix')) {
-    processorType = 'MicroLogix'
-  } else if (text.includes('1747')) {
-    processorType = 'SLC 500'
-  } else if (text.includes('1761')) {
-    processorType = 'MicroLogix 1000'
-  } else if (text.includes('1762')) {
-    processorType = 'MicroLogix 1200'
-  } else if (text.includes('1763')) {
-    processorType = 'MicroLogix 1100'
-  } else if (text.includes('1766')) {
-    processorType = 'MicroLogix 1400'
-  }
 
-  // Extract rungs by looking for instruction patterns
-  const programs: PlcProgram[] = []
-  const tags: PlcTag[] = []
+  // Strategy 1: Look for decompressed streams with recognizable content
+  for (const stream of streams) {
+    const dataToCheck = stream.decompressed || stream.content
+    const text = dataToCheck.toString('latin1')
 
-  // Find all program/file names
-  const programNames: string[] = []
-  const progMatches = text.matchAll(/CLadFile\x00+([A-Za-z0-9_]+)/g)
-  for (const match of progMatches) {
-    if (match[1] && !programNames.includes(match[1])) {
-      programNames.push(match[1])
+    // Check for program markers
+    if (text.includes('LAD') || text.includes('MAIN') || text.includes('SBR') ||
+        text.includes('Rung') || text.includes('END')) {
+      console.log(`[RSS Parser] Found program markers in: ${stream.path}`)
+      programData = dataToCheck
+
+      // Try to extract name
+      const nameMatch = text.match(/MAIN|LAD\s*\d+|([A-Z][A-Z0-9_]{2,20})/i)
+      if (nameMatch) {
+        projectName = nameMatch[0]
+      }
+      break
     }
   }
 
-  if (programNames.length === 0) {
-    programNames.push('MAIN')
+  // Strategy 2: Use the largest decompressed stream
+  if (!programData) {
+    let largestStream: { path: string; content: Buffer; decompressed?: Buffer } | null = null
+    let largestSize = 0
+
+    for (const stream of streams) {
+      const size = stream.decompressed?.length || stream.content.length
+      if (size > largestSize) {
+        largestSize = size
+        largestStream = stream
+      }
+    }
+
+    if (largestStream) {
+      programData = largestStream.decompressed || largestStream.content
+      console.log(`[RSS Parser] Using largest stream: ${largestStream.path} (${programData.length} bytes)`)
+    }
   }
 
-  // Extract all addresses used to create tags
-  const addressPattern = /([BIOTCRNFSALDMGPSC][A-Z]?)(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?/g
-  const foundAddresses = new Set<string>()
-  let addrMatch
-  while ((addrMatch = addressPattern.exec(text)) !== null) {
-    foundAddresses.add(addrMatch[0])
+  if (!programData) {
+    throw new Error('No program data found in RSS file')
   }
+
+  // Parse the data
+  const text = programData.toString('latin1')
+  const hexDump = programData.slice(0, 500).toString('hex')
+  console.log(`[RSS Parser] First 500 bytes hex: ${hexDump}`)
+  console.log(`[RSS Parser] Visible text sample: ${text.slice(0, 500).replace(/[^\x20-\x7E]/g, '.')}`)
+
+  // Extract processor info
+  if (text.includes('MicroLogix') || text.includes('1761') || text.includes('1762') ||
+      text.includes('1763') || text.includes('1766')) {
+    processorType = 'MicroLogix'
+  }
+
+  // Extract all visible addresses from the binary
+  const addresses = extractAddresses(text)
+  console.log(`[RSS Parser] Found ${addresses.size} unique addresses`)
 
   // Convert addresses to tags
-  for (const addr of foundAddresses) {
+  const tags: PlcTag[] = []
+  for (const addr of addresses) {
     const tag = addressToTag(addr)
     if (tag) {
       tags.push(tag)
     }
   }
 
-  // Extract rungs - look for visible instruction patterns
-  const rungs: PlcRung[] = []
+  // Try to extract ladder logic structure
+  const rungs = extractRungs(programData, text, addresses)
+  console.log(`[RSS Parser] Extracted ${rungs.length} rungs`)
 
-  // Pattern to match RSLogix 500 style instructions in the binary
-  // These appear as text strings like "XIC B3:0/15" or "TON T4:0"
-  const instructionRegex = /\b(XIC|XIO|OTE|OTL|OTU|ONS|OSR|OSF|TON|TOF|RTO|CTU|CTD|RES|ADD|SUB|MUL|DIV|MOV|COP|FLL|EQU|NEQ|LES|LEQ|GRT|GEQ|LIM|MEQ|JMP|LBL|JSR|SBR|RET|MCR|SQO|SQI|SQC|SQL|BSL|BSR|FFL|FFU|LFL|LFU|MSG|PID|AND|OR|XOR|NOT|NEG|CLR)\s*([BIOTCRNFSALDMGPSC][A-Z]?\d+:\d+(?:\/\d+)?(?:\.[A-Z]+)?)/gi
-
-  // Find all instructions and group them into rungs
-  let rungInstructions: PlcInstruction[] = []
-  let rungRawText = ''
-  let rungNumber = 0
-
-  // Look for rung boundaries marked by CRung
-  const rungBoundaries: number[] = []
-  let searchPos = 0
-  while (true) {
-    const pos = text.indexOf('CRung', searchPos)
-    if (pos === -1) break
-    rungBoundaries.push(pos)
-    searchPos = pos + 5
-  }
-
-  if (rungBoundaries.length > 0) {
-    // Process each rung section
-    for (let i = 0; i < rungBoundaries.length; i++) {
-      const start = rungBoundaries[i]
-      const end = i < rungBoundaries.length - 1 ? rungBoundaries[i + 1] : text.length
-      const rungSection = text.substring(start, end)
-
-      // Extract instructions from this rung
-      rungInstructions = []
-      rungRawText = ''
-      let instMatch
-      const localRegex = new RegExp(instructionRegex.source, 'gi')
-
-      while ((instMatch = localRegex.exec(rungSection)) !== null) {
-        const instType = instMatch[1].toUpperCase()
-        const operand = instMatch[2]
-        rungInstructions.push({
-          type: instType,
-          operands: [operand]
-        })
-        rungRawText += `${instType}(${operand})`
-      }
-
-      if (rungInstructions.length > 0) {
-        // Look for comment (often follows rung marker)
-        let comment: string | undefined
-        const commentMatch = rungSection.match(/\x00{2,}([A-Za-z][A-Za-z0-9 _-]{5,50})\x00/)
-        if (commentMatch && !commentMatch[1].match(/^[A-Z]{2,5}$/)) {
-          comment = commentMatch[1].trim()
-        }
-
-        rungs.push({
-          number: rungNumber++,
-          comment,
-          rawText: rungRawText || `// Rung ${rungNumber}`,
-          instructions: rungInstructions
-        })
-      }
-    }
-  } else {
-    // Fallback: scan entire text for instruction patterns
-    let instMatch
-    while ((instMatch = instructionRegex.exec(text)) !== null) {
-      const instType = instMatch[1].toUpperCase()
-      const operand = instMatch[2]
-      rungInstructions.push({
-        type: instType,
-        operands: [operand]
-      })
-      rungRawText += `${instType}(${operand})`
-
-      // Group into rungs of ~5 instructions (heuristic)
-      if (rungInstructions.length >= 5 && (instType === 'OTE' || instType === 'OTL' || instType === 'OTU')) {
-        rungs.push({
-          number: rungNumber++,
-          rawText: rungRawText,
-          instructions: [...rungInstructions]
-        })
-        rungInstructions = []
-        rungRawText = ''
-      }
-    }
-
-    // Add remaining instructions as last rung
-    if (rungInstructions.length > 0) {
-      rungs.push({
-        number: rungNumber++,
-        rawText: rungRawText,
-        instructions: rungInstructions
-      })
-    }
-  }
-
-  // Create program structure
+  // Build program structure
   const mainRoutine: PlcRoutine = {
     name: 'MainRoutine',
     type: 'Ladder',
     rungs
   }
 
-  // Add subroutine files if found
-  const routines: PlcRoutine[] = [mainRoutine]
-
-  // Look for additional ladder files (LAD 2, LAD 3, etc.)
-  const ladFileMatches = text.matchAll(/LAD\s*(\d+)/gi)
-  const ladFiles = new Set<number>()
-  for (const match of ladFileMatches) {
-    ladFiles.add(parseInt(match[1]))
-  }
-
-  for (const ladNum of ladFiles) {
-    if (ladNum !== 2) { // LAD 2 is usually main
-      routines.push({
-        name: `Subroutine_${ladNum}`,
-        type: 'Ladder',
-        rungs: [] // Would need deeper parsing to extract
-      })
-    }
-  }
-
-  // Create main program
   const mainProgram: PlcProgram = {
-    name: programNames[0] || 'MainProgram',
+    name: projectName,
     mainRoutineName: 'MainRoutine',
     disabled: false,
-    routines,
+    routines: [mainRoutine],
     localTags: []
   }
-
-  programs.push(mainProgram)
-
-  // Add additional programs if found
-  for (let i = 1; i < programNames.length; i++) {
-    programs.push({
-      name: programNames[i],
-      disabled: false,
-      routines: [],
-      localTags: []
-    })
-  }
-
-  console.log(`[RSS Parser] Extracted ${rungs.length} rungs, ${tags.length} tags from ${projectName}`)
 
   return {
     name: projectName,
     processorType,
     softwareVersion: 'RSLogix 500',
     tags,
-    programs,
+    programs: [mainProgram],
     tasks: [],
     modules: [],
     dataTypes: []
   }
+}
+
+/**
+ * Extract all RSLogix 500 style addresses from text
+ */
+function extractAddresses(text: string): Set<string> {
+  const addresses = new Set<string>()
+
+  // Pattern for SLC 500 addresses: B3:0/15, N7:5, T4:0.DN, I:0/0, O:0/0
+  const patterns = [
+    /[BIOTCRNFSALDMGPSC][A-Z]?\d*:\d+(?:\/\d+)?(?:\.[A-Z]+)?/gi,
+    /[IO]:\d+(?:\/\d+)?/gi,  // I:0/0, O:0/0 format
+  ]
+
+  for (const pattern of patterns) {
+    const matches = text.matchAll(pattern)
+    for (const match of matches) {
+      // Validate it looks like a real address
+      const addr = match[0].toUpperCase()
+      if (addr.length >= 3 && addr.length <= 20) {
+        addresses.add(addr)
+      }
+    }
+  }
+
+  return addresses
+}
+
+/**
+ * Extract rungs from binary data using multiple strategies
+ */
+function extractRungs(data: Buffer, text: string, addresses: Set<string>): PlcRung[] {
+  const rungs: PlcRung[] = []
+
+  // Strategy 1: Look for instruction mnemonics in the text
+  const instructionPattern = /\b(XIC|XIO|OTE|OTL|OTU|ONS|OSR|OSF|TON|TOF|RTO|CTU|CTD|RES|ADD|SUB|MUL|DIV|MOV|MVM|COP|FLL|EQU|NEQ|LES|LEQ|GRT|GEQ|LIM|MEQ|JMP|LBL|JSR|SBR|RET|MCR|SQO|SQI|SQC|SQL|BSL|BSR|FFL|FFU|LFL|LFU|MSG|PID|AND|OR|XOR|NOT|NEG|CLR|ABS|SQR|CPT|DDV|FRD|TOD|DCD|ENC)\b/gi
+
+  const instructionMatches = [...text.matchAll(instructionPattern)]
+  console.log(`[RSS Parser] Found ${instructionMatches.length} instruction mnemonics in text`)
+
+  if (instructionMatches.length > 0) {
+    // Group instructions into rungs
+    // Look for patterns: instruction followed by nearby address
+    let currentInstructions: PlcInstruction[] = []
+    let currentRawText = ''
+    let rungNumber = 0
+
+    for (let i = 0; i < instructionMatches.length; i++) {
+      const match = instructionMatches[i]
+      const instType = match[1].toUpperCase()
+      const position = match.index || 0
+
+      // Look for an address near this instruction (within 50 chars)
+      const nearbyText = text.substring(position, position + 50)
+      const addrMatch = nearbyText.match(/[BIOTCRNFSALDMGPSC][A-Z]?\d*:\d+(?:\/\d+)?(?:\.[A-Z]+)?/i)
+      const operand = addrMatch ? addrMatch[0].toUpperCase() : ''
+
+      currentInstructions.push({
+        type: instType,
+        operands: operand ? [operand] : []
+      })
+      currentRawText += operand ? `${instType}(${operand})` : `${instType}()`
+
+      // End rung on output instructions or after several instructions
+      const isOutput = ['OTE', 'OTL', 'OTU', 'RES', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'MOV', 'ADD', 'SUB', 'MUL', 'DIV', 'JSR', 'JMP', 'RET'].includes(instType)
+
+      if (isOutput || currentInstructions.length >= 8) {
+        if (currentInstructions.length > 0) {
+          rungs.push({
+            number: rungNumber++,
+            rawText: currentRawText,
+            instructions: currentInstructions
+          })
+          currentInstructions = []
+          currentRawText = ''
+        }
+      }
+    }
+
+    // Add any remaining instructions
+    if (currentInstructions.length > 0) {
+      rungs.push({
+        number: rungNumber++,
+        rawText: currentRawText,
+        instructions: currentInstructions
+      })
+    }
+  }
+
+  // Strategy 2: If no instructions found, create synthetic rungs from addresses
+  if (rungs.length === 0 && addresses.size > 0) {
+    console.log('[RSS Parser] No instruction mnemonics found, creating rungs from addresses')
+
+    // Group addresses by type and create representative rungs
+    const inputs: string[] = []
+    const outputs: string[] = []
+    const internals: string[] = []
+
+    for (const addr of addresses) {
+      if (addr.startsWith('I:') || addr.startsWith('I ')) {
+        inputs.push(addr)
+      } else if (addr.startsWith('O:') || addr.startsWith('O ')) {
+        outputs.push(addr)
+      } else {
+        internals.push(addr)
+      }
+    }
+
+    let rungNumber = 0
+
+    // Create a rung showing inputs
+    if (inputs.length > 0) {
+      const instructions: PlcInstruction[] = inputs.slice(0, 10).map(addr => ({
+        type: 'XIC',
+        operands: [addr]
+      }))
+      rungs.push({
+        number: rungNumber++,
+        comment: 'Physical Inputs (auto-detected)',
+        rawText: instructions.map(i => `XIC(${i.operands[0]})`).join(''),
+        instructions
+      })
+    }
+
+    // Create a rung showing outputs
+    if (outputs.length > 0) {
+      const instructions: PlcInstruction[] = outputs.slice(0, 10).map(addr => ({
+        type: 'OTE',
+        operands: [addr]
+      }))
+      rungs.push({
+        number: rungNumber++,
+        comment: 'Physical Outputs (auto-detected)',
+        rawText: instructions.map(i => `OTE(${i.operands[0]})`).join(''),
+        instructions
+      })
+    }
+
+    // Create rungs for timers
+    const timers = [...addresses].filter(a => a.startsWith('T'))
+    for (const timer of timers.slice(0, 5)) {
+      rungs.push({
+        number: rungNumber++,
+        comment: `Timer ${timer}`,
+        rawText: `TON(${timer})`,
+        instructions: [{ type: 'TON', operands: [timer] }]
+      })
+    }
+
+    // Create rungs for counters
+    const counters = [...addresses].filter(a => a.startsWith('C'))
+    for (const counter of counters.slice(0, 5)) {
+      rungs.push({
+        number: rungNumber++,
+        comment: `Counter ${counter}`,
+        rawText: `CTU(${counter})`,
+        instructions: [{ type: 'CTU', operands: [counter] }]
+      })
+    }
+
+    // Create rungs for bit operations
+    const bits = [...addresses].filter(a => a.startsWith('B'))
+    if (bits.length > 0) {
+      const bitInstructions: PlcInstruction[] = bits.slice(0, 5).map(addr => ({
+        type: 'XIC',
+        operands: [addr]
+      }))
+      if (bitInstructions.length > 0) {
+        bitInstructions.push({ type: 'OTE', operands: [bits[0] || 'B3:0/0'] })
+        rungs.push({
+          number: rungNumber++,
+          comment: 'Internal Bits (auto-detected)',
+          rawText: bitInstructions.map(i => `${i.type}(${i.operands[0]})`).join(''),
+          instructions: bitInstructions
+        })
+      }
+    }
+
+    // Create rungs for integers/math
+    const integers = [...addresses].filter(a => a.startsWith('N'))
+    if (integers.length >= 2) {
+      rungs.push({
+        number: rungNumber++,
+        comment: 'Integer Operations (auto-detected)',
+        rawText: `MOV(${integers[0]},${integers[1]})`,
+        instructions: [{ type: 'MOV', operands: [integers[0], integers[1]] }]
+      })
+    }
+  }
+
+  // Strategy 3: If still no rungs, create placeholder
+  if (rungs.length === 0) {
+    console.log('[RSS Parser] Creating placeholder rung - binary format could not be parsed')
+    rungs.push({
+      number: 0,
+      comment: 'RSLogix 500 binary format - detailed parsing not yet supported',
+      rawText: '// Binary ladder logic - addresses extracted below',
+      instructions: []
+    })
+
+    // List found addresses as info
+    if (addresses.size > 0) {
+      rungs.push({
+        number: 1,
+        comment: `Found ${addresses.size} addresses: ${[...addresses].slice(0, 20).join(', ')}${addresses.size > 20 ? '...' : ''}`,
+        rawText: '// See tags list for all detected addresses',
+        instructions: []
+      })
+    }
+  }
+
+  return rungs
 }
 
 /**
