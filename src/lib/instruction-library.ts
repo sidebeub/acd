@@ -27,6 +27,242 @@ export interface DevicePattern {
 }
 
 // ============================================================================
+// FRIENDLY ANALOGIES - Multiple real-world scenarios for variety
+// ============================================================================
+
+// Each instruction has multiple analogies to keep explanations fresh
+// The analogy is selected based on a hash of the tag name for consistency
+const FRIENDLY_ANALOGIES: Record<string, string[]> = {
+  // XIC - Examine if Closed (checking if something is ON/true)
+  XIC: [
+    'Like checking if a light switch is flipped ON - {0} must be ON',
+    'Think of it as checking if a door is open - {0} needs to be active',
+    'Like seeing if a car engine is running - {0} must be true',
+    'Similar to checking if your phone screen is lit up - {0} is ON',
+    'Like verifying a green "GO" light is showing - {0} is active',
+    'Think of checking if water is flowing through a pipe - {0} is ON',
+    'Like seeing if a machine\'s power LED is glowing - {0} is true',
+    'Similar to checking if someone raised their hand - {0} is signaling YES',
+  ],
+
+  // XIO - Examine if Open (checking if something is OFF/false)
+  XIO: [
+    'Like checking if a light switch is OFF - {0} must be OFF',
+    'Think of verifying a door is closed and locked - {0} needs to be inactive',
+    'Like confirming an engine has stopped - {0} must be false',
+    'Similar to checking your phone is in sleep mode - {0} is OFF',
+    'Like seeing a red "STOP" light - {0} is not active',
+    'Think of confirming a water valve is shut - {0} is OFF',
+    'Like verifying a warning light is not on - {0} is false',
+    'Similar to checking no one raised their hand - {0} is signaling NO',
+  ],
+
+  // OTE - Output Energize (turning something ON)
+  OTE: [
+    'Flip the switch to turn ON {0}',
+    'Like pressing the power button to start {0}',
+    'Activate {0} - think of it as opening a valve',
+    'Light up {0} - like turning on a lamp',
+    'Engage {0} - similar to shifting a car into gear',
+    'Fire up {0} - like starting an appliance',
+    'Switch {0} to the ON position',
+    'Send the GO signal to {0}',
+  ],
+
+  // OTL - Output Latch (turn ON and keep ON)
+  OTL: [
+    'Lock {0} in the ON position - it stays ON even if conditions change, like a deadbolt',
+    'Latch {0} ON permanently - like setting a parking brake that stays engaged',
+    'Seal in {0} - similar to a light that stays on after you release the switch',
+    'Set and hold {0} ON - like a toggle switch that stays flipped',
+    'Engage and lock {0} - think of a door prop holding it open',
+    'Capture {0} in the ON state - like a mousetrap that stays set',
+    'Pin {0} ON - similar to a circuit breaker that\'s been switched on',
+    'Hold {0} energized - like a magnetic lock that stays active',
+  ],
+
+  // OTU - Output Unlatch (turn OFF and keep OFF)
+  OTU: [
+    'Unlock {0} to OFF - releases the latch, like opening a deadbolt',
+    'Unlatch {0} - similar to releasing a parking brake',
+    'Release {0} from ON - like letting go of a door prop',
+    'Reset {0} to OFF - think of resetting a tripped breaker',
+    'Clear {0} - similar to releasing a held button',
+    'Drop {0} to OFF - like releasing a magnetic lock',
+    'Free {0} from its latched state',
+    'Disengage the lock on {0}',
+  ],
+
+  // TON - Timer On Delay
+  TON: [
+    'Start a countdown with {0} - like a microwave timer that dings when done',
+    'Begin timing with {0} - similar to an egg timer counting down',
+    'Activate delay timer {0} - like waiting for a traffic light to change',
+    'Start the clock on {0} - think of a toast timer',
+    'Fire up timer {0} - like starting a stopwatch',
+    'Run the {0} delay - similar to a coffee maker brewing cycle',
+    'Count down {0} - like a countdown before a rocket launch',
+    'Tick away on {0} - think of a kitchen timer for baking',
+  ],
+
+  // TOF - Timer Off Delay
+  TOF: [
+    'Keep {0} running after trigger stops - like a bathroom fan that runs a bit longer',
+    'Delay turning off {0} - similar to headlights that stay on after you exit the car',
+    'Hold {0} on briefly after release - like a garage light that stays lit',
+    'Extend {0} after the signal drops - think of a motion sensor light',
+    'Coast down with {0} - like a fan slowing after power cut',
+    'Maintain {0} temporarily - similar to a thermostat\'s cycle delay',
+    'Buffer the off-time for {0} - like an oven staying warm',
+    'Delay the shutdown of {0} - think of a computer\'s sleep timer',
+  ],
+
+  // CTU - Count Up
+  CTU: [
+    'Add one to counter {0} - like a turnstile clicking with each person',
+    'Increment {0} - similar to a pitch counter at a baseball game',
+    'Tick up {0} by one - think of counting cars in a parking lot',
+    'Bump up the count on {0} - like a lap counter for runners',
+    'Increase {0} - similar to tallying inventory items',
+    'Count another one on {0} - like a vending machine tracking sales',
+    'Register +1 on {0} - think of a pedometer counting steps',
+    'Score one more on {0} - like an arcade game counter',
+  ],
+
+  // CTD - Count Down
+  CTD: [
+    'Subtract one from counter {0} - like tracking remaining items',
+    'Decrement {0} - similar to a countdown of remaining tries',
+    'Tick down {0} by one - think of tracking seats left on a bus',
+    'Reduce the count on {0} - like a magazine tracking bullets remaining',
+    'Decrease {0} - similar to counting down New Year\'s Eve',
+    'Remove one from {0} - like a dispenser tracking products left',
+    'Deduct from {0} - think of remaining lives in a video game',
+    'Mark one less on {0} - like counting down days on a calendar',
+  ],
+
+  // MOV - Move/Copy value
+  MOV: [
+    'Copy the value from {0} into {1} - like copying text between documents',
+    'Transfer {0} to {1} - similar to moving money between accounts',
+    'Send {0} over to {1} - think of forwarding a message',
+    'Put {0}\'s value into {1} - like pouring from one container to another',
+    'Clone {0} into {1} - similar to backing up a file',
+    'Set {1} equal to {0} - like synchronizing two clocks',
+    'Write {0} to {1} - think of saving a number to memory',
+    'Pass {0} along to {1} - like handing off a baton in a relay',
+  ],
+
+  // ADD - Addition
+  ADD: [
+    'Add {0} + {1}, store result in {2} - like combining two piles of coins',
+    'Sum up {0} and {1} into {2} - similar to adding scores',
+    'Calculate {0} plus {1}, save to {2} - think of a cash register total',
+    'Combine {0} with {1} into {2} - like mixing ingredients',
+    'Total {0} and {1} in {2} - similar to tallying a bill',
+    'Merge {0} and {1} values into {2} - think of pooling resources',
+    'Plus them together: {0} + {1} → {2} - like stacking blocks',
+    'Accumulate {0} and {1} into {2} - similar to adding mileage',
+  ],
+
+  // EQU - Equal comparison
+  EQU: [
+    'Check if {0} equals {1} - like comparing two measurements',
+    'Test if {0} matches {1} - similar to password verification',
+    'See if {0} is the same as {1} - think of matching puzzle pieces',
+    'Compare {0} to {1} for equality - like checking if sizes match',
+    'Verify {0} = {1} - similar to confirming a balance',
+    'Match {0} against {1} - like comparing fingerprints',
+    'Is {0} exactly {1}? - think of checking a thermostat setting',
+    'Confirm {0} equals {1} - similar to verifying a code',
+  ],
+
+  // GRT - Greater Than
+  GRT: [
+    'Check if {0} is bigger than {1} - like comparing heights',
+    'Test if {0} exceeds {1} - similar to checking if over speed limit',
+    'See if {0} is more than {1} - think of checking if temperature is too high',
+    'Is {0} greater than {1}? - like comparing test scores',
+    'Verify {0} > {1} - similar to checking if tank is over capacity',
+    'Compare if {0} beats {1} - like a race finish',
+    'Check {0} surpasses {1} - think of an alarm threshold',
+    'Test if {0} is above {1} - like checking water level',
+  ],
+
+  // LES - Less Than
+  LES: [
+    'Check if {0} is smaller than {1} - like comparing weights',
+    'Test if {0} is under {1} - similar to checking minimum requirement',
+    'See if {0} is less than {1} - think of low fuel warning',
+    'Is {0} below {1}? - like checking if temperature dropped',
+    'Verify {0} < {1} - similar to checking if under budget',
+    'Compare if {0} falls short of {1} - like a limbo bar',
+    'Check {0} is beneath {1} - think of minimum pressure alarm',
+    'Test if {0} is lower than {1} - like checking water level is low',
+  ],
+
+  // RES - Reset
+  RES: [
+    'Reset {0} back to zero - like clearing a stopwatch',
+    'Zero out {0} - similar to resetting a trip odometer',
+    'Clear {0} to start fresh - think of resetting a game score',
+    'Wipe {0} clean - like erasing a whiteboard',
+    'Reset {0} to initial state - similar to rebooting',
+    'Bring {0} back to zero - like resetting a counter',
+    'Initialize {0} - think of setting up for a new cycle',
+    'Restart {0} from scratch - like a New Year\'s resolution',
+  ],
+
+  // JSR - Jump to Subroutine
+  JSR: [
+    'Jump to subroutine {0} - like calling a friend to help with a task',
+    'Run the {0} routine - similar to following a recipe',
+    'Execute {0} - think of delegating work to a specialist',
+    'Call {0} - like ringing a specific department',
+    'Branch to {0} - similar to taking a detour on a road trip',
+    'Go do {0} then come back - like sending someone on an errand',
+    'Hand off to {0} - think of passing the baton',
+    'Invoke subroutine {0} - like pressing a macro button',
+  ],
+}
+
+// Simple hash function to get consistent number from string
+function hashString(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  return Math.abs(hash)
+}
+
+// Get a varied friendly explanation based on instruction and context
+export function getVariedFriendlyExplanation(
+  instruction: string,
+  operands: string[],
+  contextSeed?: string
+): string | null {
+  const analogies = FRIENDLY_ANALOGIES[instruction.toUpperCase()]
+  if (!analogies || analogies.length === 0) {
+    return null
+  }
+
+  // Use context (tag names, rung position) to pick a consistent analogy
+  const seed = contextSeed || operands.join(',') || instruction
+  const index = hashString(seed) % analogies.length
+
+  let explanation = analogies[index]
+
+  // Replace placeholders with operands
+  operands.forEach((op, i) => {
+    explanation = explanation.replace(new RegExp(`\\{${i}\\}`, 'g'), op)
+  })
+
+  return explanation
+}
+
+// ============================================================================
 // INSTRUCTION DEFINITIONS - Comprehensive Rockwell/Allen-Bradley Library
 // ============================================================================
 
@@ -1786,21 +2022,38 @@ export const DEVICE_PATTERNS: DevicePattern[] = [
 
 /**
  * Get the explanation for an instruction
+ * For 'friendly' mode, uses varied real-world analogies to keep explanations fresh
  */
 export function getInstructionExplanation(
   instruction: string,
   operands: string[],
-  mode: ExplanationMode
+  mode: ExplanationMode,
+  contextSeed?: string
 ): string | null {
   const inst = INSTRUCTIONS[instruction.toUpperCase()]
   if (!inst) return null
 
-  let explanation = inst[mode]
+  let explanation: string
 
-  // Replace placeholders with operands
-  operands.forEach((op, i) => {
-    explanation = explanation.replace(new RegExp(`\\{${i}\\}`, 'g'), op)
-  })
+  // For friendly mode, try to get a varied analogy first
+  if (mode === 'friendly') {
+    const variedExplanation = getVariedFriendlyExplanation(instruction, operands, contextSeed)
+    if (variedExplanation) {
+      explanation = variedExplanation
+    } else {
+      // Fall back to standard friendly explanation
+      explanation = inst[mode]
+      operands.forEach((op, i) => {
+        explanation = explanation.replace(new RegExp(`\\{${i}\\}`, 'g'), op)
+      })
+    }
+  } else {
+    // Technical and operator modes use standard explanations
+    explanation = inst[mode]
+    operands.forEach((op, i) => {
+      explanation = explanation.replace(new RegExp(`\\{${i}\\}`, 'g'), op)
+    })
+  }
 
   // Remove any unreplaced placeholders
   explanation = explanation.replace(/\{[0-9]\}/g, '?')
@@ -1822,13 +2075,15 @@ export function detectDeviceType(tagName: string): DevicePattern | null {
 
 /**
  * Get context-aware explanation with device recognition
+ * contextSeed is used to select varied analogies consistently
  */
 export function getContextualExplanation(
   instruction: string,
   operands: string[],
-  mode: ExplanationMode
+  mode: ExplanationMode,
+  contextSeed?: string
 ): { explanation: string; device?: DevicePattern; troubleshooting?: string[] } | null {
-  const baseExplanation = getInstructionExplanation(instruction, operands, mode)
+  const baseExplanation = getInstructionExplanation(instruction, operands, mode, contextSeed)
   if (!baseExplanation) return null
 
   // Try to detect device from first operand (usually the tag)
@@ -1843,6 +2098,7 @@ export function getContextualExplanation(
 
 /**
  * Parse a rung and explain all instructions
+ * Uses varied analogies based on tag names to keep explanations fresh
  */
 export function explainRungInstructions(
   rungText: string,
@@ -1865,13 +2121,18 @@ export function explainRungInstructions(
   // Parse instructions from rung text
   const regex = /([A-Z_][A-Z0-9_]*)\(([^)]*)\)/gi
   let match
+  let instructionIndex = 0
 
   while ((match = regex.exec(rungText)) !== null) {
     const instruction = match[1].toUpperCase()
     const operandsStr = match[2]
     const operands = parseOperands(operandsStr)
 
-    const result = getContextualExplanation(instruction, operands, mode)
+    // Create a context seed from the tag name and position for varied analogies
+    // This ensures the same tag always gets the same analogy, but different tags get different ones
+    const contextSeed = `${operands[0] || ''}:${instructionIndex}`
+
+    const result = getContextualExplanation(instruction, operands, mode, contextSeed)
     if (result) {
       results.push({
         instruction,
@@ -1886,6 +2147,8 @@ export function explainRungInstructions(
         explanation: `${instruction}(${operands.join(', ')}) - Unknown instruction`
       })
     }
+
+    instructionIndex++
   }
 
   return results
