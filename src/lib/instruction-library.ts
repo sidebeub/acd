@@ -23,7 +23,23 @@ export interface DevicePattern {
   pattern: RegExp
   deviceType: string
   friendlyName: string
-  troubleshooting?: string[]
+  icon?: string  // Emoji for quick visual
+  signalType?: 'input' | 'output' | 'internal'  // Type of signal
+  troubleshooting?: string[]  // Detailed troubleshooting steps
+  quickChecks?: string[]  // Fast visual/physical checks
+  stateOnMeaning?: string  // What ON means for this device
+  stateOffMeaning?: string  // What OFF means for this device
+  commonFailures?: string[]  // What typically goes wrong
+  safetyNote?: string  // Safety warning if applicable
+}
+
+// Command vs Feedback tag patterns
+export interface TagTypeInfo {
+  isCommand: boolean  // Is this a command/output tag?
+  isFeedback: boolean  // Is this a feedback/input tag?
+  isStatus: boolean  // Is this a status tag?
+  tagType: 'command' | 'feedback' | 'status' | 'internal' | 'unknown'
+  description: string
 }
 
 // ============================================================================
@@ -2639,37 +2655,37 @@ export const INSTRUCTIONS: Record<string, InstructionExplanation> = {
   XIC: {
     category: 'Bit Logic',
     icon: '⎯] [⎯',
-    friendly: '{0} is ON',
+    friendly: 'Must be ON',
     technical: 'XIC: Test if {0} = TRUE',
-    operator: '{0} is energized'
+    operator: 'Must be energized'
   },
   XIO: {
     category: 'Bit Logic',
     icon: '⎯]/[⎯',
-    friendly: '{0} is OFF',
+    friendly: 'Must be OFF',
     technical: 'XIO: Test if {0} = FALSE',
-    operator: '{0} is de-energized'
+    operator: 'Must be de-energized'
   },
   OTE: {
     category: 'Bit Logic',
     icon: '⎯( )⎯',
-    friendly: 'turn ON {0}',
+    friendly: 'Turn ON',
     technical: 'OTE: Set {0} = rung state',
-    operator: 'energize {0}'
+    operator: 'Energize'
   },
   OTL: {
     category: 'Bit Logic',
     icon: '⎯(L)⎯',
-    friendly: 'latch {0} ON (stays ON until unlatched)',
+    friendly: 'Latch ON',
     technical: 'OTL: Latch {0} TRUE, retains until OTU',
-    operator: 'latch {0} ON'
+    operator: 'Latch ON'
   },
   OTU: {
     category: 'Bit Logic',
     icon: '⎯(U)⎯',
-    friendly: 'unlatch {0} OFF (stays OFF until latched)',
+    friendly: 'Unlatch OFF',
     technical: 'OTU: Unlatch {0} FALSE, retains until OTL',
-    operator: 'unlatch {0} OFF'
+    operator: 'Unlatch OFF'
   },
   ONS: {
     category: 'Bit Logic',
@@ -2791,44 +2807,44 @@ export const INSTRUCTIONS: Record<string, InstructionExplanation> = {
   EQU: {
     category: 'Compare',
     icon: '=',
-    friendly: 'Check if {0} equals {1} (like comparing two numbers)',
+    friendly: 'Must equal {1}',
     technical: 'Equal - Tests if {0} = {1}, rung true if equal',
-    operator: 'Compare: is {0} equal to {1}?'
+    operator: 'Must equal {1}'
   },
   NEQ: {
     category: 'Compare',
     icon: '≠',
-    friendly: 'Check if {0} is different from {1}',
+    friendly: 'Must not equal {1}',
     technical: 'Not Equal - Tests if {0} ≠ {1}, rung true if not equal',
-    operator: 'Compare: is {0} not equal to {1}?'
+    operator: 'Must not equal {1}'
   },
   GRT: {
     category: 'Compare',
     icon: '>',
-    friendly: 'Check if {0} is greater than {1}',
+    friendly: 'Must be > {1}',
     technical: 'Greater Than - Tests if {0} > {1}',
-    operator: 'Compare: is {0} greater than {1}?'
+    operator: 'Must be > {1}'
   },
   GEQ: {
     category: 'Compare',
     icon: '≥',
-    friendly: 'Check if {0} is greater than or equal to {1}',
+    friendly: 'Must be >= {1}',
     technical: 'Greater Than or Equal - Tests if {0} ≥ {1}',
-    operator: 'Compare: is {0} greater than or equal to {1}?'
+    operator: 'Must be >= {1}'
   },
   LES: {
     category: 'Compare',
     icon: '<',
-    friendly: 'Check if {0} is less than {1}',
+    friendly: 'Must be < {1}',
     technical: 'Less Than - Tests if {0} < {1}',
-    operator: 'Compare: is {0} less than {1}?'
+    operator: 'Must be < {1}'
   },
   LEQ: {
     category: 'Compare',
     icon: '≤',
-    friendly: 'Check if {0} is less than or equal to {1}',
+    friendly: 'Must be <= {1}',
     technical: 'Less Than or Equal - Tests if {0} ≤ {1}',
-    operator: 'Compare: is {0} less than or equal to {1}?'
+    operator: 'Must be <= {1}'
   },
   LIM: {
     category: 'Compare',
@@ -3006,9 +3022,9 @@ export const INSTRUCTIONS: Record<string, InstructionExplanation> = {
   MOV: {
     category: 'Move',
     icon: '→',
-    friendly: 'Copy value from {0} to {1}',
+    friendly: 'Set to {0}',
     technical: 'Move - Copies {0} to {1}',
-    operator: 'Move: {1} = {0}'
+    operator: 'Set to {0}'
   },
   MVM: {
     category: 'Move',
@@ -3052,9 +3068,9 @@ export const INSTRUCTIONS: Record<string, InstructionExplanation> = {
   COP: {
     category: 'Array',
     icon: '⇒',
-    friendly: 'Copy {2} elements from {0} to {1}',
+    friendly: 'Copy from {0}',
     technical: 'Copy File - Copies {2} elements from array {0} to {1}',
-    operator: 'Copy array: {2} elements from {0} to {1}'
+    operator: 'Copy from {0}'
   },
   CPS: {
     category: 'Array',
@@ -4264,122 +4280,2679 @@ export const INSTRUCTIONS: Record<string, InstructionExplanation> = {
 // ============================================================================
 
 export const DEVICE_PATTERNS: DevicePattern[] = [
-  // Motors & Drives
-  { pattern: /motor|mtr|_m\d|vfd|drive|inverter/i, deviceType: 'motor', friendlyName: 'motor',
-    troubleshooting: ['Check motor overload status', 'Verify VFD fault codes', 'Check for mechanical binding', 'Verify power supply'] },
+  // =====================================================================
+  // PROXIMITY SENSORS
+  // =====================================================================
+  {
+    pattern: /prox|proximity|px_|_px|inductive|capacitive/i,
+    deviceType: 'proximity_sensor',
+    friendlyName: 'Proximity Sensor',
+    icon: '🔴',
+    signalType: 'input',
+    quickChecks: [
+      'Look for LED indicator on sensor body',
+      'Wave metal object in front of sensor',
+      'Check if sensing face is clean'
+    ],
+    troubleshooting: [
+      'Verify sensing distance (typically 2-8mm for inductive)',
+      'Check for metal debris near sensor face',
+      'Verify target material is compatible (inductive = metal only)',
+      'Check wiring: Brown=24V+, Blue=0V, Black=Signal',
+      'Test with multimeter for 24VDC at sensor'
+    ],
+    stateOnMeaning: 'Metal target detected within sensing range',
+    stateOffMeaning: 'No metal target detected',
+    commonFailures: ['Damaged sensing face', 'Wiring fault', 'Wrong target material', 'Sensing distance too far'],
+  },
 
-  // Conveyors
-  { pattern: /conv|cnv|belt|transfer/i, deviceType: 'conveyor', friendlyName: 'conveyor',
-    troubleshooting: ['Check belt tension and tracking', 'Verify product jam sensors', 'Check motor/gearbox', 'Inspect belt for damage'] },
+  // =====================================================================
+  // PHOTOELECTRIC SENSORS
+  // =====================================================================
+  {
+    pattern: /photo|pe$|^pe_|_pe_|_pe$|pec|beam|optical|thrubeam|retroreflective|diffuse/i,
+    deviceType: 'photoelectric_sensor',
+    friendlyName: 'Photoelectric Sensor',
+    icon: '👁️',
+    signalType: 'input',
+    quickChecks: [
+      'Look for green/red LED on sensor',
+      'Wave hand through beam path',
+      'Check if lens is clean and unobstructed'
+    ],
+    troubleshooting: [
+      'Clean lens with soft cloth',
+      'Check alignment between emitter and receiver',
+      'Verify reflector is clean and properly positioned',
+      'Check for ambient light interference',
+      'Adjust sensitivity if available'
+    ],
+    stateOnMeaning: 'Beam is blocked / Object detected',
+    stateOffMeaning: 'Beam is clear / No object',
+    commonFailures: ['Dirty lens', 'Misalignment', 'Damaged reflector', 'Ambient light interference'],
+  },
 
-  // Cylinders/Actuators
-  { pattern: /cyl|cylinder|actuator|act_|pneumatic/i, deviceType: 'cylinder', friendlyName: 'cylinder',
-    troubleshooting: ['Check air pressure (typically 80-100 PSI)', 'Verify position sensors', 'Check for mechanical obstruction', 'Inspect seals for leaks'] },
+  // =====================================================================
+  // LIMIT SWITCHES
+  // =====================================================================
+  {
+    pattern: /limit|ls_|_ls|switch|microswitch/i,
+    deviceType: 'limit_switch',
+    friendlyName: 'Limit Switch',
+    icon: '🔘',
+    signalType: 'input',
+    quickChecks: [
+      'Listen for click when actuated',
+      'Manually push lever/roller',
+      'Check actuator arm alignment'
+    ],
+    troubleshooting: [
+      'Manually actuate lever and listen for click',
+      'Check mechanical alignment with cam/dog',
+      'Verify actuator travel engages switch fully',
+      'Inspect wiring connections at terminal',
+      'Check for mechanical damage to lever/roller'
+    ],
+    stateOnMeaning: 'Lever/roller is actuated - position reached',
+    stateOffMeaning: 'Lever/roller is released - not at position',
+    commonFailures: ['Bent actuator arm', 'Worn contacts', 'Loose mounting', 'Mechanical misalignment'],
+  },
 
-  // Valves
-  { pattern: /valve|vlv|sol|solenoid/i, deviceType: 'valve', friendlyName: 'valve',
-    troubleshooting: ['Check air/fluid supply pressure', 'Verify solenoid coil is energized', 'Check valve position feedback', 'Inspect for leaks'] },
+  // =====================================================================
+  // SOLENOID VALVES
+  // =====================================================================
+  {
+    pattern: /sol|solenoid|sv_|_sv/i,
+    deviceType: 'solenoid_valve',
+    friendlyName: 'Solenoid Valve',
+    icon: '🔌',
+    signalType: 'output',
+    quickChecks: [
+      'Listen for click when energized',
+      'Feel for vibration on coil',
+      'Check air pressure gauge'
+    ],
+    troubleshooting: [
+      'Listen for solenoid click when commanded',
+      'Check 24VDC at coil terminals when energized',
+      'Verify air supply pressure (typically 80-100 PSI)',
+      'Check for stuck spool - manual override button',
+      'Inspect exhaust ports for blockage'
+    ],
+    stateOnMeaning: 'Coil energized - valve shifted',
+    stateOffMeaning: 'Coil de-energized - valve at rest position',
+    commonFailures: ['Burnt coil', 'Stuck spool', 'Low air pressure', 'Contamination in valve'],
+  },
 
-  // Sensors - Proximity
-  { pattern: /prox|proximity|px_|_px|inductive/i, deviceType: 'proximity', friendlyName: 'proximity sensor',
-    troubleshooting: ['Use metal target to manually trigger', 'Check sensing distance (typically 2-8mm)', 'Verify target material compatibility', 'Check for interference'] },
+  // =====================================================================
+  // PNEUMATIC VALVES (general)
+  // =====================================================================
+  {
+    pattern: /valve|vlv|_vv|pneum/i,
+    deviceType: 'pneumatic_valve',
+    friendlyName: 'Pneumatic Valve',
+    icon: '💨',
+    signalType: 'output',
+    quickChecks: [
+      'Check air pressure gauge',
+      'Listen for air flow when activated',
+      'Try manual override if available'
+    ],
+    troubleshooting: [
+      'Verify main air supply pressure',
+      'Check for air leaks at fittings',
+      'Try manual override button on valve',
+      'Inspect air lines for kinks or damage',
+      'Check filter/regulator/lubricator (FRL) unit'
+    ],
+    stateOnMeaning: 'Valve shifted - air flowing to actuator',
+    stateOffMeaning: 'Valve at rest - air exhausted',
+    commonFailures: ['Air leaks', 'Low supply pressure', 'Contaminated air', 'Worn seals'],
+  },
 
-  // Sensors - Photo eye
-  { pattern: /photo|pe_|_pe|beam|optical/i, deviceType: 'photoeye', friendlyName: 'photo eye',
-    troubleshooting: ['Wave hand through beam to test', 'Check alignment with reflector', 'Clean lens surface', 'Verify reflector condition'] },
+  // =====================================================================
+  // CYLINDERS / ACTUATORS
+  // =====================================================================
+  {
+    pattern: /cyl|cylinder|actuator|act_|extend|retract/i,
+    deviceType: 'cylinder',
+    friendlyName: 'Pneumatic Cylinder',
+    icon: '⬌',
+    signalType: 'output',
+    quickChecks: [
+      'Check air pressure gauge',
+      'Look for air leaks (listen for hissing)',
+      'Check if cylinder moves freely by hand (when safe)'
+    ],
+    troubleshooting: [
+      'Check air pressure at regulator (80-100 PSI typical)',
+      'Listen for air leaks at rod seal or fittings',
+      'Verify both extend and retract valves working',
+      'Check flow controls (speed adjustment)',
+      'Look for mechanical binding or obstruction'
+    ],
+    stateOnMeaning: 'Cylinder extending/extended',
+    stateOffMeaning: 'Cylinder retracting/retracted',
+    commonFailures: ['Worn rod seal', 'Low air pressure', 'Mechanical obstruction', 'Flow control misadjusted'],
+  },
 
-  // Sensors - Limit switch
-  { pattern: /limit|ls_|_ls|switch/i, deviceType: 'limit_switch', friendlyName: 'limit switch',
-    troubleshooting: ['Manually actuate lever/roller', 'Check mechanical alignment', 'Verify actuator travel distance', 'Check wiring connections'] },
+  // =====================================================================
+  // MOTORS & VFDs
+  // =====================================================================
+  {
+    pattern: /motor|mtr|_m\d|vfd|drive|inverter/i,
+    deviceType: 'motor',
+    friendlyName: 'Motor / VFD',
+    icon: '⚡',
+    signalType: 'output',
+    quickChecks: [
+      'Check VFD display for fault codes',
+      'Listen for motor running',
+      'Feel for excessive heat or vibration'
+    ],
+    troubleshooting: [
+      'Check VFD fault code on display',
+      'Verify motor overload has not tripped',
+      'Check for mechanical binding - turn shaft by hand',
+      'Verify power supply to VFD',
+      'Check motor thermal protection'
+    ],
+    stateOnMeaning: 'Motor running / VFD output enabled',
+    stateOffMeaning: 'Motor stopped / VFD output disabled',
+    commonFailures: ['Overload trip', 'VFD fault', 'Mechanical jam', 'Bearing failure', 'Overheating'],
+    safetyNote: 'LOCKOUT/TAGOUT before working on motor or drive'
+  },
 
-  // Sensors - Encoder
-  { pattern: /encoder|enc_|_enc|pulse/i, deviceType: 'encoder', friendlyName: 'encoder',
-    troubleshooting: ['Check encoder coupling', 'Verify pulse count', 'Check for noise on signal wires', 'Inspect encoder disc/wheel'] },
+  // =====================================================================
+  // RELAYS / CONTACTORS
+  // =====================================================================
+  {
+    pattern: /relay|rly|cr_|_cr|contactor|starter/i,
+    deviceType: 'relay',
+    friendlyName: 'Relay / Contactor',
+    icon: '🔀',
+    signalType: 'output',
+    quickChecks: [
+      'Listen for click when energized',
+      'Check indicator LED if equipped',
+      'Feel for coil vibration'
+    ],
+    troubleshooting: [
+      'Listen for relay click when commanded ON',
+      'Check coil voltage with multimeter',
+      'Inspect contacts for pitting or welding',
+      'Check control circuit fuse',
+      'Verify coil voltage matches supply (24VDC, 120VAC, etc.)'
+    ],
+    stateOnMeaning: 'Coil energized - contacts changed state',
+    stateOffMeaning: 'Coil de-energized - contacts at rest',
+    commonFailures: ['Burnt coil', 'Welded contacts', 'Pitted contacts', 'Loose terminal'],
+  },
 
-  // Position indicators
-  { pattern: /home|hm_|_hm|origin/i, deviceType: 'home_position', friendlyName: 'home position sensor',
-    troubleshooting: ['Verify sensor detects home flag', 'Check flag alignment', 'Ensure mechanism reaches home'] },
-  { pattern: /extend|ext_|_ext|forward|fwd/i, deviceType: 'extend_position', friendlyName: 'extended position sensor',
-    troubleshooting: ['Check full extension travel', 'Verify sensor mounting position'] },
-  { pattern: /retract|ret_|_ret|reverse|rev/i, deviceType: 'retract_position', friendlyName: 'retracted position sensor',
-    troubleshooting: ['Check full retraction travel', 'Verify sensor mounting position'] },
-  { pattern: /up_|_up|raised|lift/i, deviceType: 'up_position', friendlyName: 'up position sensor' },
-  { pattern: /down_|_dn|lowered|lower/i, deviceType: 'down_position', friendlyName: 'down position sensor' },
+  // =====================================================================
+  // INDICATOR LIGHTS / PILOT LIGHTS
+  // =====================================================================
+  {
+    pattern: /light|lt_|_lt|lamp|pil|indicator|ind_|_ind|beacon/i,
+    deviceType: 'indicator_light',
+    friendlyName: 'Indicator Light',
+    icon: '💡',
+    signalType: 'output',
+    quickChecks: [
+      'Look at the light - is it illuminated?',
+      'Check if bulb/LED is burnt out',
+      'Swap with known good light to test'
+    ],
+    troubleshooting: [
+      'Check if LED/bulb is burnt out',
+      'Verify voltage at terminals when commanded ON',
+      'Check for loose bulb in socket',
+      'Inspect wiring connections'
+    ],
+    stateOnMeaning: 'Light is illuminated',
+    stateOffMeaning: 'Light is off',
+    commonFailures: ['Burnt bulb/LED', 'Loose connection', 'Wrong voltage bulb'],
+  },
 
-  // Safety devices
-  { pattern: /estop|e_stop|e-stop|emergency|emg/i, deviceType: 'estop', friendlyName: 'emergency stop',
-    troubleshooting: ['Check all E-stop buttons are released', 'Verify reset procedure followed', 'Check safety relay status', 'Inspect button mechanism'] },
-  { pattern: /guard|gate|door|interlock/i, deviceType: 'guard', friendlyName: 'safety guard/gate',
-    troubleshooting: ['Verify guard is fully closed', 'Check interlock switch alignment', 'Test magnetic safety switch', 'Check hinges and latches'] },
-  { pattern: /light.?curtain|lc_|_lc|safety.?beam/i, deviceType: 'light_curtain', friendlyName: 'light curtain',
-    troubleshooting: ['Check for beam obstruction', 'Verify transmitter/receiver alignment', 'Check muting sensor status', 'Clean lenses'] },
-  { pattern: /safety.?mat|pressure.?mat/i, deviceType: 'safety_mat', friendlyName: 'safety mat',
-    troubleshooting: ['Check mat surface for damage', 'Verify mat is properly seated', 'Check controller status'] },
-  { pattern: /scanner|laser.?scanner|area.?scanner/i, deviceType: 'safety_scanner', friendlyName: 'safety scanner',
-    troubleshooting: ['Check for objects in protective field', 'Verify scanner is level', 'Clean scanner window'] },
+  // =====================================================================
+  // PUSHBUTTONS
+  // =====================================================================
+  {
+    pattern: /pb_|_pb|pushbutton|button|btn|push/i,
+    deviceType: 'pushbutton',
+    friendlyName: 'Pushbutton',
+    icon: '🔵',
+    signalType: 'input',
+    quickChecks: [
+      'Press button and feel for click',
+      'Check if button is stuck',
+      'Look for illumination if equipped'
+    ],
+    troubleshooting: [
+      'Press button and verify PLC input changes',
+      'Check for stuck or damaged button',
+      'Inspect contact block connections',
+      'Test continuity through button contacts',
+      'Check for debris preventing full travel'
+    ],
+    stateOnMeaning: 'Button is pressed',
+    stateOffMeaning: 'Button is released',
+    commonFailures: ['Stuck button', 'Worn contacts', 'Broken contact block', 'Loose wiring'],
+  },
 
-  // Grippers/Clamps
-  { pattern: /grip|gripper|clamp|jaw/i, deviceType: 'gripper', friendlyName: 'gripper',
-    troubleshooting: ['Check air pressure', 'Verify grip/open sensors', 'Check for part presence', 'Inspect gripper pads'] },
+  // =====================================================================
+  // EMERGENCY STOP
+  // =====================================================================
+  {
+    pattern: /estop|e_stop|e-stop|emergency|emg/i,
+    deviceType: 'estop',
+    friendlyName: 'Emergency Stop',
+    icon: '🛑',
+    signalType: 'input',
+    quickChecks: [
+      'Check if any E-stop button is pressed (mushroom head down)',
+      'Try twisting to release each E-stop',
+      'Check safety relay status lights'
+    ],
+    troubleshooting: [
+      'Check ALL E-stop buttons are released (twist to release)',
+      'Verify safety relay has reset',
+      'Press machine RESET button after releasing E-stop',
+      'Check safety relay status LEDs',
+      'Inspect E-stop wiring and contacts'
+    ],
+    stateOnMeaning: 'E-stop circuit healthy - OK to run',
+    stateOffMeaning: 'E-stop pressed or circuit fault - MACHINE STOPPED',
+    commonFailures: ['E-stop still pressed', 'Safety relay not reset', 'Wiring fault', 'Damaged E-stop switch'],
+    safetyNote: 'E-stop is a SAFETY device - never bypass or defeat'
+  },
 
-  // Robots
-  { pattern: /robot|rbt_|_rbt|arm/i, deviceType: 'robot', friendlyName: 'robot',
-    troubleshooting: ['Check robot controller status', 'Verify program selected', 'Check for faults on teach pendant', 'Verify robot is in AUTO mode'] },
+  // =====================================================================
+  // SAFETY GUARDS / INTERLOCKS
+  // =====================================================================
+  {
+    pattern: /guard|gate|door|interlock|safety.*sw/i,
+    deviceType: 'safety_guard',
+    friendlyName: 'Safety Guard/Interlock',
+    icon: '🚧',
+    signalType: 'input',
+    quickChecks: [
+      'Check if door/guard is fully closed',
+      'Verify interlock switch is engaged',
+      'Check for damaged latch or hinge'
+    ],
+    troubleshooting: [
+      'Verify guard door is fully closed and latched',
+      'Check interlock switch alignment with actuator',
+      'Test magnetic safety switch with actuator',
+      'Inspect hinges, latches, and mounting',
+      'Check safety relay status'
+    ],
+    stateOnMeaning: 'Guard closed - safe to run',
+    stateOffMeaning: 'Guard open - machine stopped',
+    commonFailures: ['Guard not fully closed', 'Misaligned interlock', 'Damaged latch', 'Worn hinge'],
+    safetyNote: 'NEVER bypass safety interlocks'
+  },
 
-  // Pumps
-  { pattern: /pump|pmp/i, deviceType: 'pump', friendlyName: 'pump',
-    troubleshooting: ['Check fluid level', 'Verify pump is primed', 'Check for cavitation noise', 'Inspect seals'] },
+  // =====================================================================
+  // LIGHT CURTAINS
+  // =====================================================================
+  {
+    pattern: /light.?curtain|lc_|_lc|safety.?beam|aopd/i,
+    deviceType: 'light_curtain',
+    friendlyName: 'Light Curtain',
+    icon: '📶',
+    signalType: 'input',
+    quickChecks: [
+      'Check status LEDs on sender and receiver',
+      'Look for obstructions in beam path',
+      'Verify alignment indicators are green'
+    ],
+    troubleshooting: [
+      'Check for objects blocking beam path',
+      'Verify sender and receiver LEDs indicate alignment',
+      'Clean lenses with soft cloth',
+      'Check muting sensor status if equipped',
+      'Verify mounting brackets are secure'
+    ],
+    stateOnMeaning: 'Beam clear - safe to run',
+    stateOffMeaning: 'Beam interrupted - STOP',
+    commonFailures: ['Dirty lenses', 'Misalignment', 'Vibration causing intermittent fault', 'Failed muting'],
+    safetyNote: 'Do not reach around or under light curtain'
+  },
 
-  // Heaters/Temperature
-  { pattern: /heat|htr|temp|thermo/i, deviceType: 'heater', friendlyName: 'heater',
-    troubleshooting: ['Check temperature setpoint', 'Verify thermocouple reading', 'Check for overtemperature fault', 'Inspect heating element'] },
+  // =====================================================================
+  // ENCODERS
+  // =====================================================================
+  {
+    pattern: /encoder|enc_|_enc|pulse|resolver/i,
+    deviceType: 'encoder',
+    friendlyName: 'Encoder',
+    icon: '🎯',
+    signalType: 'input',
+    quickChecks: [
+      'Check coupling between encoder and shaft',
+      'Verify encoder wheel is turning',
+      'Look for indicator LED flashing'
+    ],
+    troubleshooting: [
+      'Check encoder coupling is secure and not slipping',
+      'Verify encoder wheel rotates with shaft',
+      'Check for electrical noise on signal wires (use shielded cable)',
+      'Inspect encoder disc for damage',
+      'Verify counter is incrementing in PLC'
+    ],
+    stateOnMeaning: 'Pulses being generated - motion detected',
+    stateOffMeaning: 'No pulses - no motion',
+    commonFailures: ['Slipping coupling', 'Electrical noise', 'Damaged disc/wheel', 'Loose wiring'],
+  },
 
-  // Fans/Blowers
-  { pattern: /fan|blower|exhaust/i, deviceType: 'fan', friendlyName: 'fan/blower',
-    troubleshooting: ['Check for obstructions', 'Verify motor operation', 'Check belt/coupling', 'Clean filters'] },
+  // =====================================================================
+  // CONVEYORS
+  // =====================================================================
+  {
+    pattern: /conv|cnv|belt|transfer/i,
+    deviceType: 'conveyor',
+    friendlyName: 'Conveyor',
+    icon: '➡️',
+    signalType: 'output',
+    quickChecks: [
+      'Is conveyor belt moving?',
+      'Check for product jams',
+      'Listen for unusual motor sounds'
+    ],
+    troubleshooting: [
+      'Check belt tension and tracking',
+      'Clear any product jams',
+      'Verify motor/gearbox operation',
+      'Inspect belt for damage or wear',
+      'Check drive pulley and idlers'
+    ],
+    stateOnMeaning: 'Conveyor running',
+    stateOffMeaning: 'Conveyor stopped',
+    commonFailures: ['Product jam', 'Belt slip', 'Motor overload', 'Belt mistrack'],
+  },
 
-  // HMI/Operator
-  { pattern: /hmi|operator|panel/i, deviceType: 'hmi', friendlyName: 'operator interface' },
-  { pattern: /start.?pb|start.?button|start.?sw/i, deviceType: 'start_button', friendlyName: 'start button' },
-  { pattern: /stop.?pb|stop.?button|stop.?sw/i, deviceType: 'stop_button', friendlyName: 'stop button' },
-  { pattern: /jog/i, deviceType: 'jog_button', friendlyName: 'jog button' },
-  { pattern: /selector|sel.?sw|mode/i, deviceType: 'selector', friendlyName: 'selector switch' },
+  // =====================================================================
+  // GRIPPERS / CLAMPS
+  // =====================================================================
+  {
+    pattern: /grip|gripper|clamp|jaw|hold/i,
+    deviceType: 'gripper',
+    friendlyName: 'Gripper / Clamp',
+    icon: '✊',
+    signalType: 'output',
+    quickChecks: [
+      'Check air pressure',
+      'Verify grip/release sensors',
+      'Inspect gripper pads for wear'
+    ],
+    troubleshooting: [
+      'Check air supply pressure',
+      'Verify grip and release position sensors',
+      'Inspect gripper pads/fingers for wear',
+      'Check for part present before gripping',
+      'Adjust grip force if adjustable'
+    ],
+    stateOnMeaning: 'Gripper closed / Clamped',
+    stateOffMeaning: 'Gripper open / Released',
+    commonFailures: ['Low air pressure', 'Worn gripper pads', 'Sensor misalignment', 'Part not present'],
+  },
 
-  // Faults/Alarms
-  { pattern: /fault|flt_|_flt|alarm|alm_|error/i, deviceType: 'fault', friendlyName: 'fault/alarm' },
-  { pattern: /timeout|tmo|_to\d|watchdog/i, deviceType: 'timeout', friendlyName: 'timeout' },
-  { pattern: /overload|ol_|_ol|overcurrent/i, deviceType: 'overload', friendlyName: 'overload' },
+  // =====================================================================
+  // ROBOTS
+  // =====================================================================
+  {
+    pattern: /robot|rbt_|_rbt|arm|fanuc|kuka|abb|yaskawa/i,
+    deviceType: 'robot',
+    friendlyName: 'Robot',
+    icon: '🤖',
+    signalType: 'output',
+    quickChecks: [
+      'Check teach pendant for faults',
+      'Verify robot is in AUTO mode',
+      'Check program is selected and running'
+    ],
+    troubleshooting: [
+      'Check robot teach pendant for fault messages',
+      'Verify robot is in AUTO mode (not MANUAL/TEACH)',
+      'Confirm correct program is selected',
+      'Check all safety devices are satisfied',
+      'Verify robot is at cycle start position'
+    ],
+    stateOnMeaning: 'Robot enabled / In cycle',
+    stateOffMeaning: 'Robot stopped / Faulted',
+    commonFailures: ['Servo fault', 'Collision', 'Program error', 'Safety fault', 'Communication loss'],
+    safetyNote: 'Stay clear of robot work envelope during operation'
+  },
 
-  // Sequence/Step/State
-  { pattern: /step|seq|sequence|state|phase/i, deviceType: 'sequence', friendlyName: 'sequence step' },
+  // =====================================================================
+  // HEATERS / TEMPERATURE
+  // =====================================================================
+  {
+    pattern: /heat|htr|temp|thermo|zone/i,
+    deviceType: 'heater',
+    friendlyName: 'Heater / Temperature',
+    icon: '🌡️',
+    signalType: 'output',
+    quickChecks: [
+      'Check temperature display reading',
+      'Feel for heat (carefully)',
+      'Check heater contactor status'
+    ],
+    troubleshooting: [
+      'Check temperature controller setpoint vs actual',
+      'Verify thermocouple/RTD reading is reasonable',
+      'Check heater contactor is energizing',
+      'Inspect heating element for damage',
+      'Check for high-temperature alarm'
+    ],
+    stateOnMeaning: 'Heater energized - heating',
+    stateOffMeaning: 'Heater off - at setpoint or disabled',
+    commonFailures: ['Burnt element', 'Failed thermocouple', 'Contactor failure', 'Controller fault'],
+    safetyNote: 'BURN HAZARD - surfaces may be hot'
+  },
 
-  // Counters/Production
-  { pattern: /count|cnt_|_cnt|pcs|pieces|qty/i, deviceType: 'counter', friendlyName: 'counter' },
-  { pattern: /batch|lot|recipe/i, deviceType: 'batch', friendlyName: 'batch/recipe' },
-  { pattern: /reject|bad|scrap/i, deviceType: 'reject', friendlyName: 'reject counter' },
+  // =====================================================================
+  // PUMPS
+  // =====================================================================
+  {
+    pattern: /pump|pmp/i,
+    deviceType: 'pump',
+    friendlyName: 'Pump',
+    icon: '🔄',
+    signalType: 'output',
+    quickChecks: [
+      'Listen for pump running',
+      'Check discharge pressure gauge',
+      'Verify fluid level in tank'
+    ],
+    troubleshooting: [
+      'Check fluid level in supply tank',
+      'Verify pump is primed (no air lock)',
+      'Check discharge pressure gauge',
+      'Listen for cavitation (rattling noise)',
+      'Inspect mechanical seal for leaks'
+    ],
+    stateOnMeaning: 'Pump running',
+    stateOffMeaning: 'Pump stopped',
+    commonFailures: ['Low fluid level', 'Air lock', 'Cavitation', 'Seal leak', 'Motor overload'],
+  },
 
-  // Servos/Axes
-  { pattern: /servo|axis|position/i, deviceType: 'servo', friendlyName: 'servo axis',
-    troubleshooting: ['Check servo drive fault codes', 'Verify feedback device', 'Check for mechanical binding', 'Verify tuning parameters'] },
+  // =====================================================================
+  // POSITION SENSORS - EXTENDED / FORWARD
+  // =====================================================================
+  {
+    pattern: /extend|ext_|_ext|forward|fwd|out_|_out|posout|pos.*out/i,
+    deviceType: 'extend_position',
+    friendlyName: 'Extended Position Sensor',
+    icon: '➡️',
+    signalType: 'input',
+    quickChecks: [
+      'Is cylinder/actuator fully extended?',
+      'Check sensor LED indicator',
+      'Verify sensor is sensing target'
+    ],
+    troubleshooting: [
+      'Verify actuator reaches full extension',
+      'Check sensor alignment with target',
+      'Adjust sensor position if needed',
+      'Check for mechanical obstruction'
+    ],
+    stateOnMeaning: 'Actuator is at EXTENDED position',
+    stateOffMeaning: 'Actuator is NOT at extended position',
+    commonFailures: ['Actuator not reaching position', 'Sensor misaligned', 'Target missing/damaged'],
+  },
 
-  // Analog I/O
-  { pattern: /analog|ai_|ao_|4-20|0-10/i, deviceType: 'analog', friendlyName: 'analog signal' },
-  { pattern: /level|lvl_|tank/i, deviceType: 'level', friendlyName: 'level sensor' },
-  { pattern: /pressure|psi|press/i, deviceType: 'pressure', friendlyName: 'pressure sensor' },
-  { pattern: /flow|gpm|meter/i, deviceType: 'flow', friendlyName: 'flow meter' },
+  // =====================================================================
+  // POSITION SENSORS - RETRACTED / HOME
+  // =====================================================================
+  {
+    pattern: /retract|ret_|_ret|reverse|rev|home|hm_|_hm|origin|in_|_in$|posin|pos.*in|closed|cls/i,
+    deviceType: 'retract_position',
+    friendlyName: 'Retracted/Home Position Sensor',
+    icon: '⬅️',
+    signalType: 'input',
+    quickChecks: [
+      'Is cylinder/actuator fully retracted?',
+      'Check sensor LED indicator',
+      'Verify sensor is sensing target'
+    ],
+    troubleshooting: [
+      'Verify actuator reaches full retraction',
+      'Check sensor alignment with target',
+      'Adjust sensor position if needed',
+      'Check for mechanical obstruction'
+    ],
+    stateOnMeaning: 'Actuator is at RETRACTED/HOME position',
+    stateOffMeaning: 'Actuator is NOT at retracted position',
+    commonFailures: ['Actuator not reaching position', 'Sensor misaligned', 'Target missing/damaged'],
+  },
 
-  // Vision/Camera
-  { pattern: /vision|camera|cam_|inspect/i, deviceType: 'vision', friendlyName: 'vision system',
-    troubleshooting: ['Check camera trigger', 'Verify lighting conditions', 'Check for lens obstruction', 'Verify inspection program'] },
+  // =====================================================================
+  // SEQUENCE / STEP
+  // =====================================================================
+  {
+    pattern: /seq|step|_stp|stepbit|sequence/i,
+    deviceType: 'sequence_step',
+    friendlyName: 'Sequence Step',
+    icon: '📋',
+    signalType: 'internal',
+    quickChecks: [
+      'Check HMI for current step number',
+      'Review what conditions are needed to advance',
+      'Check if machine is waiting for something'
+    ],
+    troubleshooting: [
+      'Identify what step the sequence is stuck on',
+      'Check conditions required to advance to next step',
+      'Look for faulted sensors or actuators',
+      'Check for timeout conditions',
+      'Review step-specific diagnostics on HMI'
+    ],
+    stateOnMeaning: 'This step is currently active',
+    stateOffMeaning: 'This step is not active',
+  },
 
-  // Barcode/RFID
-  { pattern: /barcode|scanner|rfid|reader/i, deviceType: 'scanner', friendlyName: 'barcode/RFID scanner' },
+  // =====================================================================
+  // COMMAND OUTPUTS (general pattern for Cmd suffix)
+  // =====================================================================
+  {
+    pattern: /cmd$|_cmd|command|output|out$|_out$|do_|_do/i,
+    deviceType: 'command_output',
+    friendlyName: 'Command Output',
+    icon: '📤',
+    signalType: 'output',
+    quickChecks: [
+      'Is the output turning ON in PLC?',
+      'Check output module LED',
+      'Verify field device responds'
+    ],
+    troubleshooting: [
+      'Verify output LED on I/O card is lit',
+      'Check voltage at output terminal',
+      'Verify field device receives signal',
+      'Check output fuse if equipped',
+      'Test with forcing output ON (carefully)'
+    ],
+    stateOnMeaning: 'Output is commanded ON',
+    stateOffMeaning: 'Output is commanded OFF',
+  },
 
-  // Welder
-  { pattern: /weld|welder/i, deviceType: 'welder', friendlyName: 'welder' },
+  // =====================================================================
+  // FEEDBACK INPUTS (general pattern for feedback suffix)
+  // =====================================================================
+  {
+    pattern: /fb$|_fb|feedback|input|in$|_in$|di_|_di|sts$|status/i,
+    deviceType: 'feedback_input',
+    friendlyName: 'Feedback Input',
+    icon: '📥',
+    signalType: 'input',
+    quickChecks: [
+      'Check input LED on I/O card',
+      'Verify field device status',
+      'Check wiring to input terminal'
+    ],
+    troubleshooting: [
+      'Check input LED on I/O card',
+      'Verify signal voltage at input terminal',
+      'Check field device is operating correctly',
+      'Inspect wiring for damage or loose connections',
+      'Test input by manually activating device'
+    ],
+    stateOnMeaning: 'Input signal is ON / Device active',
+    stateOffMeaning: 'Input signal is OFF / Device inactive',
+  },
 
-  // Dispense/Glue
-  { pattern: /dispense|glue|adhesive|bead/i, deviceType: 'dispenser', friendlyName: 'dispenser' },
+  // =====================================================================
+  // HMI / OPERATOR INTERFACE
+  // =====================================================================
+  {
+    pattern: /hmi|operator|panel|screen/i,
+    deviceType: 'hmi',
+    friendlyName: 'HMI / Operator Interface',
+    icon: '🖥️',
+    signalType: 'internal',
+  },
+
+  // =====================================================================
+  // FANS / BLOWERS
+  // =====================================================================
+  {
+    pattern: /fan|blower|exhaust|ventilation/i,
+    deviceType: 'fan',
+    friendlyName: 'Fan / Blower',
+    icon: '🌀',
+    signalType: 'output',
+    quickChecks: [
+      'Is fan spinning?',
+      'Check for obstructions',
+      'Listen for unusual bearing noise'
+    ],
+    troubleshooting: [
+      'Check motor overload status',
+      'Verify fan blade is not obstructed',
+      'Check belt tension and condition (if belt-driven)',
+      'Clean air filters',
+      'Check for unusual bearing noise'
+    ],
+    stateOnMeaning: 'Fan running',
+    stateOffMeaning: 'Fan stopped',
+    commonFailures: ['Overload trip', 'Clogged filter', 'Belt slip', 'Bearing failure'],
+  },
+
+  // =====================================================================
+  // START / STOP BUTTONS
+  // =====================================================================
+  {
+    pattern: /start|run|go|cycle/i,
+    deviceType: 'start_button',
+    friendlyName: 'Start Button',
+    icon: '▶️',
+    signalType: 'input',
+    quickChecks: ['Press button - does cycle start?', 'Check button illumination'],
+    stateOnMeaning: 'Start commanded',
+    stateOffMeaning: 'No start command',
+  },
+  {
+    pattern: /stop|halt|abort/i,
+    deviceType: 'stop_button',
+    friendlyName: 'Stop Button',
+    icon: '⏹️',
+    signalType: 'input',
+    quickChecks: ['Check if stop button is pressed', 'Verify button releases properly'],
+    stateOnMeaning: 'Stop commanded',
+    stateOffMeaning: 'No stop command',
+  },
+
+  // =====================================================================
+  // MODE SELECTORS
+  // =====================================================================
+  {
+    pattern: /selector|sel.?sw|mode|auto|manual|jog/i,
+    deviceType: 'selector',
+    friendlyName: 'Selector Switch',
+    icon: '🔀',
+    signalType: 'input',
+    quickChecks: ['Check switch position', 'Verify correct mode selected'],
+    troubleshooting: ['Check switch position', 'Verify contacts with multimeter', 'Check for intermittent contact'],
+  },
+
+  // =====================================================================
+  // BARCODE / SCANNER
+  // =====================================================================
+  {
+    pattern: /barcode|scanner|reader|rfid|vision/i,
+    deviceType: 'scanner',
+    friendlyName: 'Barcode/Vision Scanner',
+    icon: '📷',
+    signalType: 'input',
+    quickChecks: [
+      'Check scanner status LEDs',
+      'Verify label/barcode is readable',
+      'Clean scanner lens'
+    ],
+    troubleshooting: [
+      'Clean scanner lens',
+      'Check label quality and positioning',
+      'Verify communication with PLC',
+      'Check trigger signal',
+      'Adjust scanner focus if applicable'
+    ],
+    stateOnMeaning: 'Good read / Label detected',
+    stateOffMeaning: 'No read / No label',
+    commonFailures: ['Dirty lens', 'Poor label quality', 'Communication loss', 'Wrong label position'],
+  },
+
+  // =====================================================================
+  // WEIGHT / SCALE
+  // =====================================================================
+  {
+    pattern: /weight|scale|load.?cell|weigh/i,
+    deviceType: 'scale',
+    friendlyName: 'Scale / Load Cell',
+    icon: '⚖️',
+    signalType: 'input',
+    quickChecks: [
+      'Check weight display',
+      'Verify scale is zeroed/tared',
+      'Check for debris on platform'
+    ],
+    troubleshooting: [
+      'Verify scale is properly zeroed',
+      'Check for debris or obstruction on platform',
+      'Calibrate scale if reading is off',
+      'Check load cell wiring',
+      'Verify scale indicator communication'
+    ],
+    stateOnMeaning: 'Weight detected / In tolerance',
+    stateOffMeaning: 'No weight / Out of tolerance',
+    commonFailures: ['Not zeroed', 'Overload damage', 'Debris on platform', 'Communication loss'],
+  },
+
+  // =====================================================================
+  // VACUUM / AIR SYSTEMS
+  // =====================================================================
+  {
+    pattern: /vacuum|vac_|_vac|suction/i,
+    deviceType: 'vacuum',
+    friendlyName: 'Vacuum Generator',
+    icon: '🌀',
+    signalType: 'output',
+    quickChecks: [
+      'Check vacuum gauge reading',
+      'Listen for air flow/suction',
+      'Check if cups are sealing on product'
+    ],
+    troubleshooting: [
+      'Check vacuum gauge - should be 15-25 inHg typically',
+      'Verify air supply pressure to venturi',
+      'Check vacuum cups for tears or wear',
+      'Look for air leaks at fittings',
+      'Verify product surface allows seal'
+    ],
+    stateOnMeaning: 'Vacuum ON / Suction active',
+    stateOffMeaning: 'Vacuum OFF / Released',
+    commonFailures: ['Worn vacuum cups', 'Air leak', 'Low supply pressure', 'Clogged filter'],
+    safetyNote: 'Ensure product is supported before releasing vacuum',
+  },
+  {
+    pattern: /vac.?cup|suction.?cup|pickup/i,
+    deviceType: 'vacuum_cup',
+    friendlyName: 'Vacuum Cup/Pickup',
+    icon: '⭕',
+    signalType: 'input',
+    quickChecks: [
+      'Check if cup is making seal',
+      'Look for cup damage or wear',
+      'Verify vacuum switch LED'
+    ],
+    troubleshooting: [
+      'Inspect cup for tears, cracks, or wear',
+      'Clean cup surface',
+      'Check vacuum switch threshold setting',
+      'Verify product surface is clean and flat',
+      'Replace cup if worn'
+    ],
+    stateOnMeaning: 'Vacuum achieved / Product gripped',
+    stateOffMeaning: 'No vacuum / Product released',
+    commonFailures: ['Torn cup', 'Dirty surface', 'Wrong cup style for product'],
+  },
+  {
+    pattern: /blow.?off|air.?knife|air.?blast|blow/i,
+    deviceType: 'blowoff',
+    friendlyName: 'Air Blow-off',
+    icon: '💨',
+    signalType: 'output',
+    quickChecks: [
+      'Feel for air flow when active',
+      'Check air pressure gauge',
+      'Verify nozzle is not clogged'
+    ],
+    troubleshooting: [
+      'Check air supply pressure',
+      'Clean nozzle if clogged',
+      'Verify solenoid is energizing',
+      'Check for kinked or damaged air lines'
+    ],
+    stateOnMeaning: 'Air blowing',
+    stateOffMeaning: 'Air off',
+    commonFailures: ['Clogged nozzle', 'Low air pressure', 'Failed solenoid'],
+  },
+  {
+    pattern: /eject|ejector|blow.?out/i,
+    deviceType: 'ejector',
+    friendlyName: 'Ejector',
+    icon: '↗️',
+    signalType: 'output',
+    quickChecks: [
+      'Watch for product ejection',
+      'Check air/actuator operation',
+      'Verify reject bin not full'
+    ],
+    troubleshooting: [
+      'Check actuator operation',
+      'Verify timing with product detection',
+      'Clear any jammed products',
+      'Check reject bin/chute'
+    ],
+    stateOnMeaning: 'Ejecting',
+    stateOffMeaning: 'Not ejecting',
+    commonFailures: ['Timing wrong', 'Weak actuator', 'Jammed product'],
+  },
+
+  // =====================================================================
+  // FAULTS / ALARMS / STATUS
+  // =====================================================================
+  {
+    pattern: /fault|flt_|_flt|alarm|alm_|error|err_/i,
+    deviceType: 'fault',
+    friendlyName: 'Fault/Alarm',
+    icon: '⚠️',
+    signalType: 'internal',
+    quickChecks: [
+      'Check HMI for fault message',
+      'Look for flashing lights/beacons',
+      'Check what triggered the fault'
+    ],
+    troubleshooting: [
+      'Read fault message on HMI',
+      'Check fault history/log',
+      'Address root cause before resetting',
+      'Press RESET after fixing issue',
+      'Check if fault is latched and needs acknowledgment'
+    ],
+    stateOnMeaning: 'FAULT ACTIVE - Machine stopped',
+    stateOffMeaning: 'No fault - Normal operation',
+    commonFailures: ['Sensor failure', 'Timeout', 'Safety device', 'Overload'],
+    safetyNote: 'Always investigate and fix root cause before resetting faults',
+  },
+  {
+    pattern: /timeout|tmo|_to\d|watchdog|wdog/i,
+    deviceType: 'timeout',
+    friendlyName: 'Timeout',
+    icon: '⏱️',
+    signalType: 'internal',
+    quickChecks: [
+      'Check what operation timed out',
+      'Look for stuck actuators or sensors',
+      'Check if product is jammed'
+    ],
+    troubleshooting: [
+      'Identify which motion or sensor timed out',
+      'Check for mechanical binding',
+      'Verify sensors are detecting properly',
+      'Check actuator operation',
+      'Look for product jams'
+    ],
+    stateOnMeaning: 'Operation took too long - Timed out',
+    stateOffMeaning: 'No timeout',
+    commonFailures: ['Stuck actuator', 'Failed sensor', 'Product jam', 'Slow motion'],
+  },
+  {
+    pattern: /overload|ol_|_ol|overcurrent|oc_|overtemp/i,
+    deviceType: 'overload',
+    friendlyName: 'Overload',
+    icon: '🔥',
+    signalType: 'input',
+    quickChecks: [
+      'Check motor overload relay',
+      'Feel motor for excessive heat',
+      'Check for mechanical binding'
+    ],
+    troubleshooting: [
+      'Check thermal overload relay - reset if tripped',
+      'Check motor temperature - let cool if hot',
+      'Check for mechanical binding or jam',
+      'Verify load is not excessive',
+      'Check motor amp draw vs nameplate'
+    ],
+    stateOnMeaning: 'OVERLOAD - Motor/drive protected',
+    stateOffMeaning: 'Normal operation',
+    commonFailures: ['Mechanical jam', 'Worn bearings', 'Excessive load', 'Failed cooling'],
+    safetyNote: 'Let motor cool before resetting overload',
+  },
+  {
+    pattern: /warning|warn_|caution/i,
+    deviceType: 'warning',
+    friendlyName: 'Warning',
+    icon: '⚡',
+    signalType: 'internal',
+    quickChecks: [
+      'Check HMI for warning details',
+      'Note what triggered warning',
+      'Monitor if condition worsens'
+    ],
+    troubleshooting: [
+      'Read warning message',
+      'Address condition before it becomes a fault',
+      'Check related sensors or devices'
+    ],
+    stateOnMeaning: 'Warning - Attention needed',
+    stateOffMeaning: 'No warnings',
+  },
+
+  // =====================================================================
+  // STACK LIGHTS / BEACONS / HORNS
+  // =====================================================================
+  {
+    pattern: /stack.?light|tower.?light|beacon|andon/i,
+    deviceType: 'stacklight',
+    friendlyName: 'Stack Light/Beacon',
+    icon: '🚦',
+    signalType: 'output',
+    quickChecks: [
+      'Look at stack light colors',
+      'Green = Running, Yellow = Warning, Red = Fault',
+      'Check if bulbs are burnt out'
+    ],
+    troubleshooting: [
+      'Check bulb/LED if not illuminating',
+      'Verify output signal from PLC',
+      'Check wiring connections',
+      'Replace burnt bulbs'
+    ],
+    stateOnMeaning: 'Light illuminated',
+    stateOffMeaning: 'Light off',
+    commonFailures: ['Burnt bulb', 'Loose connection', 'Failed LED'],
+  },
+  {
+    pattern: /horn|siren|buzzer|audible|alarm.?sound/i,
+    deviceType: 'horn',
+    friendlyName: 'Horn/Siren',
+    icon: '🔊',
+    signalType: 'output',
+    quickChecks: [
+      'Listen for horn/buzzer',
+      'Check volume setting',
+      'Verify power to device'
+    ],
+    troubleshooting: [
+      'Check if horn is powered',
+      'Verify PLC output is ON',
+      'Check wiring connections',
+      'Replace horn if failed'
+    ],
+    stateOnMeaning: 'Alarm sounding',
+    stateOffMeaning: 'Silent',
+    commonFailures: ['Failed horn', 'Loose wiring', 'Volume too low'],
+  },
+  {
+    pattern: /strobe|flash|blink/i,
+    deviceType: 'strobe',
+    friendlyName: 'Strobe Light',
+    icon: '💡',
+    signalType: 'output',
+    quickChecks: [
+      'Look for flashing light',
+      'Check bulb condition',
+      'Verify power connection'
+    ],
+    troubleshooting: [
+      'Check if strobe is flashing when commanded',
+      'Verify power supply',
+      'Replace bulb/unit if failed'
+    ],
+    stateOnMeaning: 'Strobe flashing',
+    stateOffMeaning: 'Strobe off',
+  },
+
+  // =====================================================================
+  // SENSORS - ULTRASONIC / LASER / ANALOG
+  // =====================================================================
+  {
+    pattern: /ultra.?sonic|us_|_us|sonic/i,
+    deviceType: 'ultrasonic',
+    friendlyName: 'Ultrasonic Sensor',
+    icon: '📡',
+    signalType: 'input',
+    quickChecks: [
+      'Check sensor face for debris',
+      'Verify target is within range',
+      'Check indicator LED'
+    ],
+    troubleshooting: [
+      'Clean sensor face',
+      'Check sensing distance (verify target in range)',
+      'Verify no interference from nearby ultrasonic sensors',
+      'Check analog output if applicable',
+      'Adjust sensitivity/threshold'
+    ],
+    stateOnMeaning: 'Target detected within range',
+    stateOffMeaning: 'No target or out of range',
+    commonFailures: ['Dirty sensor face', 'Target too close/far', 'Cross-talk interference'],
+  },
+  {
+    pattern: /laser|distance|range.?finder|lidar/i,
+    deviceType: 'laser',
+    friendlyName: 'Laser Distance Sensor',
+    icon: '🎯',
+    signalType: 'input',
+    quickChecks: [
+      'Check laser beam visibility (if visible laser)',
+      'Verify target surface reflects properly',
+      'Check sensor display/output'
+    ],
+    troubleshooting: [
+      'Clean sensor lens',
+      'Verify target surface is suitable (not too reflective or absorbent)',
+      'Check measurement range',
+      'Verify analog output calibration',
+      'Shield from ambient light interference'
+    ],
+    stateOnMeaning: 'Target in range / Measurement valid',
+    stateOffMeaning: 'No target / Out of range',
+    commonFailures: ['Dirty lens', 'Wrong target surface', 'Out of range', 'Ambient light'],
+  },
+  {
+    pattern: /pressure|psi|bar_|_bar|transducer|pt_/i,
+    deviceType: 'pressure',
+    friendlyName: 'Pressure Sensor/Transducer',
+    icon: '🔵',
+    signalType: 'input',
+    quickChecks: [
+      'Check pressure gauge reading',
+      'Compare to sensor reading',
+      'Look for leaks'
+    ],
+    troubleshooting: [
+      'Compare sensor reading to mechanical gauge',
+      'Check for air/fluid leaks',
+      'Verify sensor range matches application',
+      'Check wiring (4-20mA or 0-10V)',
+      'Calibrate if reading is off'
+    ],
+    stateOnMeaning: 'Pressure above setpoint',
+    stateOffMeaning: 'Pressure below setpoint',
+    commonFailures: ['Clogged port', 'Damaged diaphragm', 'Out of calibration', 'Wiring issue'],
+  },
+  {
+    pattern: /flow|gpm|lpm|flow.?meter|flow.?rate/i,
+    deviceType: 'flow',
+    friendlyName: 'Flow Meter/Sensor',
+    icon: '🌊',
+    signalType: 'input',
+    quickChecks: [
+      'Check flow meter display',
+      'Verify fluid is flowing',
+      'Check for air in lines'
+    ],
+    troubleshooting: [
+      'Verify fluid is actually flowing',
+      'Check for clogged strainer/filter',
+      'Bleed air from lines',
+      'Verify meter orientation matches flow direction',
+      'Check electrical connections'
+    ],
+    stateOnMeaning: 'Flow detected / Above minimum',
+    stateOffMeaning: 'No flow / Below minimum',
+    commonFailures: ['Clogged filter', 'Air in line', 'Wrong flow direction', 'Damaged impeller'],
+  },
+  {
+    pattern: /level|lvl_|tank.?level|float/i,
+    deviceType: 'level',
+    friendlyName: 'Level Sensor',
+    icon: '📊',
+    signalType: 'input',
+    quickChecks: [
+      'Check tank level visually if possible',
+      'Compare to sensor indication',
+      'Check for buildup on sensor'
+    ],
+    troubleshooting: [
+      'Visually verify actual level vs sensor reading',
+      'Clean sensor probe/float',
+      'Check for foam or turbulence affecting reading',
+      'Verify sensor range and calibration',
+      'Check for stuck float (if float type)'
+    ],
+    stateOnMeaning: 'Level high / Above setpoint',
+    stateOffMeaning: 'Level low / Below setpoint',
+    commonFailures: ['Stuck float', 'Buildup on probe', 'Foam interference', 'Out of calibration'],
+  },
+  {
+    pattern: /temp|temperature|thermo|rtd|tc_|thermocouple/i,
+    deviceType: 'temperature',
+    friendlyName: 'Temperature Sensor',
+    icon: '🌡️',
+    signalType: 'input',
+    quickChecks: [
+      'Check temperature reading on display',
+      'Compare to infrared thermometer',
+      'Check if sensor is properly installed'
+    ],
+    troubleshooting: [
+      'Compare reading to known reference',
+      'Check thermocouple/RTD connections',
+      'Verify correct sensor type in controller',
+      'Check for open or shorted sensor',
+      'Verify sensor is making good thermal contact'
+    ],
+    stateOnMeaning: 'Temperature above setpoint',
+    stateOffMeaning: 'Temperature below setpoint',
+    commonFailures: ['Open sensor', 'Wrong type configured', 'Poor thermal contact', 'Damaged wiring'],
+  },
+  {
+    pattern: /humidity|rh_|moisture/i,
+    deviceType: 'humidity',
+    friendlyName: 'Humidity Sensor',
+    icon: '💧',
+    signalType: 'input',
+    quickChecks: [
+      'Check humidity reading',
+      'Compare to portable hygrometer',
+      'Check sensor location'
+    ],
+    troubleshooting: [
+      'Verify sensor is in representative location',
+      'Check for contamination on sensor element',
+      'Allow time for sensor to stabilize',
+      'Calibrate if consistently off'
+    ],
+    stateOnMeaning: 'Humidity above setpoint',
+    stateOffMeaning: 'Humidity below setpoint',
+    commonFailures: ['Contaminated element', 'Slow response', 'Poor location'],
+  },
+
+  // =====================================================================
+  // SAFETY DEVICES
+  // =====================================================================
+  {
+    pattern: /safety.?mat|pressure.?mat|floor.?mat/i,
+    deviceType: 'safety_mat',
+    friendlyName: 'Safety Mat',
+    icon: '🟫',
+    signalType: 'input',
+    quickChecks: [
+      'Step on mat - machine should stop',
+      'Check mat for damage',
+      'Verify mat connections'
+    ],
+    troubleshooting: [
+      'Test mat by stepping on it',
+      'Check for damaged or cut wires',
+      'Verify safety relay status',
+      'Check mat controller if applicable',
+      'Inspect mat edges and connectors'
+    ],
+    stateOnMeaning: 'Mat CLEAR - Safe to run',
+    stateOffMeaning: 'Mat OCCUPIED - Machine stopped',
+    commonFailures: ['Cut/damaged mat', 'Loose connector', 'Failed safety relay'],
+    safetyNote: 'NEVER bypass safety mat - risk of crushing injury',
+  },
+  {
+    pattern: /two.?hand|dual.?palm|2.?hand/i,
+    deviceType: 'two_hand',
+    friendlyName: 'Two-Hand Control',
+    icon: '🙌',
+    signalType: 'input',
+    quickChecks: [
+      'Press both buttons simultaneously',
+      'Release and re-press - should require both',
+      'Check button spacing'
+    ],
+    troubleshooting: [
+      'Both buttons must be pressed within time window',
+      'Check individual button operation',
+      'Verify safety relay status',
+      'Test anti-tie-down (release and re-press required)'
+    ],
+    stateOnMeaning: 'Both hands on buttons - Safe to cycle',
+    stateOffMeaning: 'Hands not on buttons - Stopped',
+    commonFailures: ['Button failure', 'Timing issue', 'Safety relay fault'],
+    safetyNote: 'Ensures hands are away from hazard during operation',
+  },
+  {
+    pattern: /key.?switch|enable|permission/i,
+    deviceType: 'keyswitch',
+    friendlyName: 'Key Switch/Enable',
+    icon: '🔑',
+    signalType: 'input',
+    quickChecks: [
+      'Check key switch position',
+      'Verify key is present',
+      'Check switch contacts'
+    ],
+    troubleshooting: [
+      'Verify correct key position (AUTO/MANUAL/OFF)',
+      'Check switch contacts with multimeter',
+      'Try different key if available',
+      'Clean contacts if intermittent'
+    ],
+    stateOnMeaning: 'Enabled / Permission granted',
+    stateOffMeaning: 'Disabled / Permission denied',
+    commonFailures: ['Worn switch contacts', 'Wrong position', 'Key not fully turned'],
+  },
+  {
+    pattern: /safety.?scanner|laser.?scanner|area.?scanner/i,
+    deviceType: 'safety_scanner',
+    friendlyName: 'Safety Laser Scanner',
+    icon: '📡',
+    signalType: 'input',
+    quickChecks: [
+      'Check scanner status LEDs',
+      'Look for obstructions in scan zone',
+      'Verify scanner lens is clean'
+    ],
+    troubleshooting: [
+      'Clear any objects from scan zone',
+      'Clean scanner lens/window',
+      'Check for reflective surfaces causing false trips',
+      'Verify zone configuration',
+      'Check safety relay status'
+    ],
+    stateOnMeaning: 'Zone CLEAR - Safe to run',
+    stateOffMeaning: 'Zone VIOLATED - Machine stopped',
+    commonFailures: ['Dirty lens', 'Object in zone', 'Reflective interference', 'Misalignment'],
+    safetyNote: 'NEVER obstruct or bypass safety scanner',
+  },
+  {
+    pattern: /interlock|door.?sw|gate.?sw|access/i,
+    deviceType: 'interlock',
+    friendlyName: 'Safety Interlock',
+    icon: '🚪',
+    signalType: 'input',
+    quickChecks: [
+      'Check if door/gate is fully closed',
+      'Verify interlock switch engaged',
+      'Check for latch alignment'
+    ],
+    troubleshooting: [
+      'Ensure door/gate is fully closed and latched',
+      'Check interlock actuator alignment',
+      'Verify interlock switch operation',
+      'Check safety relay status',
+      'Inspect for damaged latch or actuator'
+    ],
+    stateOnMeaning: 'Door/gate CLOSED - Safe to run',
+    stateOffMeaning: 'Door/gate OPEN - Machine stopped',
+    commonFailures: ['Misaligned actuator', 'Worn latch', 'Switch failure'],
+    safetyNote: 'NEVER bypass door interlocks',
+  },
+
+  // =====================================================================
+  // SERVO / MOTION
+  // =====================================================================
+  {
+    pattern: /servo|axis|motion.?ctrl/i,
+    deviceType: 'servo',
+    friendlyName: 'Servo Motor/Axis',
+    icon: '⚙️',
+    signalType: 'output',
+    quickChecks: [
+      'Check servo drive display for faults',
+      'Listen for motor running',
+      'Verify motor moves when commanded'
+    ],
+    troubleshooting: [
+      'Check servo drive fault code on display',
+      'Verify feedback device (encoder/resolver) connected',
+      'Check for mechanical binding - try moving by hand',
+      'Verify motor brake released (if equipped)',
+      'Check for overtravel limit activation'
+    ],
+    stateOnMeaning: 'Servo enabled / In position',
+    stateOffMeaning: 'Servo disabled / Moving',
+    commonFailures: ['Encoder fault', 'Overcurrent', 'Following error', 'Communication loss'],
+    safetyNote: 'Servo motors can move unexpectedly - keep clear',
+  },
+  {
+    pattern: /stepper|step.?motor/i,
+    deviceType: 'stepper',
+    friendlyName: 'Stepper Motor',
+    icon: '📶',
+    signalType: 'output',
+    quickChecks: [
+      'Listen for stepping sound',
+      'Check drive indicator LEDs',
+      'Verify motor holds position'
+    ],
+    troubleshooting: [
+      'Check driver for fault indication',
+      'Verify pulse signal from PLC',
+      'Check for mechanical binding',
+      'Verify current setting is adequate',
+      'Check for lost steps (position error)'
+    ],
+    stateOnMeaning: 'Moving / Enabled',
+    stateOffMeaning: 'Stopped / Disabled',
+    commonFailures: ['Lost steps', 'Overheating', 'Mechanical binding', 'Wrong current setting'],
+  },
+  {
+    pattern: /linear.?act|actuator|ball.?screw|lead.?screw/i,
+    deviceType: 'linear_actuator',
+    friendlyName: 'Linear Actuator',
+    icon: '↔️',
+    signalType: 'output',
+    quickChecks: [
+      'Watch actuator movement',
+      'Listen for unusual sounds',
+      'Check limit switches at travel ends'
+    ],
+    troubleshooting: [
+      'Check for mechanical binding',
+      'Verify limit switches at each end',
+      'Check motor/drive if motorized',
+      'Lubricate if required',
+      'Check belt tension or screw condition'
+    ],
+    stateOnMeaning: 'Extending/Moving',
+    stateOffMeaning: 'Retracted/Stopped',
+    commonFailures: ['Binding', 'Worn belt/screw', 'Limit switch failure', 'Motor fault'],
+  },
+  {
+    pattern: /brake|holding.?brake/i,
+    deviceType: 'brake',
+    friendlyName: 'Brake',
+    icon: '🛑',
+    signalType: 'output',
+    quickChecks: [
+      'Check if axis holds position when stopped',
+      'Listen for brake release click',
+      'Verify brake is released before moving'
+    ],
+    troubleshooting: [
+      'Verify brake releases when commanded (listen for click)',
+      'Check brake voltage (typically 24VDC)',
+      'Check for worn brake pads if slipping',
+      'Ensure brake releases before servo enables'
+    ],
+    stateOnMeaning: 'Brake RELEASED - Free to move',
+    stateOffMeaning: 'Brake ENGAGED - Holding position',
+    commonFailures: ['Worn pads', 'Wiring fault', 'Stuck brake'],
+    safetyNote: 'Gravity loads may fall if brake fails - use caution',
+  },
+  {
+    pattern: /clutch/i,
+    deviceType: 'clutch',
+    friendlyName: 'Clutch',
+    icon: '🔗',
+    signalType: 'output',
+    quickChecks: [
+      'Check if drive engages when activated',
+      'Listen for engagement',
+      'Check for slipping'
+    ],
+    troubleshooting: [
+      'Verify clutch engages when commanded',
+      'Check for slipping under load',
+      'Verify air pressure (if pneumatic)',
+      'Check clutch lining wear'
+    ],
+    stateOnMeaning: 'Clutch ENGAGED - Driving',
+    stateOffMeaning: 'Clutch DISENGAGED - Freewheeling',
+    commonFailures: ['Worn lining', 'Low air pressure', 'Misadjusted'],
+  },
+
+  // =====================================================================
+  // MATERIAL HANDLING
+  // =====================================================================
+  {
+    pattern: /lift.?table|scissor.?lift|elevator/i,
+    deviceType: 'lift_table',
+    friendlyName: 'Lift Table/Elevator',
+    icon: '⬆️',
+    signalType: 'output',
+    quickChecks: [
+      'Check if lift moves up and down',
+      'Verify position sensors',
+      'Check hydraulic/pneumatic pressure'
+    ],
+    troubleshooting: [
+      'Check hydraulic oil level and pressure',
+      'Verify up/down limit switches',
+      'Check for air in hydraulic system',
+      'Verify control valve operation',
+      'Check for overload condition'
+    ],
+    stateOnMeaning: 'Lift moving or at position',
+    stateOffMeaning: 'Lift stopped',
+    commonFailures: ['Low hydraulic oil', 'Air in system', 'Valve failure', 'Overload'],
+    safetyNote: 'Keep clear of lift when moving - crushing hazard',
+  },
+  {
+    pattern: /hoist|crane|winch/i,
+    deviceType: 'hoist',
+    friendlyName: 'Hoist/Crane',
+    icon: '🏗️',
+    signalType: 'output',
+    quickChecks: [
+      'Check hook/load position',
+      'Verify upper and lower limits',
+      'Listen for unusual motor sounds'
+    ],
+    troubleshooting: [
+      'Check upper and lower limit switches',
+      'Verify motor brake operation',
+      'Check overload device',
+      'Inspect rope/chain condition',
+      'Verify pendant/controls working'
+    ],
+    stateOnMeaning: 'Hoisting / Lowering',
+    stateOffMeaning: 'Stopped / Holding',
+    commonFailures: ['Limit switch failure', 'Motor overload', 'Brake slip', 'Worn rope/chain'],
+    safetyNote: 'NEVER stand under suspended loads',
+  },
+  {
+    pattern: /diverter|pusher|kicker/i,
+    deviceType: 'diverter',
+    friendlyName: 'Diverter/Pusher',
+    icon: '↪️',
+    signalType: 'output',
+    quickChecks: [
+      'Watch diverter operation',
+      'Check for jammed product',
+      'Verify sensors detect product'
+    ],
+    troubleshooting: [
+      'Check actuator operation (air, electric)',
+      'Verify product detection sensor',
+      'Check timing with line speed',
+      'Clear any jammed products',
+      'Verify retract position sensor'
+    ],
+    stateOnMeaning: 'Diverter EXTENDED - Diverting',
+    stateOffMeaning: 'Diverter RETRACTED - Pass through',
+    commonFailures: ['Timing wrong', 'Sensor failure', 'Product jam', 'Slow actuator'],
+  },
+  {
+    pattern: /reject|rejector/i,
+    deviceType: 'reject',
+    friendlyName: 'Reject Station',
+    icon: '❌',
+    signalType: 'output',
+    quickChecks: [
+      'Check reject bin/chute',
+      'Verify reject confirmation sensor',
+      'Watch for correct reject timing'
+    ],
+    troubleshooting: [
+      'Clear full reject bin',
+      'Check actuator operation',
+      'Verify product detection upstream',
+      'Check timing with line speed',
+      'Verify reject confirmation sensor'
+    ],
+    stateOnMeaning: 'Rejecting product',
+    stateOffMeaning: 'Not rejecting',
+    commonFailures: ['Full bin', 'Wrong timing', 'Weak actuator', 'Sensor failure'],
+  },
+  {
+    pattern: /pallet.?disp|pallet.?mag|pallet.?stack/i,
+    deviceType: 'pallet_dispenser',
+    friendlyName: 'Pallet Dispenser',
+    icon: '📦',
+    signalType: 'output',
+    quickChecks: [
+      'Check pallet stack height',
+      'Verify pallets are not stuck',
+      'Check separator/lift operation'
+    ],
+    troubleshooting: [
+      'Reload pallets if empty',
+      'Check for damaged or stuck pallets',
+      'Verify lift and separator operation',
+      'Check pallet present sensors',
+      'Clear any jammed pallets'
+    ],
+    stateOnMeaning: 'Dispensing pallet',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Empty stack', 'Stuck pallet', 'Separator failure', 'Sensor blocked'],
+  },
+  {
+    pattern: /slip.?sheet|tier.?sheet|sheet.?disp/i,
+    deviceType: 'slip_sheet',
+    friendlyName: 'Slip Sheet Dispenser',
+    icon: '📄',
+    signalType: 'output',
+    quickChecks: [
+      'Check sheet stack',
+      'Verify vacuum/grip pickup',
+      'Watch sheet placement'
+    ],
+    troubleshooting: [
+      'Reload sheets if empty',
+      'Check vacuum cups for wear',
+      'Verify sheet detection sensor',
+      'Check for stuck or multiple sheets',
+      'Adjust sheet separation air if applicable'
+    ],
+    stateOnMeaning: 'Dispensing sheet',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Empty magazine', 'Multiple sheet pickup', 'Vacuum cup worn'],
+  },
+  {
+    pattern: /rotary.?table|turntable|turn.?table|index.?table/i,
+    deviceType: 'rotary_table',
+    friendlyName: 'Rotary/Index Table',
+    icon: '🔄',
+    signalType: 'output',
+    quickChecks: [
+      'Watch table rotation',
+      'Check index position sensors',
+      'Listen for unusual sounds'
+    ],
+    troubleshooting: [
+      'Check index/position sensors',
+      'Verify motor/drive operation',
+      'Check for mechanical binding',
+      'Verify index pin engagement (if applicable)',
+      'Check gearbox for wear or damage'
+    ],
+    stateOnMeaning: 'Table rotating / indexing',
+    stateOffMeaning: 'Table stopped / in position',
+    commonFailures: ['Position sensor failure', 'Index pin stuck', 'Motor fault', 'Mechanical wear'],
+  },
+  {
+    pattern: /shuttle|transfer.?car|traverser/i,
+    deviceType: 'shuttle',
+    friendlyName: 'Shuttle/Transfer Car',
+    icon: '🚃',
+    signalType: 'output',
+    quickChecks: [
+      'Watch shuttle movement',
+      'Check position sensors at each end',
+      'Verify product alignment'
+    ],
+    troubleshooting: [
+      'Check position sensors at each station',
+      'Verify drive motor operation',
+      'Check rails for obstructions',
+      'Verify transfer alignment with stations',
+      'Check for product jam on shuttle'
+    ],
+    stateOnMeaning: 'Shuttle moving',
+    stateOffMeaning: 'Shuttle at position',
+    commonFailures: ['Position sensor failure', 'Motor fault', 'Rail obstruction', 'Misalignment'],
+  },
+
+  // =====================================================================
+  // PACKAGING EQUIPMENT
+  // =====================================================================
+  {
+    pattern: /labeler|label.?app|label/i,
+    deviceType: 'labeler',
+    friendlyName: 'Labeler',
+    icon: '🏷️',
+    signalType: 'output',
+    quickChecks: [
+      'Check label supply',
+      'Verify labels applying correctly',
+      'Check for label jams'
+    ],
+    troubleshooting: [
+      'Reload labels if empty',
+      'Check label jam at applicator head',
+      'Verify web tension settings',
+      'Clean print head (if print & apply)',
+      'Check label sensor and gap detection'
+    ],
+    stateOnMeaning: 'Applying label',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Out of labels', 'Label jam', 'Print quality', 'Web break'],
+  },
+  {
+    pattern: /printer|print.?head|marker|inkjet|laser.?mark/i,
+    deviceType: 'printer',
+    friendlyName: 'Printer/Marker',
+    icon: '🖨️',
+    signalType: 'output',
+    quickChecks: [
+      'Check print quality',
+      'Verify ink/ribbon supply',
+      'Check for print head clogs'
+    ],
+    troubleshooting: [
+      'Check ink/ribbon level',
+      'Clean print head',
+      'Verify print trigger signal',
+      'Check message/data content',
+      'Verify substrate speed matches print settings'
+    ],
+    stateOnMeaning: 'Printing',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Out of ink/ribbon', 'Clogged nozzles', 'Wrong message', 'Poor adhesion'],
+  },
+  {
+    pattern: /stretch.?wrap|wrapper|turntable.?wrap/i,
+    deviceType: 'stretch_wrapper',
+    friendlyName: 'Stretch Wrapper',
+    icon: '🔄',
+    signalType: 'output',
+    quickChecks: [
+      'Check film supply',
+      'Verify wrap tension',
+      'Watch wrap pattern'
+    ],
+    troubleshooting: [
+      'Reload film if empty',
+      'Check film clamp/cut operation',
+      'Verify turntable rotation',
+      'Adjust film tension settings',
+      'Check film delivery carriage'
+    ],
+    stateOnMeaning: 'Wrapping',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Out of film', 'Film break', 'Clamp failure', 'Carriage stuck'],
+  },
+  {
+    pattern: /case.?erect|box.?erect|carton.?erect/i,
+    deviceType: 'case_erector',
+    friendlyName: 'Case Erector',
+    icon: '📦',
+    signalType: 'output',
+    quickChecks: [
+      'Check flat case supply',
+      'Verify erected cases look correct',
+      'Check for case jams'
+    ],
+    troubleshooting: [
+      'Reload flat cases',
+      'Check vacuum cups on pickup',
+      'Verify folding mechanism operation',
+      'Check tape/glue application',
+      'Clear any jammed cases'
+    ],
+    stateOnMeaning: 'Erecting case',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Out of blanks', 'Vacuum pickup failure', 'Fold jam', 'Tape/glue fail'],
+  },
+  {
+    pattern: /case.?seal|box.?seal|carton.?seal|tape.?head/i,
+    deviceType: 'case_sealer',
+    friendlyName: 'Case Sealer',
+    icon: '📦',
+    signalType: 'output',
+    quickChecks: [
+      'Check tape supply',
+      'Verify seal quality',
+      'Check for case jams'
+    ],
+    troubleshooting: [
+      'Reload tape if empty',
+      'Clean tape heads',
+      'Check side belt pressure',
+      'Verify case detection sensors',
+      'Adjust flap folders if needed'
+    ],
+    stateOnMeaning: 'Sealing case',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Out of tape', 'Tape cut failure', 'Case jam', 'Poor seal'],
+  },
+  {
+    pattern: /shrink|heat.?tunnel|shrink.?wrap/i,
+    deviceType: 'shrink_tunnel',
+    friendlyName: 'Shrink Tunnel',
+    icon: '🔥',
+    signalType: 'output',
+    quickChecks: [
+      'Check temperature reading',
+      'Verify shrink quality',
+      'Check conveyor speed'
+    ],
+    troubleshooting: [
+      'Check temperature setpoint vs actual',
+      'Verify conveyor speed matches shrink requirements',
+      'Check heating elements',
+      'Verify airflow/blower operation',
+      'Adjust temperature if shrink is poor'
+    ],
+    stateOnMeaning: 'Heating / Shrinking',
+    stateOffMeaning: 'Heater off / Standby',
+    commonFailures: ['Heater failure', 'Wrong temperature', 'Conveyor too fast/slow', 'Blower failure'],
+    safetyNote: 'Hot surfaces - allow to cool before maintenance',
+  },
+  {
+    pattern: /bander|strapper|strap/i,
+    deviceType: 'strapper',
+    friendlyName: 'Strapper/Bander',
+    icon: '➿',
+    signalType: 'output',
+    quickChecks: [
+      'Check strap supply',
+      'Verify strap tension',
+      'Check seal quality'
+    ],
+    troubleshooting: [
+      'Reload strap if empty',
+      'Check strap tracking through machine',
+      'Verify tension settings',
+      'Check seal/weld head operation',
+      'Clear any strap jams'
+    ],
+    stateOnMeaning: 'Strapping',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Out of strap', 'Strap jam', 'Seal failure', 'Wrong tension'],
+  },
+
+  // =====================================================================
+  // PROCESS EQUIPMENT
+  // =====================================================================
+  {
+    pattern: /mixer|agitator|blend/i,
+    deviceType: 'mixer',
+    friendlyName: 'Mixer/Agitator',
+    icon: '🔀',
+    signalType: 'output',
+    quickChecks: [
+      'Listen for mixer running',
+      'Check speed setting',
+      'Verify no unusual vibration'
+    ],
+    troubleshooting: [
+      'Check motor operation',
+      'Verify speed control working',
+      'Check for mechanical damage',
+      'Verify proper impeller/blade',
+      'Check for product buildup'
+    ],
+    stateOnMeaning: 'Mixing / Running',
+    stateOffMeaning: 'Stopped',
+    commonFailures: ['Motor overload', 'Belt slip', 'Mechanical wear', 'Buildup'],
+  },
+  {
+    pattern: /filler|fill.?head|dose|dosing/i,
+    deviceType: 'filler',
+    friendlyName: 'Filler/Doser',
+    icon: '🫗',
+    signalType: 'output',
+    quickChecks: [
+      'Check fill volume/weight',
+      'Verify nozzle is clear',
+      'Check product supply'
+    ],
+    troubleshooting: [
+      'Verify fill volume accuracy',
+      'Clear clogged nozzles',
+      'Check product supply tank/hopper',
+      'Verify pump or actuator operation',
+      'Check container positioning'
+    ],
+    stateOnMeaning: 'Filling',
+    stateOffMeaning: 'Not filling',
+    commonFailures: ['Clogged nozzle', 'Wrong volume', 'Air in line', 'Pump failure'],
+  },
+  {
+    pattern: /capper|cap.?head|cap.?torque/i,
+    deviceType: 'capper',
+    friendlyName: 'Capper',
+    icon: '🔩',
+    signalType: 'output',
+    quickChecks: [
+      'Check cap supply',
+      'Verify torque setting',
+      'Check for misapplied caps'
+    ],
+    troubleshooting: [
+      'Reload caps if empty',
+      'Check cap chute/feeder',
+      'Verify torque setting',
+      'Check cap placement head',
+      'Verify container positioning'
+    ],
+    stateOnMeaning: 'Capping',
+    stateOffMeaning: 'Ready / Waiting',
+    commonFailures: ['Out of caps', 'Wrong torque', 'Misaligned cap', 'Feeder jam'],
+  },
+  {
+    pattern: /oven|cure|bake|dry/i,
+    deviceType: 'oven',
+    friendlyName: 'Oven/Dryer',
+    icon: '🔥',
+    signalType: 'output',
+    quickChecks: [
+      'Check temperature reading',
+      'Verify airflow',
+      'Check product quality out of oven'
+    ],
+    troubleshooting: [
+      'Compare setpoint to actual temperature',
+      'Check heating elements',
+      'Verify blower/fan operation',
+      'Check thermocouple reading',
+      'Verify exhaust system'
+    ],
+    stateOnMeaning: 'Heating / Running',
+    stateOffMeaning: 'Off / Standby',
+    commonFailures: ['Heater element failure', 'Temperature sensor fault', 'Blower failure'],
+    safetyNote: 'Hot surfaces and product - allow cooling before entry',
+  },
+  {
+    pattern: /cooler|chiller|cool.?tunnel/i,
+    deviceType: 'cooler',
+    friendlyName: 'Cooler/Chiller',
+    icon: '❄️',
+    signalType: 'output',
+    quickChecks: [
+      'Check temperature reading',
+      'Verify cooling operation',
+      'Check refrigerant pressure'
+    ],
+    troubleshooting: [
+      'Verify temperature setpoint vs actual',
+      'Check compressor operation',
+      'Verify refrigerant pressures',
+      'Check evaporator/condenser for ice or dirt',
+      'Verify fan operation'
+    ],
+    stateOnMeaning: 'Cooling / Running',
+    stateOffMeaning: 'Off / Standby',
+    commonFailures: ['Compressor fault', 'Low refrigerant', 'Dirty coils', 'Fan failure'],
+  },
+
+  // =====================================================================
+  // COUNTERS / PRODUCTION DATA
+  // =====================================================================
+  {
+    pattern: /count|cnt_|_cnt|pcs|pieces|qty|total/i,
+    deviceType: 'counter',
+    friendlyName: 'Counter',
+    icon: '🔢',
+    signalType: 'internal',
+    quickChecks: [
+      'Compare count to actual pieces',
+      'Check sensor triggering count',
+      'Verify count resets properly'
+    ],
+    troubleshooting: [
+      'Verify sensor is detecting each piece',
+      'Check for double-counting',
+      'Verify reset signal if count is wrong',
+      'Compare to batch target'
+    ],
+    stateOnMeaning: 'Count reached / target met',
+    stateOffMeaning: 'Count not reached',
+    commonFailures: ['Sensor miscount', 'Double counting', 'Reset not working'],
+  },
+  {
+    pattern: /batch|lot|recipe/i,
+    deviceType: 'batch',
+    friendlyName: 'Batch/Recipe',
+    icon: '📋',
+    signalType: 'internal',
+    quickChecks: [
+      'Verify correct recipe selected',
+      'Check batch progress',
+      'Verify batch parameters'
+    ],
+    troubleshooting: [
+      'Confirm correct recipe/batch selected',
+      'Check batch parameter values',
+      'Verify batch sequence step',
+      'Check for batch errors or paused state'
+    ],
+    stateOnMeaning: 'Batch active / running',
+    stateOffMeaning: 'Batch idle / complete',
+  },
+  {
+    pattern: /good|pass|ok_/i,
+    deviceType: 'good_count',
+    friendlyName: 'Good/Pass Count',
+    icon: '✅',
+    signalType: 'internal',
+    quickChecks: [
+      'Verify good count tracking',
+      'Compare to total count'
+    ],
+    stateOnMeaning: 'Good product',
+    stateOffMeaning: 'Not good / Reject',
+  },
+  {
+    pattern: /reject|bad|scrap|ng_/i,
+    deviceType: 'reject_count',
+    friendlyName: 'Reject/Scrap Count',
+    icon: '❌',
+    signalType: 'internal',
+    quickChecks: [
+      'Check reject count',
+      'Investigate reason for rejects',
+      'Verify reject tracking'
+    ],
+    troubleshooting: [
+      'Identify why rejects are occurring',
+      'Check inspection criteria',
+      'Review recent rejects',
+      'Adjust process if reject rate high'
+    ],
+    stateOnMeaning: 'Reject detected',
+    stateOffMeaning: 'Good product',
+  },
+
+  // =====================================================================
+  // COMMUNICATION / HANDSHAKE
+  // =====================================================================
+  {
+    pattern: /handshake|hshk|hs_|_hs/i,
+    deviceType: 'handshake',
+    friendlyName: 'Handshake Signal',
+    icon: '🤝',
+    signalType: 'internal',
+    quickChecks: [
+      'Check both sides of handshake',
+      'Verify request and acknowledge',
+      'Check for stuck handshake'
+    ],
+    troubleshooting: [
+      'Verify request signal sent',
+      'Check for acknowledge response',
+      'Look for stuck or incomplete handshake',
+      'Check communication path between devices',
+      'Verify timeout not expired'
+    ],
+    stateOnMeaning: 'Handshake active / waiting',
+    stateOffMeaning: 'Handshake complete / idle',
+    commonFailures: ['Missing acknowledge', 'Stuck request', 'Timeout', 'Communication loss'],
+  },
+  {
+    pattern: /zone.?ctrl|zone_|_zone|area.?ctrl/i,
+    deviceType: 'zone_control',
+    friendlyName: 'Zone Control',
+    icon: '🟦',
+    signalType: 'internal',
+    quickChecks: [
+      'Check zone status on HMI',
+      'Verify product flow in zone',
+      'Check zone sensors'
+    ],
+    troubleshooting: [
+      'Check zone full/empty sensors',
+      'Verify product flow logic',
+      'Check downstream zone ready signal',
+      'Clear any jammed products'
+    ],
+    stateOnMeaning: 'Zone active / product present',
+    stateOffMeaning: 'Zone clear / ready',
+    commonFailures: ['Product jam', 'Sensor failure', 'Logic error'],
+  },
+  {
+    pattern: /request|req_|_req/i,
+    deviceType: 'request',
+    friendlyName: 'Request Signal',
+    icon: '📨',
+    signalType: 'internal',
+    quickChecks: [
+      'Check what is being requested',
+      'Verify receiving device responding'
+    ],
+    stateOnMeaning: 'Request active',
+    stateOffMeaning: 'No request',
+  },
+  {
+    pattern: /acknowledge|ack_|_ack|confirm/i,
+    deviceType: 'acknowledge',
+    friendlyName: 'Acknowledge Signal',
+    icon: '✔️',
+    signalType: 'internal',
+    quickChecks: [
+      'Check if acknowledge was received',
+      'Verify acknowledgment timing'
+    ],
+    stateOnMeaning: 'Acknowledged',
+    stateOffMeaning: 'Not acknowledged',
+  },
+  {
+    pattern: /busy|_bsy|bsy_|in.?use/i,
+    deviceType: 'busy',
+    friendlyName: 'Busy Signal',
+    icon: '⏳',
+    signalType: 'internal',
+    quickChecks: [
+      'Check what device is busy',
+      'Wait for busy to clear',
+      'Check for stuck busy condition'
+    ],
+    stateOnMeaning: 'Device busy / in use',
+    stateOffMeaning: 'Device available',
+  },
+  {
+    pattern: /ready|rdy_|_rdy/i,
+    deviceType: 'ready',
+    friendlyName: 'Ready Signal',
+    icon: '👍',
+    signalType: 'internal',
+    quickChecks: [
+      'Verify device is ready',
+      'Check what is preventing ready'
+    ],
+    stateOnMeaning: 'Ready for operation',
+    stateOffMeaning: 'Not ready',
+  },
+  {
+    pattern: /complete|done|cmplt|finished/i,
+    deviceType: 'complete',
+    friendlyName: 'Complete Signal',
+    icon: '✅',
+    signalType: 'internal',
+    quickChecks: [
+      'Verify operation completed',
+      'Check cycle finished properly'
+    ],
+    stateOnMeaning: 'Operation complete',
+    stateOffMeaning: 'Operation not complete',
+  },
+
+  // =====================================================================
+  // TIMERS / DELAYS
+  // =====================================================================
+  {
+    pattern: /timer|tmr_|_tmr|delay/i,
+    deviceType: 'timer',
+    friendlyName: 'Timer/Delay',
+    icon: '⏱️',
+    signalType: 'internal',
+    quickChecks: [
+      'Check timer status (timing/done)',
+      'Verify preset value',
+      'Check what triggers timer'
+    ],
+    troubleshooting: [
+      'Verify timer preset is correct',
+      'Check what enables the timer',
+      'Verify timer done output is being used',
+      'Check for timer reset issues'
+    ],
+    stateOnMeaning: 'Timer done / elapsed',
+    stateOffMeaning: 'Timer timing / not done',
+  },
+  {
+    pattern: /dwell|soak|hold.?time/i,
+    deviceType: 'dwell',
+    friendlyName: 'Dwell/Soak Time',
+    icon: '⏸️',
+    signalType: 'internal',
+    quickChecks: [
+      'Check if in dwell period',
+      'Verify dwell time setting',
+      'Wait for dwell to complete'
+    ],
+    stateOnMeaning: 'Dwell/soak active',
+    stateOffMeaning: 'Dwell complete',
+  },
+
+  // =====================================================================
+  // MODES / STATES
+  // =====================================================================
+  {
+    pattern: /auto.?mode|automatic/i,
+    deviceType: 'auto_mode',
+    friendlyName: 'Auto Mode',
+    icon: '🤖',
+    signalType: 'internal',
+    quickChecks: [
+      'Check mode selector switch',
+      'Verify machine is ready for auto',
+      'Check for faults preventing auto'
+    ],
+    stateOnMeaning: 'Machine in AUTO mode',
+    stateOffMeaning: 'Machine not in AUTO',
+  },
+  {
+    pattern: /manual.?mode|hand.?mode|jog/i,
+    deviceType: 'manual_mode',
+    friendlyName: 'Manual Mode',
+    icon: '✋',
+    signalType: 'internal',
+    quickChecks: [
+      'Check mode selector position',
+      'Verify manual controls work'
+    ],
+    stateOnMeaning: 'Machine in MANUAL mode',
+    stateOffMeaning: 'Machine not in MANUAL',
+    safetyNote: 'Use caution in manual mode - interlocks may be bypassed',
+  },
+  {
+    pattern: /home.?mode|homing|zero.?return/i,
+    deviceType: 'home_mode',
+    friendlyName: 'Home/Zero Return',
+    icon: '🏠',
+    signalType: 'internal',
+    quickChecks: [
+      'Check if homing sequence running',
+      'Verify home sensors',
+      'Watch for axis movement'
+    ],
+    troubleshooting: [
+      'Check home sensors for each axis',
+      'Verify nothing blocking home position',
+      'Check for faults during homing',
+      'Try manual jog to clear home sensor'
+    ],
+    stateOnMeaning: 'Homing in progress',
+    stateOffMeaning: 'Not homing / homed',
+    safetyNote: 'Stay clear during homing - axes may move',
+  },
+  {
+    pattern: /cycle|running|run_|_run/i,
+    deviceType: 'running',
+    friendlyName: 'Cycle/Running',
+    icon: '▶️',
+    signalType: 'internal',
+    quickChecks: [
+      'Verify machine is cycling',
+      'Watch for normal operation',
+      'Check cycle progress'
+    ],
+    stateOnMeaning: 'Machine cycling / running',
+    stateOffMeaning: 'Machine stopped',
+  },
+  {
+    pattern: /idle|standby|wait/i,
+    deviceType: 'idle',
+    friendlyName: 'Idle/Standby',
+    icon: '⏸️',
+    signalType: 'internal',
+    quickChecks: [
+      'Check why machine is idle',
+      'Verify ready to start'
+    ],
+    stateOnMeaning: 'Machine idle / waiting',
+    stateOffMeaning: 'Machine active',
+  },
+  {
+    pattern: /pause|hold|suspend/i,
+    deviceType: 'paused',
+    friendlyName: 'Paused/Hold',
+    icon: '⏯️',
+    signalType: 'internal',
+    quickChecks: [
+      'Check what caused pause',
+      'Verify safe to resume',
+      'Check for operator intervention needed'
+    ],
+    stateOnMeaning: 'Machine paused',
+    stateOffMeaning: 'Not paused',
+  },
+
+  // =====================================================================
+  // ROBOT I/O
+  // =====================================================================
+  {
+    pattern: /robot.?ready|rob.?rdy/i,
+    deviceType: 'robot_ready',
+    friendlyName: 'Robot Ready',
+    icon: '🤖',
+    signalType: 'input',
+    quickChecks: [
+      'Check robot pendant for faults',
+      'Verify robot in AUTO',
+      'Check program is running'
+    ],
+    troubleshooting: [
+      'Clear any robot faults',
+      'Verify robot is in AUTO mode',
+      'Confirm program selected and running',
+      'Check safety devices clear'
+    ],
+    stateOnMeaning: 'Robot ready for commands',
+    stateOffMeaning: 'Robot not ready - check pendant',
+    commonFailures: ['Fault active', 'Not in AUTO', 'E-stop active', 'Wrong program'],
+  },
+  {
+    pattern: /robot.?at.?home|rob.?home/i,
+    deviceType: 'robot_home',
+    friendlyName: 'Robot at Home',
+    icon: '🏠',
+    signalType: 'input',
+    quickChecks: [
+      'Verify robot is at home position',
+      'Check teach pendant position'
+    ],
+    stateOnMeaning: 'Robot at home position',
+    stateOffMeaning: 'Robot not at home',
+  },
+  {
+    pattern: /robot.?grip|grip.?close|gripper/i,
+    deviceType: 'robot_gripper',
+    friendlyName: 'Robot Gripper',
+    icon: '✊',
+    signalType: 'output',
+    quickChecks: [
+      'Check gripper open/close',
+      'Verify product held securely',
+      'Check air pressure'
+    ],
+    troubleshooting: [
+      'Check air pressure',
+      'Verify gripper sensors',
+      'Inspect gripper pads/fingers',
+      'Check robot gripper command'
+    ],
+    stateOnMeaning: 'Gripper closed / holding',
+    stateOffMeaning: 'Gripper open / released',
+    commonFailures: ['Low air', 'Worn pads', 'Sensor failure'],
+  },
+  {
+    pattern: /robot.?fault|rob.?flt/i,
+    deviceType: 'robot_fault',
+    friendlyName: 'Robot Fault',
+    icon: '⚠️',
+    signalType: 'input',
+    quickChecks: [
+      'Check robot pendant for fault details',
+      'Check if E-stop pressed',
+      'Verify safety devices'
+    ],
+    troubleshooting: [
+      'Read fault code on teach pendant',
+      'Clear fault and reset',
+      'Check for collision or interference',
+      'Verify program position'
+    ],
+    stateOnMeaning: 'Robot has FAULT - check pendant',
+    stateOffMeaning: 'Robot OK - no faults',
+    commonFailures: ['Collision', 'Overcurrent', 'Safety fault', 'Communication'],
+    safetyNote: 'Keep clear when resetting robot faults',
+  },
+
+  // =====================================================================
+  // CONVEYORS (specific types)
+  // =====================================================================
+  {
+    pattern: /infeed|in.?feed/i,
+    deviceType: 'infeed',
+    friendlyName: 'Infeed Conveyor',
+    icon: '⬅️',
+    signalType: 'output',
+    quickChecks: [
+      'Check product feeding in',
+      'Verify belt running',
+      'Look for jams'
+    ],
+    troubleshooting: [
+      'Check for product jams',
+      'Verify upstream supply',
+      'Check belt tracking',
+      'Check motor operation'
+    ],
+    stateOnMeaning: 'Infeed running',
+    stateOffMeaning: 'Infeed stopped',
+  },
+  {
+    pattern: /outfeed|out.?feed|discharge/i,
+    deviceType: 'outfeed',
+    friendlyName: 'Outfeed Conveyor',
+    icon: '➡️',
+    signalType: 'output',
+    quickChecks: [
+      'Check product discharging',
+      'Verify belt running',
+      'Check downstream area clear'
+    ],
+    troubleshooting: [
+      'Verify downstream is clear',
+      'Check for product jams',
+      'Check belt tracking',
+      'Check motor operation'
+    ],
+    stateOnMeaning: 'Outfeed running',
+    stateOffMeaning: 'Outfeed stopped',
+  },
+  {
+    pattern: /accumul|acc_|buffer/i,
+    deviceType: 'accumulator',
+    friendlyName: 'Accumulator/Buffer',
+    icon: '📦',
+    signalType: 'output',
+    quickChecks: [
+      'Check accumulator fill level',
+      'Verify zones releasing',
+      'Look for jams'
+    ],
+    troubleshooting: [
+      'Check zone sensors',
+      'Verify release logic',
+      'Clear any jams',
+      'Check accumulator full/empty status'
+    ],
+    stateOnMeaning: 'Accumulating / Zone full',
+    stateOffMeaning: 'Releasing / Zone empty',
+  },
+  {
+    pattern: /roller|rollers|mdr|motorized.?roller/i,
+    deviceType: 'roller_conveyor',
+    friendlyName: 'Roller Conveyor',
+    icon: '⚙️',
+    signalType: 'output',
+    quickChecks: [
+      'Check rollers turning',
+      'Verify product moving',
+      'Look for jammed product'
+    ],
+    troubleshooting: [
+      'Check for jammed or stuck product',
+      'Verify motor/drive operation',
+      'Check belt/chain tension (if belt driven)',
+      'Check individual roller cards (if MDR)'
+    ],
+    stateOnMeaning: 'Rollers running',
+    stateOffMeaning: 'Rollers stopped',
+  },
+
+  // =====================================================================
+  // ADDITIONAL SENSORS
+  // =====================================================================
+  {
+    pattern: /color|rgb|colour/i,
+    deviceType: 'color_sensor',
+    friendlyName: 'Color Sensor',
+    icon: '🎨',
+    signalType: 'input',
+    quickChecks: [
+      'Check color reading',
+      'Verify target surface',
+      'Check sensor calibration'
+    ],
+    troubleshooting: [
+      'Recalibrate on known good target',
+      'Clean sensor lens',
+      'Verify sensing distance',
+      'Check ambient light interference',
+      'Verify target surface is consistent'
+    ],
+    stateOnMeaning: 'Color match / detected',
+    stateOffMeaning: 'No match / different color',
+    commonFailures: ['Dirty lens', 'Calibration drift', 'Ambient light', 'Surface variation'],
+  },
+  {
+    pattern: /contrast|mark.?detect|registration/i,
+    deviceType: 'contrast_sensor',
+    friendlyName: 'Contrast/Registration Sensor',
+    icon: '◐',
+    signalType: 'input',
+    quickChecks: [
+      'Check if detecting marks',
+      'Verify mark quality',
+      'Check sensor position'
+    ],
+    troubleshooting: [
+      'Verify mark is present and readable',
+      'Clean sensor lens',
+      'Adjust sensitivity',
+      'Check sensing distance',
+      'Verify mark contrast is sufficient'
+    ],
+    stateOnMeaning: 'Mark detected',
+    stateOffMeaning: 'No mark',
+    commonFailures: ['Dirty lens', 'Poor mark quality', 'Wrong distance', 'Low contrast'],
+  },
+  {
+    pattern: /thickness|thick_|caliper/i,
+    deviceType: 'thickness',
+    friendlyName: 'Thickness Sensor',
+    icon: '📏',
+    signalType: 'input',
+    quickChecks: [
+      'Check thickness reading',
+      'Verify calibration',
+      'Check sensor positioning'
+    ],
+    troubleshooting: [
+      'Calibrate with known standard',
+      'Clean measuring surfaces',
+      'Verify product is flat',
+      'Check sensor mounting'
+    ],
+    stateOnMeaning: 'Thickness OK / In spec',
+    stateOffMeaning: 'Thickness out of spec',
+  },
+  {
+    pattern: /vibration|vib_|accel/i,
+    deviceType: 'vibration',
+    friendlyName: 'Vibration Sensor',
+    icon: '📳',
+    signalType: 'input',
+    quickChecks: [
+      'Check vibration reading',
+      'Compare to baseline',
+      'Check for loose mounting'
+    ],
+    troubleshooting: [
+      'Compare to historical baseline',
+      'Check mounting is secure',
+      'Verify sensor calibration',
+      'Identify source of excessive vibration'
+    ],
+    stateOnMeaning: 'Vibration high / alarm',
+    stateOffMeaning: 'Vibration normal',
+    commonFailures: ['Loose mounting', 'Worn bearing', 'Imbalance', 'Misalignment'],
+  },
+  {
+    pattern: /torque|trq_/i,
+    deviceType: 'torque',
+    friendlyName: 'Torque Sensor',
+    icon: '🔧',
+    signalType: 'input',
+    quickChecks: [
+      'Check torque reading',
+      'Verify calibration',
+      'Compare to setpoint'
+    ],
+    troubleshooting: [
+      'Calibrate sensor',
+      'Check mechanical coupling',
+      'Verify overload protection',
+      'Check for binding or friction'
+    ],
+    stateOnMeaning: 'Torque OK / target reached',
+    stateOffMeaning: 'Torque low / not reached',
+  },
+  {
+    pattern: /speed|rpm|velocity|tach/i,
+    deviceType: 'speed_sensor',
+    friendlyName: 'Speed/Tach Sensor',
+    icon: '🏎️',
+    signalType: 'input',
+    quickChecks: [
+      'Check speed reading',
+      'Compare to actual RPM',
+      'Verify sensor detecting'
+    ],
+    troubleshooting: [
+      'Check sensor gap to target',
+      'Verify target wheel teeth count',
+      'Clean sensor face',
+      'Check wiring connections'
+    ],
+    stateOnMeaning: 'At speed / running',
+    stateOffMeaning: 'Below speed / stopped',
+  },
+
+  // =====================================================================
+  // PID / CONTROL LOOPS
+  // =====================================================================
+  {
+    pattern: /pid|control.?loop|cv_|pv_|sp_/i,
+    deviceType: 'pid',
+    friendlyName: 'PID Control Loop',
+    icon: '📈',
+    signalType: 'internal',
+    quickChecks: [
+      'Compare PV to SP',
+      'Check output percentage',
+      'Look for oscillation'
+    ],
+    troubleshooting: [
+      'Compare process variable (PV) to setpoint (SP)',
+      'Check control output (CV) response',
+      'Look for oscillation (tuning issue)',
+      'Verify sensor reading is accurate',
+      'Check actuator responding to output'
+    ],
+    stateOnMeaning: 'Loop in AUTO / controlling',
+    stateOffMeaning: 'Loop in MANUAL / not controlling',
+    commonFailures: ['Bad tuning', 'Sensor fault', 'Actuator stuck', 'Loop in manual'],
+  },
+  {
+    pattern: /setpoint|sp_|target/i,
+    deviceType: 'setpoint',
+    friendlyName: 'Setpoint',
+    icon: '🎯',
+    signalType: 'internal',
+    quickChecks: [
+      'Verify setpoint value',
+      'Check if appropriate for process'
+    ],
+    stateOnMeaning: 'At setpoint',
+    stateOffMeaning: 'Not at setpoint',
+  },
+
+  // =====================================================================
+  // ELECTRICAL
+  // =====================================================================
+  {
+    pattern: /power|pwr_|main.?power/i,
+    deviceType: 'power',
+    friendlyName: 'Power Supply',
+    icon: '🔌',
+    signalType: 'input',
+    quickChecks: [
+      'Check power indicator LEDs',
+      'Verify voltage reading',
+      'Check breaker/fuse'
+    ],
+    troubleshooting: [
+      'Check circuit breaker/fuse',
+      'Verify voltage at supply',
+      'Check power supply output',
+      'Look for blown fuses or tripped breakers'
+    ],
+    stateOnMeaning: 'Power OK',
+    stateOffMeaning: 'Power LOST - check supply',
+    commonFailures: ['Tripped breaker', 'Blown fuse', 'Power supply failure'],
+    safetyNote: 'Electrical hazard - qualified personnel only',
+  },
+  {
+    pattern: /24v|24.?vdc|dc.?power/i,
+    deviceType: 'dc_power',
+    friendlyName: '24VDC Power',
+    icon: '⚡',
+    signalType: 'input',
+    quickChecks: [
+      'Check 24V power supply LED',
+      'Measure voltage with meter',
+      'Check for low voltage'
+    ],
+    troubleshooting: [
+      'Measure 24VDC with multimeter',
+      'Check power supply for fault',
+      'Look for overloaded circuit',
+      'Check fuses'
+    ],
+    stateOnMeaning: '24VDC OK',
+    stateOffMeaning: '24VDC LOST',
+    commonFailures: ['Power supply fault', 'Overload', 'Blown fuse', 'Loose connection'],
+  },
+  {
+    pattern: /ground.?fault|gfi|gfci|insulation/i,
+    deviceType: 'ground_fault',
+    friendlyName: 'Ground Fault',
+    icon: '⚠️',
+    signalType: 'input',
+    quickChecks: [
+      'Check ground fault indicator',
+      'Look for water/moisture',
+      'Check wiring insulation'
+    ],
+    troubleshooting: [
+      'Identify circuit with ground fault',
+      'Check for moisture or water intrusion',
+      'Inspect wiring for damaged insulation',
+      'Megger test motor windings'
+    ],
+    stateOnMeaning: 'Ground fault ACTIVE - DANGER',
+    stateOffMeaning: 'No ground fault',
+    commonFailures: ['Damaged insulation', 'Moisture', 'Failed motor', 'Pinched wire'],
+    safetyNote: 'Electrical hazard - isolate and investigate immediately',
+  },
+
+  // =====================================================================
+  // MISCELLANEOUS
+  // =====================================================================
+  {
+    pattern: /reset|rst_|_rst/i,
+    deviceType: 'reset',
+    friendlyName: 'Reset',
+    icon: '🔄',
+    signalType: 'input',
+    quickChecks: [
+      'Press reset button',
+      'Verify faults are cleared first',
+      'Check if reset is acknowledged'
+    ],
+    troubleshooting: [
+      'Clear all faults before resetting',
+      'Press and release reset button',
+      'Check reset button operation',
+      'Verify safety system allows reset'
+    ],
+    stateOnMeaning: 'Reset button pressed',
+    stateOffMeaning: 'Reset not active',
+  },
+  {
+    pattern: /enable|enb_|_enb/i,
+    deviceType: 'enable',
+    friendlyName: 'Enable Signal',
+    icon: '✅',
+    signalType: 'internal',
+    quickChecks: [
+      'Check what is being enabled',
+      'Verify enable conditions met'
+    ],
+    stateOnMeaning: 'Enabled / Active',
+    stateOffMeaning: 'Disabled / Inactive',
+  },
+  {
+    pattern: /inhibit|disable|bypass/i,
+    deviceType: 'inhibit',
+    friendlyName: 'Inhibit/Disable',
+    icon: '🚫',
+    signalType: 'internal',
+    quickChecks: [
+      'Check why inhibited',
+      'Verify intentional bypass',
+      'Remove inhibit when done'
+    ],
+    troubleshooting: [
+      'Identify source of inhibit',
+      'Check if intentional or fault condition',
+      'Clear inhibit when safe'
+    ],
+    stateOnMeaning: 'Inhibited / Bypassed',
+    stateOffMeaning: 'Normal operation',
+    safetyNote: 'Return to normal operation when bypass no longer needed',
+  },
+  {
+    pattern: /clean|wash|sanitize|cip/i,
+    deviceType: 'clean',
+    friendlyName: 'Clean/Wash',
+    icon: '🚿',
+    signalType: 'output',
+    quickChecks: [
+      'Check wash cycle progress',
+      'Verify water/chemical supply',
+      'Check spray nozzles'
+    ],
+    troubleshooting: [
+      'Verify water supply',
+      'Check chemical supply',
+      'Inspect spray nozzles for clogs',
+      'Verify pump operation',
+      'Check temperatures if heated wash'
+    ],
+    stateOnMeaning: 'Washing / Cleaning active',
+    stateOffMeaning: 'Not washing',
+  },
+  {
+    pattern: /lubricate|lube|grease|oil/i,
+    deviceType: 'lube',
+    friendlyName: 'Lubrication',
+    icon: '🛢️',
+    signalType: 'output',
+    quickChecks: [
+      'Check lube reservoir level',
+      'Verify lube pump running',
+      'Check distribution lines'
+    ],
+    troubleshooting: [
+      'Refill lube reservoir',
+      'Check pump operation',
+      'Verify distribution to all points',
+      'Check for clogged lines',
+      'Verify cycle timer settings'
+    ],
+    stateOnMeaning: 'Lubrication cycle active',
+    stateOffMeaning: 'Not lubricating',
+    commonFailures: ['Empty reservoir', 'Clogged line', 'Pump failure'],
+  },
+
+  // =====================================================================
+  // GENERIC CATCH-ALLS (keep at end - less specific patterns)
+  // =====================================================================
+  { pattern: /input|inp_|_inp|di_/i, deviceType: 'input', friendlyName: 'digital input', signalType: 'input' },
+  { pattern: /output|out_|_out|do_|cmd/i, deviceType: 'output', friendlyName: 'digital output', signalType: 'output' },
+  { pattern: /analog|ai_|ao_/i, deviceType: 'analog', friendlyName: 'analog signal' },
+  { pattern: /status|sts_|_sts/i, deviceType: 'status', friendlyName: 'status signal', signalType: 'internal' },
+  { pattern: /pos_|position/i, deviceType: 'position', friendlyName: 'position feedback', signalType: 'input' },
 ];
 
 // ============================================================================
@@ -4399,27 +6972,11 @@ export function getInstructionExplanation(
   const inst = INSTRUCTIONS[instruction.toUpperCase()]
   if (!inst) return null
 
-  let explanation: string
-
-  // For friendly mode, try to get a varied analogy first
-  if (mode === 'friendly') {
-    const variedExplanation = getVariedFriendlyExplanation(instruction, operands, contextSeed)
-    if (variedExplanation) {
-      explanation = variedExplanation
-    } else {
-      // Fall back to standard friendly explanation
-      explanation = inst[mode]
-      operands.forEach((op, i) => {
-        explanation = explanation.replace(new RegExp(`\\{${i}\\}`, 'g'), op)
-      })
-    }
-  } else {
-    // Technical and operator modes use standard explanations
-    explanation = inst[mode]
-    operands.forEach((op, i) => {
-      explanation = explanation.replace(new RegExp(`\\{${i}\\}`, 'g'), op)
-    })
-  }
+  // Use clean, direct explanations for all modes
+  let explanation = inst[mode]
+  operands.forEach((op, i) => {
+    explanation = explanation.replace(new RegExp(`\\{${i}\\}`, 'g'), op)
+  })
 
   // Remove any unreplaced placeholders
   explanation = explanation.replace(/\{[0-9]\}/g, '?')
@@ -4768,106 +7325,143 @@ export function generateFullRungExplanation(
 
   let explanation = ''
 
-  if (mode === 'friendly') {
-    // Get shared prefix conditions
-    const prefixParts = structure.sharedPrefix
-      .map(s => getInstructionExplanationFromString(s, mode))
-      .filter(Boolean)
-    const prefixConditions = prefixParts.filter(p => isConditionInstruction(p!.instruction))
+  // Get instruction details with raw text for better formatting
+  const getInstrDetails = (instrString: string) => {
+    const match = instrString.match(/([A-Z_][A-Z0-9_]*)\(([^)]*)\)/i)
+    if (!match) return null
+    const instruction = match[1].toUpperCase()
+    const operands = parseOperands(match[2])
+    const expl = getInstructionExplanation(instruction, operands, mode)
+    return { instruction, operands, raw: instrString, explanation: expl }
+  }
 
-    // Get shared suffix outputs
-    const suffixParts = structure.sharedSuffix
-      .map(s => getInstructionExplanationFromString(s, mode))
-      .filter(Boolean)
+  // Format a single instruction as "TAG → action"
+  const formatInstr = (instr: { instruction: string; operands: string[]; explanation: string | null }) => {
+    const tag = instr.operands[0] || ''
+    const action = instr.explanation || `${instr.instruction}(${instr.operands.join(', ')})`
+    return `${tag} → ${action}`
+  }
 
-    if (structure.hasBranches && structure.branches.some(b => b.length > 0)) {
-      // Has parallel branches
-      const nonEmptyBranches = structure.branches.filter(b => b.length > 0)
+  // Get shared prefix (main conditions)
+  const prefixParts = structure.sharedPrefix
+    .map(s => getInstrDetails(s))
+    .filter(Boolean) as { instruction: string; operands: string[]; raw: string; explanation: string | null }[]
 
-      if (nonEmptyBranches.length > 1) {
-        // Multiple non-empty branches
-        explanation = 'When '
-        if (prefixConditions.length > 0) {
-          explanation += prefixConditions.map(c => c!.explanation).join(' AND ')
-          explanation += ', one of these parallel paths executes:\n'
-        } else {
-          explanation += 'one of these parallel paths executes:\n'
-        }
+  const prefixConditions = prefixParts.filter(p => isConditionInstruction(p.instruction))
 
-        nonEmptyBranches.forEach((branch, idx) => {
-          const branchParts = branch
-            .map(s => getInstructionExplanationFromString(s, mode))
-            .filter(Boolean)
+  // Get shared suffix
+  const suffixParts = structure.sharedSuffix
+    .map(s => getInstrDetails(s))
+    .filter(Boolean) as { instruction: string; operands: string[]; raw: string; explanation: string | null }[]
 
-          const branchConditions = branchParts.filter(p => isConditionInstruction(p!.instruction))
-          const branchOutputs = branchParts.filter(p => !isConditionInstruction(p!.instruction))
+  if (structure.hasBranches && structure.branches.some(b => b.length > 0)) {
+    // Has parallel branches
+    const nonEmptyBranches = structure.branches.filter(b => b.length > 0)
 
-          explanation += `  ${idx + 1}. `
-          if (branchConditions.length > 0) {
-            explanation += `If ${branchConditions.map(c => c!.explanation).join(' AND ')}`
-          }
-          if (branchOutputs.length > 0) {
-            if (branchConditions.length > 0) explanation += ' → '
-            explanation += branchOutputs.map(o => o!.explanation).join(', ')
-          }
-          explanation += '\n'
-        })
-      } else if (nonEmptyBranches.length === 1) {
-        // Single non-empty branch (other branch was empty - unconditional parallel path)
-        const branchParts = nonEmptyBranches[0]
-          .map(s => getInstructionExplanationFromString(s, mode))
-          .filter(Boolean)
-
-        const branchConditions = branchParts.filter(p => isConditionInstruction(p!.instruction))
-        const branchOutputs = branchParts.filter(p => !isConditionInstruction(p!.instruction))
-
-        const allConditions = [...prefixConditions, ...branchConditions]
-        const allOutputs = [...branchOutputs]
-
-        if (allConditions.length > 0 && allOutputs.length > 0) {
-          explanation = `If ${allConditions.map(c => c!.explanation).join(' AND ')} → ${allOutputs.map(o => o!.explanation).join(', ')}`
-        } else if (allConditions.length > 0) {
-          explanation = `Check: ${allConditions.map(c => c!.explanation).join(' AND ')}`
-        } else if (allOutputs.length > 0) {
-          explanation = `Execute: ${allOutputs.map(o => o!.explanation).join(', ')}`
-        }
-      }
-
-      // Add suffix outputs
-      if (suffixParts.length > 0) {
-        explanation += `\nAlso: ${suffixParts.map(s => s!.explanation).join(', ')}`
-      }
-    } else {
-      // Simple linear rung - no branches
-      const conditions = allInstructions.filter(i => isConditionInstruction(i.instruction))
-      const outputs = allInstructions.filter(i => !isConditionInstruction(i.instruction))
-
-      if (conditions.length > 0 && outputs.length > 0) {
-        explanation = `If ${conditions.map(c => c.explanation).join(' AND ')} → ${outputs.map(o => o.explanation).join(', ')}`
-      } else if (conditions.length > 0) {
-        explanation = `Check: ${conditions.map(c => c.explanation).join(' AND ')}`
-      } else if (outputs.length > 0) {
-        explanation = `Execute: ${outputs.map(o => o.explanation).join(', ')}`
-      }
+    // Main Condition
+    if (prefixConditions.length > 0) {
+      explanation = '**Main Condition:**\n'
+      prefixConditions.forEach(c => {
+        explanation += `${c.operands[0]} → ${c.explanation}\n`
+      })
     }
+
+    // Branches
+    if (nonEmptyBranches.length > 0) {
+      nonEmptyBranches.forEach((branch, idx) => {
+        const branchParts = branch
+          .map(s => getInstrDetails(s))
+          .filter(Boolean) as { instruction: string; operands: string[]; raw: string; explanation: string | null }[]
+
+        const branchConditions = branchParts.filter(p => isConditionInstruction(p.instruction))
+        const branchOutputs = branchParts.filter(p => !isConditionInstruction(p.instruction))
+
+        // Determine branch label based on content
+        let branchLabel = `Branch ${idx + 1}`
+        const hasConditions = branchConditions.length > 0
+        const hasJumpLogic = branchParts.some(p =>
+          p.instruction === 'MOV' && p.operands[1]?.toLowerCase().includes('gotostep')
+        )
+        const hasAdvanceLogic = branchParts.some(p =>
+          (p.instruction === 'OTL' || p.instruction === 'OTE') &&
+          (p.operands[0]?.toLowerCase().includes('advance') || p.operands[0]?.toLowerCase().includes('inp_advance'))
+        )
+        const hasCopToHmi = branchParts.some(p =>
+          p.instruction === 'COP' && (p.operands[1]?.toLowerCase().includes('hmi') || p.operands[0]?.toLowerCase().includes('sts'))
+        )
+        const hasOnlyBitOutputs = branchOutputs.length > 0 && branchOutputs.every(p => ['OTE', 'OTL', 'OTU'].includes(p.instruction))
+
+        if (hasConditions && hasJumpLogic) {
+          branchLabel = `Branch ${idx + 1} (Wait → Jump)`
+        } else if (hasConditions && hasAdvanceLogic) {
+          branchLabel = `Branch ${idx + 1} (Wait → Advance)`
+        } else if (hasCopToHmi) {
+          branchLabel = `Branch ${idx + 1} (HMI Update)`
+        } else if (hasOnlyBitOutputs && !hasConditions) {
+          branchLabel = `Branch ${idx + 1} (Control)`
+        } else if (['TON', 'TOF', 'RTO'].some(t => branchParts.some(p => p.instruction === t))) {
+          branchLabel = `Branch ${idx + 1} (Timer)`
+        } else if (['CTU', 'CTD'].some(t => branchParts.some(p => p.instruction === t))) {
+          branchLabel = `Branch ${idx + 1} (Counter)`
+        } else if (hasConditions && hasOnlyBitOutputs) {
+          branchLabel = `Branch ${idx + 1} (Conditional Output)`
+        }
+
+        explanation += `\n**${branchLabel}:**\n`
+
+        // List all instructions in the branch
+        branchParts.forEach(p => {
+          // For COP, show destination instead of source
+          let tag = p.operands[0] || p.instruction
+          if (p.instruction === 'COP' && p.operands[1]) {
+            tag = p.operands[1]
+          }
+          // For MOV to specific destinations, show the destination
+          if (p.instruction === 'MOV' && p.operands[1]) {
+            tag = p.operands[1]
+          }
+          explanation += `${tag} → ${p.explanation}\n`
+        })
+      })
+    }
+
+    // Suffix
+    if (suffixParts.length > 0) {
+      explanation += '\n**Also:**\n'
+      suffixParts.forEach(s => {
+        explanation += `${s.operands[0] || s.instruction} → ${s.explanation}\n`
+      })
+    }
+
   } else {
-    // Technical/Operator mode - use structured list
+    // Simple linear rung - no branches
     const conditions = allInstructions.filter(i => isConditionInstruction(i.instruction))
     const outputs = allInstructions.filter(i => !isConditionInstruction(i.instruction))
 
     if (conditions.length > 0) {
-      explanation = 'CONDITIONS:\n'
+      explanation = '**Conditions:**\n'
       conditions.forEach(c => {
-        explanation += `  • ${c.explanation}\n`
+        explanation += `${c.operands[0] || c.instruction} → ${c.explanation}\n`
       })
     }
+
     if (outputs.length > 0) {
       if (conditions.length > 0) explanation += '\n'
-      explanation += 'ACTIONS:\n'
+      explanation += '**Actions:**\n'
       outputs.forEach(o => {
-        explanation += `  • ${o.explanation}\n`
+        explanation += `${o.operands[0] || o.instruction} → ${o.explanation}\n`
       })
     }
+  }
+
+  // Add quick checks (fast visual things to verify first)
+  const quickChecks = allInstructions
+    .filter(i => i.device?.quickChecks && i.device.quickChecks.length > 0)
+    .flatMap(i => i.device!.quickChecks!)
+
+  if (quickChecks.length > 0) {
+    const uniqueChecks = Array.from(new Set(quickChecks)).slice(0, 4)
+    explanation += '\n\n👀 **Quick Checks:** ' + uniqueChecks.join(' • ')
   }
 
   // Add troubleshooting tips (limit to 3 unique tips)
@@ -4877,7 +7471,7 @@ export function generateFullRungExplanation(
 
   if (troubleshootingTips.length > 0) {
     const uniqueTips = Array.from(new Set(troubleshootingTips)).slice(0, 3)
-    explanation += '\n\n💡 Tips: ' + uniqueTips.join(' • ')
+    explanation += '\n\n🔧 **Troubleshooting:** ' + uniqueTips.join(' • ')
   }
 
   if (includeRaw) {
