@@ -88,32 +88,56 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
   let projectName = 'RSLogix 500 Project'
   let processorType = 'SLC 500'
 
-  // Strategy 1: Look for decompressed streams with recognizable content
+  // Strategy 1: Look specifically for PROGRAM FILES stream (contains ladder logic)
   for (const stream of streams) {
-    const dataToCheck = stream.decompressed || stream.content
-    const text = dataToCheck.toString('latin1')
+    if (stream.path.includes('PROGRAM FILES') && !stream.path.includes('ONLINEIMAGE')) {
+      programData = stream.decompressed || stream.content
+      console.log(`[RSS Parser] Using PROGRAM FILES stream: ${stream.path} (${programData.length} bytes)`)
+      break
+    }
+  }
 
-    // Check for program markers
-    if (text.includes('LAD') || text.includes('MAIN') || text.includes('SBR') ||
-        text.includes('Rung') || text.includes('END')) {
-      console.log(`[RSS Parser] Found program markers in: ${stream.path}`)
-      programData = dataToCheck
+  // Strategy 2: Look for DATA FILES stream (contains tag/address data)
+  let dataFilesStream: Buffer | null = null
+  for (const stream of streams) {
+    if (stream.path.includes('DATA FILES') && !stream.path.includes('Extensional') && !stream.path.includes('ONLINEIMAGE')) {
+      dataFilesStream = stream.decompressed || stream.content
+      console.log(`[RSS Parser] Found DATA FILES stream: ${stream.path} (${dataFilesStream.length} bytes)`)
+      break
+    }
+  }
 
-      // Try to extract name
-      const nameMatch = text.match(/MAIN|LAD\s*\d+|([A-Z][A-Z0-9_]{2,20})/i)
+  // Strategy 3: Try COMPILER stream which may have symbol info
+  let compilerStream: Buffer | null = null
+  for (const stream of streams) {
+    if (stream.path.includes('COMPILER') && !stream.path.includes('ONLINEIMAGE')) {
+      compilerStream = stream.decompressed || stream.content
+      console.log(`[RSS Parser] Found COMPILER stream: ${stream.path} (${compilerStream.length} bytes)`)
+      break
+    }
+  }
+
+  // Extract project name from PROCESSOR stream
+  for (const stream of streams) {
+    if (stream.path.includes('PROCESSOR') && !stream.path.includes('ONLINEIMAGE')) {
+      const text = (stream.decompressed || stream.content).toString('latin1')
+      // Look for project name patterns
+      const nameMatch = text.match(/LANLOGIX|([A-Z][A-Z0-9_]{3,15})/i)
       if (nameMatch) {
         projectName = nameMatch[0]
+        console.log(`[RSS Parser] Found project name: ${projectName}`)
       }
       break
     }
   }
 
-  // Strategy 2: Use the largest decompressed stream
+  // Fallback: Use the largest stream that's not PROCESSOR
   if (!programData) {
     let largestStream: { path: string; content: Buffer; decompressed?: Buffer } | null = null
     let largestSize = 0
 
     for (const stream of streams) {
+      if (stream.path.includes('PROCESSOR')) continue // Skip processor metadata
       const size = stream.decompressed?.length || stream.content.length
       if (size > largestSize) {
         largestSize = size
@@ -123,7 +147,7 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
 
     if (largestStream) {
       programData = largestStream.decompressed || largestStream.content
-      console.log(`[RSS Parser] Using largest stream: ${largestStream.path} (${programData.length} bytes)`)
+      console.log(`[RSS Parser] Fallback - using largest stream: ${largestStream.path} (${programData.length} bytes)`)
     }
   }
 
@@ -182,9 +206,24 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     processorType = 'MicroLogix'
   }
 
-  // Extract all visible addresses from the binary
+  // Extract all visible addresses from multiple streams
   const addresses = extractAddresses(text)
-  console.log(`[RSS Parser] Found ${addresses.size} unique addresses`)
+
+  // Also scan DATA FILES and COMPILER streams for addresses
+  if (dataFilesStream) {
+    const dataText = dataFilesStream.toString('latin1')
+    const dataAddrs = extractAddresses(dataText)
+    dataAddrs.forEach(a => addresses.add(a))
+    console.log(`[RSS Parser] DATA FILES added ${dataAddrs.size} addresses`)
+  }
+  if (compilerStream) {
+    const compText = compilerStream.toString('latin1')
+    const compAddrs = extractAddresses(compText)
+    compAddrs.forEach(a => addresses.add(a))
+    console.log(`[RSS Parser] COMPILER added ${compAddrs.size} addresses`)
+  }
+
+  console.log(`[RSS Parser] Total unique addresses: ${addresses.size}`)
 
   // Convert addresses to tags
   const tags: PlcTag[] = []
@@ -195,7 +234,7 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     }
   }
 
-  // Try to extract ladder logic structure
+  // Try to extract ladder logic structure from PROGRAM FILES
   let rungs = extractRungs(programData, text, addresses)
   console.log(`[RSS Parser] Extracted ${rungs.length} rungs`)
 
@@ -285,6 +324,32 @@ function extractAddresses(text: string): Set<string> {
  */
 function extractRungs(data: Buffer, text: string, addresses: Set<string>): PlcRung[] {
   const rungs: PlcRung[] = []
+
+  // Log some binary analysis
+  console.log(`[RSS Parser] PROGRAM FILES size: ${data.length} bytes`)
+
+  // RSLogix 500 PROGRAM FILES format analysis:
+  // The file has a header followed by ladder file entries
+  // Each ladder file (LAD 2, 3, etc.) contains rungs
+  // Rungs contain instruction opcodes and operand references
+
+  // Try to find rung boundaries by looking for patterns
+  // RSLogix 500 often uses 0xFF or specific byte patterns as delimiters
+
+  // Strategy 0: Try to parse binary structure
+  // Look for repeating patterns that might indicate rung boundaries
+  const rungCandidates: number[] = []
+  for (let i = 0; i < data.length - 4; i++) {
+    // Look for potential rung start markers
+    // Common patterns: 0x00 0x00 followed by instruction data
+    if (data[i] === 0x00 && data[i + 1] === 0x00 && data[i + 2] !== 0x00 && data[i + 3] !== 0x00) {
+      // Could be a rung boundary
+      if (rungCandidates.length === 0 || i - rungCandidates[rungCandidates.length - 1] > 10) {
+        rungCandidates.push(i)
+      }
+    }
+  }
+  console.log(`[RSS Parser] Found ${rungCandidates.length} potential rung boundaries`)
 
   // Strategy 1: Look for instruction mnemonics in the text
   const instructionPattern = /\b(XIC|XIO|OTE|OTL|OTU|ONS|OSR|OSF|TON|TOF|RTO|CTU|CTD|RES|ADD|SUB|MUL|DIV|MOV|MVM|COP|FLL|EQU|NEQ|LES|LEQ|GRT|GEQ|LIM|MEQ|JMP|LBL|JSR|SBR|RET|MCR|SQO|SQI|SQC|SQL|BSL|BSR|FFL|FFU|LFL|LFU|MSG|PID|AND|OR|XOR|NOT|NEG|CLR|ABS|SQR|CPT|DDV|FRD|TOD|DCD|ENC)\b/gi
