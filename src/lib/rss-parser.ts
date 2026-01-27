@@ -357,8 +357,13 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     processorType = 'MicroLogix'
   }
 
+  // Analyze instruction opcodes in the binary data
+  console.log('[RSS Parser] Analyzing instruction opcodes...')
+  const opcodeMap = analyzeInstructionOpcodes(programData)
+  console.log(`[RSS Parser] Analyzed ${opcodeMap.size} instruction opcodes`)
+
   // Try to parse binary ladder structure first
-  const binaryResult = parseBinaryLadder(programData)
+  const binaryResult = parseBinaryLadder(programData, opcodeMap)
   console.log(`[RSS Parser] Binary parsing found ${binaryResult.rungs.length} rungs, ${binaryResult.addresses.size} addresses, ${binaryResult.ladderFiles.length} ladder files`)
 
   // Extract all visible addresses from text as fallback
@@ -449,6 +454,82 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
 }
 
 /**
+ * Analyze binary data to find instruction opcodes before addresses
+ * RSLogix 500 stores instructions with metadata bytes before the address string
+ */
+function analyzeInstructionOpcodes(data: Buffer): Map<string, { opcode: number, rawBytes: string }> {
+  const results = new Map<string, { opcode: number, rawBytes: string }>()
+  const text = data.toString('latin1')
+
+  // Find each address and look at bytes before it
+  const addrPattern = /([BIOTCRNFSAL]\d+:\d+(?:\/\d+)?(?:\.[A-Z]+)?)/gi
+  let match
+
+  // Sample first 50 addresses for pattern analysis
+  let count = 0
+  const opcodePatterns: Map<string, number[]> = new Map()
+
+  while ((match = addrPattern.exec(text)) !== null && count < 100) {
+    const addr = match[0].toUpperCase()
+    const pos = match.index
+
+    // Get bytes before the address (instruction metadata area)
+    // The address is preceded by a length byte, and before that is instruction data
+    if (pos >= 20) {
+      const beforeBytes = data.subarray(pos - 20, pos)
+      const hexBefore = beforeBytes.toString('hex')
+
+      // Look for the length byte that precedes the address string
+      // Format appears to be: [instruction data][length byte][address string]
+      const addrLen = addr.length
+      const lengthBytePos = pos - 1
+      const lengthByte = data[lengthBytePos]
+
+      if (lengthByte === addrLen || lengthByte === addrLen + 1) {
+        // Found the length byte, instruction data is before it
+        // Look at bytes before the length byte
+        const instBytes = data.subarray(pos - 10, pos - 1)
+
+        // The instruction opcode appears to be in a specific position
+        // Based on the pattern: ... [4 bytes] [opcode area] [length] [address]
+        // Let's extract potential opcode bytes
+        const opcodeArea = data.subarray(pos - 6, pos - 1)
+
+        if (count < 20) {
+          console.log(`[RSS Opcode] ${addr}: preceding bytes = ${opcodeArea.toString('hex')}`)
+        }
+
+        // Try to identify opcode from the byte pattern
+        // Looking at position -4 or -5 from address start (after length byte)
+        const potentialOpcode = data[pos - 4] || data[pos - 5]
+
+        results.set(`${pos}:${addr}`, {
+          opcode: potentialOpcode,
+          rawBytes: opcodeArea.toString('hex')
+        })
+
+        // Track patterns by address type for analysis
+        const addrType = addr.charAt(0)
+        if (!opcodePatterns.has(addrType)) {
+          opcodePatterns.set(addrType, [])
+        }
+        opcodePatterns.get(addrType)!.push(potentialOpcode)
+      }
+    }
+    count++
+  }
+
+  // Log pattern analysis
+  console.log('[RSS Opcode] Pattern analysis by address type:')
+  for (const [addrType, opcodes] of opcodePatterns) {
+    const uniqueOpcodes = [...new Set(opcodes)].slice(0, 10)
+    console.log(`  ${addrType}: opcodes seen = ${uniqueOpcodes.map(o => '0x' + o.toString(16).padStart(2, '0')).join(', ')}`)
+  }
+
+  return results
+}
+
+/**
  * Create instructions from a list of addresses
  * Infers instruction type based on address type and position
  */
@@ -502,7 +583,7 @@ function createInstructionsFromAddresses(addrs: string[]): PlcInstruction[] {
  * RSLogix 500 stores ladder data with text markers and ASCII addresses
  * Structure: CProgHolder > CLadFile > CRung > CIns/CBranchLeg
  */
-function parseBinaryLadder(data: Buffer): { rungs: PlcRung[], addresses: Set<string>, ladderFiles: string[] } {
+function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, { opcode: number, rawBytes: string }>): { rungs: PlcRung[], addresses: Set<string>, ladderFiles: string[] } {
   const rungs: PlcRung[] = []
   const addresses = new Set<string>()
   const ladderFiles: string[] = []
