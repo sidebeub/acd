@@ -1533,28 +1533,52 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     for (const rungIdx of rungIndicesToProcess) {
       const group = addressesByRung.get(rungIdx) || []
 
-      // First pass: detect parallel paths and assign branchLeg
-      // A new parallel path (row) starts when an instruction has a "clean marker" pattern
-      // The clean marker indicates the start of a new visual row in ladder logic
-      let currentBranchLeg = 0
+      // Detect parallel paths using multiple methods:
+      // 1. CBranchLeg text markers (already set in addr.branchLeg from getBranchLeg)
+      // 2. Binary "clean marker" pattern (isNewParallelPath)
+      // 3. branchStart markers
 
-      for (let i = 0; i < group.length; i++) {
-        const addr = group[i]
+      // Check if any instruction already has branchLeg from CBranchLeg detection
+      const hasCBranchLegInfo = group.some(addr => addr.branchLeg !== undefined && addr.branchLeg > 0)
 
-        // Check if this starts a new parallel path (new visual row)
-        // First instruction in rung is always branchLeg 0
-        if (i > 0 && isNewParallelPath(addr.pos)) {
-          currentBranchLeg++
-          addr.branchStart = true  // Mark this as start of new branch
+      if (!hasCBranchLegInfo) {
+        // No CBranchLeg info - try binary pattern detection
+        let currentBranchLeg = 0
+
+        for (let i = 0; i < group.length; i++) {
+          const addr = group[i]
+
+          // Check if this starts a new parallel path (new visual row)
+          // First instruction in rung is always branchLeg 0
+          if (i > 0 && isNewParallelPath(addr.pos)) {
+            currentBranchLeg++
+            addr.branchStart = true  // Mark this as start of new branch
+          }
+
+          // Assign branch leg to this address
+          addr.branchLeg = currentBranchLeg
         }
-
-        // Assign branch leg to this address
-        addr.branchLeg = currentBranchLeg
+      } else {
+        // Use CBranchLeg-based detection - mark branchStart for each new leg
+        let lastLeg = -1
+        for (const addr of group) {
+          const leg = addr.branchLeg ?? 0
+          if (leg !== lastLeg && leg > 0) {
+            addr.branchStart = true
+          }
+          lastLeg = leg
+        }
       }
 
       // Trust the rung boundaries from 07 80 09 80 pattern
       // Each group is one rung - include even if empty
       splitRungGroups.push(group)
+
+      // Debug: log branch distribution for this rung
+      const branchLegsInRung = new Set(group.map(a => a.branchLeg ?? 0))
+      if (branchLegsInRung.size > 1) {
+        console.log(`[RSS Parser] Rung ${rungIdx} has ${branchLegsInRung.size} branch legs: ${[...branchLegsInRung].join(', ')}`)
+      }
     }
 
     const rungs: PlcRung[] = []
