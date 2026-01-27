@@ -1224,6 +1224,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
   }
 
   // Helper to check if a position is inside a branch leg
+  // Uses text-based CBranchLeg/CBranch region detection
   function getBranchLeg(pos: number): number | undefined {
     for (const region of branchRegions) {
       if (pos > region.legStart && pos < region.branchEnd) {
@@ -1231,6 +1232,29 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       }
     }
     return undefined
+  }
+
+  // Helper to detect if an instruction starts a new parallel path
+  // New parallel paths have a "clean marker" pattern: 00 00 00 00 01 00 XX 0b 80 01 00 LL <address>
+  // The pattern is at fixed positions relative to the address:
+  // pos-12: 00, pos-11: 00, pos-10: 00, pos-9: 00, pos-8: 01, pos-7: 00, pos-6: XX, pos-5: 0b, pos-4: 80
+  // Continuation instructions have different bytes at pos-12 through pos-9 (not all zeros)
+  function isNewParallelPath(pos: number): boolean {
+    if (pos < 12) return false
+
+    // Check for clean marker pattern
+    // The 0b 80 at pos-5, pos-4
+    if (data[pos - 5] !== 0x0b || data[pos - 4] !== 0x80) {
+      return false
+    }
+
+    // Check for the clean pattern: 00 00 00 00 01 00 at pos-12 to pos-7
+    return data[pos - 12] === 0x00 &&
+           data[pos - 11] === 0x00 &&
+           data[pos - 10] === 0x00 &&
+           data[pos - 9] === 0x00 &&
+           data[pos - 8] === 0x01 &&
+           data[pos - 7] === 0x00
   }
 
   // Track opcode distribution for debugging
@@ -1357,6 +1381,17 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
   console.log(`[RSS Parser] Found ${allAddresses.length} addresses total`)
 
+  // Log branch level distribution
+  const branchLevelCounts = new Map<number | undefined, number>()
+  for (const addr of allAddresses) {
+    const level = addr.branchLeg
+    branchLevelCounts.set(level, (branchLevelCounts.get(level) || 0) + 1)
+  }
+  console.log('[RSS Parser] Branch level distribution:')
+  for (const [level, count] of branchLevelCounts.entries()) {
+    console.log(`  Level ${level ?? 'main'}: ${count} addresses`)
+  }
+
   // Determine which ladder file each position belongs to
   function getLadderFileForPos(pos: number): string {
     for (const lf of ladderFileInfos) {
@@ -1440,15 +1475,41 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       addressesByRung.get(rungIdx)!.push(addr)
     }
 
-    // Further split rung groups on output instructions
-    // This handles cases where binary markers are too coarse
-    // BUT: Don't split parallel output branches (multiple outputs in same rung)
+    // Process rung groups: detect parallel paths within each rung and assign branchLeg
+    // Then split only rungs without parallel paths
     const splitRungGroups: ParsedAddress[][] = []
     const sortedRungIndices = [...addressesByRung.keys()].sort((a, b) => a - b)
     for (const rungIdx of sortedRungIndices) {
       const group = addressesByRung.get(rungIdx)!
       if (group.length === 0) continue
 
+      // First pass: detect parallel paths and assign branchLeg
+      // A new parallel path (row) starts when an instruction has a "clean marker" pattern
+      // The clean marker indicates the start of a new visual row in ladder logic
+      let currentBranchLeg = 0
+      let hasParallelPaths = false
+
+      for (let i = 0; i < group.length; i++) {
+        const addr = group[i]
+
+        // Check if this starts a new parallel path (new visual row)
+        // First instruction in rung is always branchLeg 0
+        if (i > 0 && isNewParallelPath(addr.pos)) {
+          currentBranchLeg++
+          hasParallelPaths = true
+        }
+
+        // Assign branch leg to this address
+        addr.branchLeg = currentBranchLeg
+      }
+
+      // If this rung has parallel paths, keep it as one rung
+      if (hasParallelPaths) {
+        splitRungGroups.push(group)
+        continue
+      }
+
+      // No parallel paths detected - use the old splitting logic
       let currentGroup: ParsedAddress[] = []
       for (let i = 0; i < group.length; i++) {
         const addr = group[i]
@@ -1459,7 +1520,6 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         const hasMoreInstructions = i < group.length - 1
 
         // If this is an output and there are more instructions, consider splitting
-        // But we need to detect parallel output branches
         if (isOutput && hasMoreInstructions) {
           const nextAddr = group[i + 1]
           const sameTimerCounter = addr.addr.match(/^[TC]\d+:/) && nextAddr.addr.match(/^[TC]\d+:/) &&
@@ -1468,22 +1528,14 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           // Don't split if it's the same timer/counter (e.g., T4:14 and T4:14.DN)
           if (sameTimerCounter) continue
 
-          // Don't split if both are in the same branch leg
-          const sameBranch = addr.branchLeg !== undefined && addr.branchLeg === nextAddr.branchLeg
-          if (sameBranch) continue
-
-          // Check if we're in a parallel output branch structure
-          // Parallel branches have pattern: output followed by input(s) followed by output
-          // If the gap between instructions is small, they might be parallel branches
+          // Check position gap - large gaps suggest new rungs, small gaps suggest same rung
           const posGap = nextAddr.pos - addr.pos
-          const isSmallGap = posGap < 200 // Parallel branches are typically close together
+          const isSmallGap = posGap < 150
 
-          // Check if there's a pattern suggesting parallel outputs:
-          // Look ahead to see if there's another output soon (within next 5 instructions)
+          // Check if there's another output nearby
           let hasNearbyOutput = false
           for (let k = i + 1; k < Math.min(i + 6, group.length); k++) {
             if (outputInstructionTypes.includes(group[k].instType)) {
-              // Found another output nearby - likely parallel branches
               const gapToNextOutput = group[k].pos - addr.pos
               if (gapToNextOutput < 400) {
                 hasNearbyOutput = true

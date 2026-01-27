@@ -1293,59 +1293,91 @@ function organizeBranches(instructions: Instruction[]): { rows: Instruction[][];
   if (instructions.length === 0) return { rows: [[]], hasBranches: false }
 
   // Check if we have any branches (support both L5X branch_level and RSS branchLeg)
-  const hasBranches = instructions.some(i => (i.branch_level ?? 0) > 0 || (i.branchLeg ?? 0) > 0)
+  const hasBranchInstructions = instructions.some(i => (i.branch_level ?? 0) > 0 || (i.branchLeg ?? 0) > 0)
 
-  if (!hasBranches) {
+  if (!hasBranchInstructions) {
     // No branches - single row
     return { rows: [instructions], hasBranches: false }
   }
 
-  // Group by parallel_index/branchLeg
-  const rows: Instruction[][] = []
-  const mainPath: Instruction[] = []
-  const branchGroups: Map<number, Instruction[]> = new Map()
-
   // Separate main path from branched instructions
+  const mainPath: Instruction[] = []
+  const branchedInstructions: Instruction[] = []
+
   for (const inst of instructions) {
     // Support both L5X (branch_level) and RSS (branchLeg) formats
     const level = inst.branch_level ?? inst.branchLeg ?? 0
-    const parallel = inst.parallel_index ?? inst.branchLeg ?? 0
 
     if (level === 0) {
       mainPath.push(inst)
     } else {
-      if (!branchGroups.has(parallel)) {
-        branchGroups.set(parallel, [])
-      }
-      branchGroups.get(parallel)!.push(inst)
+      branchedInstructions.push(inst)
     }
   }
 
-  // Find where branches start/end in main path
-  // For now, simple approach: main path first row, then branch rows
+  // If no main path, put first branched instruction on main
+  if (mainPath.length === 0 && branchedInstructions.length > 0) {
+    // All instructions are branched - find common inputs (typically at start)
+    // For now, just put everything in a single row with visual indication
+    return { rows: [instructions], hasBranches: false }
+  }
+
+  // Group branched instructions by their level/leg number
+  // For RSS files, different branchLeg values indicate different parallel legs
+  const branchGroups: Map<number, Instruction[]> = new Map()
+  for (const inst of branchedInstructions) {
+    const legNum = inst.branchLeg ?? inst.parallel_index ?? inst.branch_level ?? 1
+    if (!branchGroups.has(legNum)) {
+      branchGroups.set(legNum, [])
+    }
+    branchGroups.get(legNum)!.push(inst)
+  }
+
+  // Sort branch groups by leg number
   const sortedBranches = Array.from(branchGroups.entries()).sort((a, b) => a[0] - b[0])
   const numBranchRows = sortedBranches.length
 
-  // Build rows
-  // Row 0: main path before branches + first branch + main path after branches
-  // Row 1+: additional parallel branches
+  // Build rows for visualization
+  // Row 0: Main path (inputs and outputs on the main line)
+  // Row 1+: Each parallel branch leg
+  const rows: Instruction[][] = []
 
   if (numBranchRows === 0) {
+    // No actual branch groups, just main path
     rows.push(mainPath)
-  } else {
-    // First row: main path with first branch inline
-    const firstBranch = sortedBranches[0]?.[1] || []
-    rows.push([...mainPath.filter(i => i.is_input !== false), ...firstBranch, ...mainPath.filter(i => i.is_input === false)])
+    return { rows, hasBranches: false }
+  }
 
-    // Additional rows for other parallel branches
-    for (let i = 1; i < sortedBranches.length; i++) {
-      const branchInsts = sortedBranches[i][1]
-      // These rows only have the branched instructions
-      rows.push(branchInsts)
+  // Separate main path into inputs (before branches) and outputs (after branches)
+  // Heuristic: output instructions come after the last branched instruction
+  const lastBranchedPos = Math.max(...branchedInstructions.map((_, i) => {
+    const origIdx = instructions.indexOf(branchedInstructions[i])
+    return origIdx
+  }))
+
+  const mainInputs: Instruction[] = []
+  const mainOutputs: Instruction[] = []
+
+  for (const inst of mainPath) {
+    const origIdx = instructions.indexOf(inst)
+    if (origIdx < lastBranchedPos) {
+      mainInputs.push(inst)
+    } else {
+      mainOutputs.push(inst)
     }
   }
 
-  return { rows, hasBranches: numBranchRows > 1 }
+  // Row 0: Main path inputs + first branch + main path outputs
+  const firstBranch = sortedBranches[0]?.[1] || []
+  rows.push([...mainInputs, ...firstBranch, ...mainOutputs])
+
+  // Row 1+: Additional parallel branches (only the branched instructions)
+  for (let i = 1; i < sortedBranches.length; i++) {
+    rows.push(sortedBranches[i][1])
+  }
+
+  // hasBranches is true if we have any branch rows
+  return { rows, hasBranches: numBranchRows >= 1 }
 }
 
 // Main ladder visualization component with branch support
