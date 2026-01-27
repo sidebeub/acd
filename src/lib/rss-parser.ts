@@ -1389,8 +1389,9 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     // Sort addresses by position
     fileAddresses.sort((a, b) => a.pos - b.pos)
 
-    // First pass: identify likely output instructions based on position within rung
-    // The last bit-file address before a rung boundary is likely an output
+    // First pass: identify likely output instructions based on patterns
+    // In ladder logic, outputs typically come after inputs in each rung
+    // We look for patterns where a bit address follows input addresses
     for (let i = 0; i < fileAddresses.length; i++) {
       const addr = fileAddresses[i]
       const nextAddr = fileAddresses[i + 1]
@@ -1403,11 +1404,26 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       const nextRungIdx = nextAddr ? getRungIndex(nextAddr.pos) : currentRungIdx + 1
       const isLastInRung = nextRungIdx > currentRungIdx
 
-      // Only B (bit) file addresses at end of rung are likely outputs
+      // B (bit) file addresses can be outputs
       const isBitFileAddress = /^B\d+:\d+\/\d+$/.test(addr.addr)
 
-      if (addr.instType === 'XIC' && (isPhysicalOutput || (isBitFileAddress && isLastInRung))) {
-        addr.instType = 'OTE'
+      // Check if next address is an input type (N11:, I:, etc. - typically status/input bits)
+      const nextIsInputType = nextAddr && (
+        nextAddr.addr.startsWith('N11:') ||  // Status bits
+        nextAddr.addr.startsWith('I:') ||     // Physical inputs
+        nextAddr.addr.match(/^N\d+:\d+\/\d+$/) // Integer bit references
+      )
+
+      // This address is likely an output if:
+      // 1. It's a physical output (O:)
+      // 2. It's a B file address AND (last in rung OR followed by input-type address)
+      // 3. It's NOT an input-type address itself
+      const isNotInputType = !addr.addr.startsWith('N11:') && !addr.addr.startsWith('I:')
+
+      if (addr.instType === 'XIC' && isNotInputType) {
+        if (isPhysicalOutput || (isBitFileAddress && (isLastInRung || nextIsInputType))) {
+          addr.instType = 'OTE'
+        }
       }
     }
 
