@@ -1310,105 +1310,41 @@ function organizeBranches(instructions: Instruction[]): { rows: Instruction[][];
     return { rows: [instructions], hasBranches: false }
   }
 
-  // Separate main path from branched instructions
-  const mainPath: Instruction[] = []
-  const branchedInstructions: Instruction[] = []
+  // Group ALL instructions by their branch leg number
+  // branchLeg 0 or undefined = main path
+  // branchLeg 1, 2, 3... = parallel branches
+  const branchGroups: Map<number, Instruction[]> = new Map()
 
   for (const inst of instructions) {
-    // Support both L5X (branch_level) and RSS (branchLeg) formats
-    const level = inst.branch_level ?? inst.branchLeg ?? 0
-
-    if (level === 0) {
-      mainPath.push(inst)
-    } else {
-      branchedInstructions.push(inst)
-    }
-  }
-
-  // If no main path, put first branched instruction on main
-  if (mainPath.length === 0 && branchedInstructions.length > 0) {
-    // All instructions are branched - find common inputs (typically at start)
-    // For now, just put everything in a single row with visual indication
-    return { rows: [instructions], hasBranches: false }
-  }
-
-  // Group branched instructions by their level/leg number
-  // For RSS files, different branchLeg values indicate different parallel legs
-  const branchGroups: Map<number, Instruction[]> = new Map()
-  for (const inst of branchedInstructions) {
-    const legNum = inst.branchLeg ?? inst.parallel_index ?? inst.branch_level ?? 1
+    const legNum = inst.branchLeg ?? inst.branch_level ?? 0
     if (!branchGroups.has(legNum)) {
       branchGroups.set(legNum, [])
     }
     branchGroups.get(legNum)!.push(inst)
   }
 
-  // Sort branch groups by leg number
+  // Sort branch groups by leg number (0 = main, then 1, 2, 3...)
   const sortedBranches = Array.from(branchGroups.entries()).sort((a, b) => a[0] - b[0])
-  const numBranchRows = sortedBranches.length
 
-  // Build rows for visualization
-  // Row 0: Main path (inputs and outputs on the main line)
-  // Row 1+: Each parallel branch leg
+  // Build rows - each branch leg becomes its own row
   const rows: Instruction[][] = []
   const branchRows: BranchRow[] = []
 
-  if (numBranchRows === 0) {
-    // No actual branch groups, just main path
-    rows.push(mainPath)
-    return { rows, hasBranches: false }
-  }
-
-  // Separate main path into inputs (before branches) and outputs (after branches)
-  // Heuristic: output instructions come after the last branched instruction
-  const lastBranchedPos = Math.max(...branchedInstructions.map((_, i) => {
-    const origIdx = instructions.indexOf(branchedInstructions[i])
-    return origIdx
-  }))
-
-  const mainInputs: Instruction[] = []
-  const mainOutputs: Instruction[] = []
-
-  for (const inst of mainPath) {
-    const origIdx = instructions.indexOf(inst)
-    if (origIdx < lastBranchedPos) {
-      mainInputs.push(inst)
-    } else {
-      mainOutputs.push(inst)
-    }
-  }
-
-  // Row 0: Main path inputs + first branch + main path outputs
-  const firstBranch = sortedBranches[0]?.[1] || []
-  const firstRowInsts = [...mainInputs, ...firstBranch, ...mainOutputs]
-  rows.push(firstRowInsts)
-
-  // Determine the nesting level for first branch - check if any instruction has branchLevel
-  const firstBranchLevel = firstBranch.length > 0 ? (firstBranch[0].branchLevel ?? 0) : 0
-  branchRows.push({
-    instructions: firstRowInsts,
-    branchLeg: sortedBranches[0]?.[0] ?? 0,
-    branchLevel: firstBranchLevel,
-    startsNewBranch: firstBranch.some(i => i.branchStart)
-  })
-
-  // Row 1+: Additional parallel branches (only the branched instructions)
-  for (let i = 1; i < sortedBranches.length; i++) {
-    const branchInsts = sortedBranches[i][1]
+  for (const [legNum, branchInsts] of sortedBranches) {
     rows.push(branchInsts)
 
-    // Get nesting level from the instructions themselves
+    // Get nesting level from the instructions
     const nestLevel = branchInsts.length > 0 ? (branchInsts[0].branchLevel ?? 0) : 0
     branchRows.push({
       instructions: branchInsts,
-      branchLeg: sortedBranches[i][0],
+      branchLeg: legNum,
       branchLevel: nestLevel,
       startsNewBranch: branchInsts.some(i => i.branchStart)
     })
   }
 
-  // hasBranches is true if we have any branch rows
-  return { rows, hasBranches: numBranchRows >= 1, branchRows }
+  // hasBranches is true if we have more than just the main path
+  return { rows, hasBranches: sortedBranches.length > 1, branchRows }
 }
 
 // Main ladder visualization component with branch support
