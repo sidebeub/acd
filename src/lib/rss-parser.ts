@@ -1127,12 +1127,36 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       rungStartPositions.push(i)
     }
   }
-  console.log(`[RSS Parser] Found ${rungStartPositions.length} rung start markers`)
+
+  // Also find CBranch markers (not CBranchLeg) which indicate visual rung boundaries
+  // CBranch appears between output of one rung and input of next rung
+  const cbranchMarker = 'CBranch'
+  let searchPos = 0
+  while (searchPos < text.length) {
+    const idx = text.indexOf(cbranchMarker, searchPos)
+    if (idx === -1) break
+    // Make sure it's not CBranchLeg
+    if (text.substring(idx, idx + 10) !== 'CBranchLeg') {
+      // The next instruction after CBranch is a new visual rung
+      // Find the position after CBranch where the next instruction marker would be
+      // CBranch is followed by instruction data, so add its position
+      rungStartPositions.push(idx)
+    }
+    searchPos = idx + cbranchMarker.length
+  }
+
+  // Sort and deduplicate rung positions
+  rungStartPositions.sort((a, b) => a - b)
+  const uniqueRungStarts = rungStartPositions.filter((pos, i) =>
+    i === 0 || pos - rungStartPositions[i - 1] > 20
+  )
+
+  console.log(`[RSS Parser] Found ${uniqueRungStarts.length} rung boundaries (including CBranch markers)`)
 
   // Helper function to determine which rung a position belongs to
   function getRungIndex(pos: number): number {
-    for (let i = rungStartPositions.length - 1; i >= 0; i--) {
-      if (pos >= rungStartPositions[i]) {
+    for (let i = uniqueRungStarts.length - 1; i >= 0; i--) {
+      if (pos >= uniqueRungStarts[i]) {
         return i
       }
     }
