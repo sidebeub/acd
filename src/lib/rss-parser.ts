@@ -1112,10 +1112,32 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
   const ladderFiles = ladderFileInfos.map(lf => lf.name)
   console.log(`[RSS Parser] Found ${ladderFiles.length} ladder files: ${ladderFiles.join(', ') || 'none'}`)
 
-  // NOTE: 1a 80 markers do NOT reliably mark rung boundaries
-  // Testing showed first addresses appear BEFORE any 1a 80 marker
-  // Instead, we'll use output-instruction-based grouping
-  console.log(`[RSS Parser] Using output-instruction-based rung grouping`)
+  // Find rung START markers: pattern 00 00 01 00 00 0b 80
+  // This pattern precedes the first instruction of each new rung
+  // Branch instructions have 00 00 01 00 XX 0b 80 where XX > 0
+  const rungStartPositions: number[] = []
+  for (let i = 0; i < data.length - 10; i++) {
+    if (data[i] === 0x00 &&
+        data[i+1] === 0x00 &&
+        data[i+2] === 0x01 &&
+        data[i+3] === 0x00 &&
+        data[i+4] === 0x00 &&  // Must be 00 for new rung (not branch)
+        data[i+5] === 0x0b &&
+        data[i+6] === 0x80) {
+      rungStartPositions.push(i)
+    }
+  }
+  console.log(`[RSS Parser] Found ${rungStartPositions.length} rung start markers`)
+
+  // Helper function to determine which rung a position belongs to
+  function getRungIndex(pos: number): number {
+    for (let i = rungStartPositions.length - 1; i >= 0; i--) {
+      if (pos >= rungStartPositions[i]) {
+        return i
+      }
+    }
+    return 0
+  }
 
   // Parse instructions using actual opcodes from binary
   // Format: [type byte at pos-6][0b][80][XX][00][length][address]
@@ -1337,20 +1359,14 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     console.log(`  "${name}": ${addrs.length} addresses (first pos: ${addrs[0]?.pos}, last pos: ${addrs[addrs.length - 1]?.pos})`)
   }
 
-  // Output instruction types that end a rung
-  const outputTypes = ['OTE', 'OTL', 'OTU', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'RES']
-
-  // Create rungs for each ladder file using output-based grouping
+  // Create rungs for each ladder file using rung START markers
+  // Each rung contains all addresses between consecutive markers
   for (const [fileName, fileAddresses] of addressesByFile) {
     // Sort addresses by position
     fileAddresses.sort((a, b) => a.pos - b.pos)
 
-    // First pass: identify likely output instructions based on position gaps
-    // The binary opcode doesn't reliably encode instruction type, so we use heuristics:
-    // - Physical output addresses (O:x) are always outputs
-    // - B file addresses (B:x/y) followed by large gap are likely outputs
-    // - N file addresses are typically inputs (used for status/control words)
-    // - Gaps between rungs are typically 70+ bytes, within rungs are 25-35 bytes
+    // First pass: identify likely output instructions based on position within rung
+    // The last bit-file address before a rung boundary is likely an output
     for (let i = 0; i < fileAddresses.length; i++) {
       const addr = fileAddresses[i]
       const nextAddr = fileAddresses[i + 1]
@@ -1358,39 +1374,42 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       // Physical output addresses are always outputs
       const isPhysicalOutput = addr.addr.startsWith('O:') || addr.addr.startsWith('O0:')
 
-      // Only B (bit) file addresses are likely outputs, N (integer) files are usually inputs
+      // Check if next address is in a different rung (using markers)
+      const currentRungIdx = getRungIndex(addr.pos)
+      const nextRungIdx = nextAddr ? getRungIndex(nextAddr.pos) : currentRungIdx + 1
+      const isLastInRung = nextRungIdx > currentRungIdx
+
+      // Only B (bit) file addresses at end of rung are likely outputs
       const isBitFileAddress = /^B\d+:\d+\/\d+$/.test(addr.addr)
 
-      // Check for large gap - indicates rung boundary
-      const gapToNext = nextAddr ? (nextAddr.pos - addr.pos) : 1000
-      const isLargeGap = gapToNext > 70 || !nextAddr
-
-      if (addr.instType === 'XIC' && (isPhysicalOutput || (isBitFileAddress && isLargeGap))) {
+      if (addr.instType === 'XIC' && (isPhysicalOutput || (isBitFileAddress && isLastInRung))) {
         addr.instType = 'OTE'
       }
     }
 
+    // Group addresses by rung index
+    const addressesByRung = new Map<number, ParsedAddress[]>()
+    for (const addr of fileAddresses) {
+      const rungIdx = getRungIndex(addr.pos)
+      if (!addressesByRung.has(rungIdx)) {
+        addressesByRung.set(rungIdx, [])
+      }
+      addressesByRung.get(rungIdx)!.push(addr)
+    }
+
     const rungs: PlcRung[] = []
     let rungNumber = 0
-    let currentRungAddresses: ParsedAddress[] = []
 
-    for (let i = 0; i < fileAddresses.length; i++) {
-      const addr = fileAddresses[i]
-      currentRungAddresses.push(addr)
+    // Create a rung for each group of addresses
+    const sortedRungIndices = [...addressesByRung.keys()].sort((a, b) => a - b)
+    for (const rungIdx of sortedRungIndices) {
+      const currentRungAddresses = addressesByRung.get(rungIdx)!
+      if (currentRungAddresses.length === 0) continue
 
-      // Check if this is an output instruction (ends a rung)
-      const isOutput = outputTypes.includes(addr.instType)
-
-      // Also check for MOV/math as rung enders, but only if the next instruction
-      // looks like it starts a new rung (is a condition type like XIC/XIO)
-      const isMathEnd = ['MOV', 'ADD', 'SUB', 'MUL', 'DIV'].includes(addr.instType) &&
-        (i + 1 >= fileAddresses.length || ['XIC', 'XIO'].includes(fileAddresses[i + 1]?.instType))
-
-      if (isOutput || isMathEnd || currentRungAddresses.length >= 20) {
-        // Convert addresses to instructions, handling multi-operand instructions
-        const instructions: PlcInstruction[] = []
-        let j = 0
-        while (j < currentRungAddresses.length) {
+      // Convert addresses to instructions, handling multi-operand instructions
+      const instructions: PlcInstruction[] = []
+      let j = 0
+      while (j < currentRungAddresses.length) {
           const a = currentRungAddresses[j]
 
           // Check if this is a MOV instruction with a constant source
@@ -1496,69 +1515,6 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           number: rungNumber++,
           rawText,
           instructions
-        })
-        currentRungAddresses = []
-      }
-    }
-
-    // Don't forget remaining addresses
-    if (currentRungAddresses.length > 0) {
-      const comparisonTypes = ['EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ']
-      const mathTypes = ['ADD', 'SUB', 'MUL', 'DIV']
-      const timerTypes = ['TON', 'TOF', 'RTO']
-      const counterTypes = ['CTU', 'CTD']
-      const instructions: PlcInstruction[] = currentRungAddresses.map(a => {
-        // Handle MOV with constant source
-        if (a.instType === 'MOV' && a.sourceConstant) {
-          return {
-            type: 'MOV',
-            operands: [a.sourceConstant, getDisplayName(a.addr)],
-            branchLeg: a.branchLeg
-          }
-        }
-        // Handle comparison instructions with sourceA
-        if (comparisonTypes.includes(a.instType) && a.sourceA) {
-          return {
-            type: a.instType,
-            operands: [getDisplayName(a.sourceA), getDisplayName(a.addr)],
-            branchLeg: a.branchLeg
-          }
-        }
-        // Handle math instructions with sourceA and sourceB
-        if (mathTypes.includes(a.instType) && a.sourceA) {
-          const sourceB = a.sourceB || a.sourceA
-          return {
-            type: a.instType,
-            operands: [getDisplayName(a.sourceA), getDisplayName(sourceB), getDisplayName(a.addr)],
-            branchLeg: a.branchLeg
-          }
-        }
-        // Handle timer instructions with parameters
-        if (timerTypes.includes(a.instType) && a.timerParams?.preset) {
-          return {
-            type: a.instType,
-            operands: [getDisplayName(a.addr), a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0'],
-            branchLeg: a.branchLeg
-          }
-        }
-        // Handle counter instructions with parameters
-        if (counterTypes.includes(a.instType) && a.counterParams?.preset) {
-          return {
-            type: a.instType,
-            operands: [getDisplayName(a.addr), a.counterParams.preset, a.counterParams.accum || '0'],
-            branchLeg: a.branchLeg
-          }
-        }
-        return {
-          type: a.instType,
-          operands: [getDisplayName(a.addr)],
-          branchLeg: a.branchLeg
-        }
-      })
-      rungs.push({
-        number: rungNumber++,
-        rawText: formatInstructionsWithBranches(instructions),
-        instructions
       })
     }
 
