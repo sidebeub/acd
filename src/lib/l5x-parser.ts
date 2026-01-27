@@ -53,6 +53,7 @@ export interface PlcRung {
 export interface PlcInstruction {
   type: string
   operands: string[]
+  branchLeg?: number  // For parallel branches: which leg (1, 2, 3...), undefined = main rung
 }
 
 export interface PlcTask {

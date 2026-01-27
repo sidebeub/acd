@@ -964,6 +964,55 @@ function createInstructionsFromAddresses(addrs: string[]): PlcInstruction[] {
 }
 
 /**
+ * Format instructions with branch indicators in rawText
+ * Shows parallel branches with visual separators like: [Branch: XIC(A) XIC(B) | XIC(C) XIC(D)]
+ */
+function formatInstructionsWithBranches(instructions: PlcInstruction[]): string {
+  // Check if any instructions have branchLeg set
+  const hasBranches = instructions.some(inst => inst.branchLeg !== undefined)
+
+  if (!hasBranches) {
+    // No branches - simple format
+    return instructions.map(inst => `${inst.type}(${inst.operands.join(',')})`).join(' ')
+  }
+
+  // Group instructions by branch leg
+  const mainRung: PlcInstruction[] = []
+  const branchLegs = new Map<number, PlcInstruction[]>()
+
+  for (const inst of instructions) {
+    if (inst.branchLeg !== undefined) {
+      if (!branchLegs.has(inst.branchLeg)) {
+        branchLegs.set(inst.branchLeg, [])
+      }
+      branchLegs.get(inst.branchLeg)!.push(inst)
+    } else {
+      mainRung.push(inst)
+    }
+  }
+
+  // Format output
+  const parts: string[] = []
+
+  // Main rung instructions before branch
+  if (mainRung.length > 0) {
+    parts.push(mainRung.map(inst => `${inst.type}(${inst.operands.join(',')})`).join(' '))
+  }
+
+  // Branch legs
+  if (branchLegs.size > 0) {
+    const legStrings: string[] = []
+    const sortedLegs = [...branchLegs.entries()].sort((a, b) => a[0] - b[0])
+    for (const [, legInsts] of sortedLegs) {
+      legStrings.push(legInsts.map(inst => `${inst.type}(${inst.operands.join(',')})`).join(' '))
+    }
+    parts.push(`[Branch: ${legStrings.join(' | ')}]`)
+  }
+
+  return parts.join(' ')
+}
+
+/**
  * Parse binary ladder logic from PROGRAM FILES stream
  * RSLogix 500 stores ladder data with text markers and ASCII addresses
  * Structure: CProgHolder > CLadFile > CRung > CIns/CBranchLeg
@@ -1076,8 +1125,58 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     sourceB?: string         // For math instructions (ADD, SUB, MUL, DIV), Source B operand
     timerParams?: { timeBase: string | null, preset: string | null, accum: string | null }
     counterParams?: { preset: string | null, accum: string | null }
+    branchLeg?: number       // Which branch leg this instruction is in (0 = main, 1+ = parallel legs)
   }
   const allAddresses: ParsedAddress[] = []
+
+  // Detect parallel branch regions
+  // CBranchLeg marks start of a branch leg, CBranch marks end of branch structure
+  interface BranchRegion {
+    legStart: number    // Position of CBranchLeg
+    branchEnd: number   // Position of CBranch (end of all legs)
+    legNumber: number   // Which leg (1, 2, 3...)
+  }
+  const branchRegions: BranchRegion[] = []
+
+  // Find all CBranchLeg markers
+  let branchLegPos = 0
+  let legNumber = 0
+  while ((branchLegPos = text.indexOf('CBranchLeg', branchLegPos)) !== -1) {
+    legNumber++
+    // Find the corresponding CBranch (end marker) - it's "CBranch" not followed by "Leg"
+    let endPos = branchLegPos + 10
+    while (endPos < text.length) {
+      const nextBranch = text.indexOf('CBranch', endPos)
+      if (nextBranch === -1) {
+        endPos = text.length
+        break
+      }
+      // Check if it's CBranchLeg or CBranch
+      if (text.substring(nextBranch, nextBranch + 10) !== 'CBranchLeg') {
+        endPos = nextBranch
+        break
+      }
+      endPos = nextBranch + 10
+    }
+
+    branchRegions.push({
+      legStart: branchLegPos,
+      branchEnd: endPos,
+      legNumber
+    })
+    console.log(`[RSS Parser] Found branch leg ${legNumber} from ${branchLegPos} to ${endPos}`)
+    branchLegPos += 10
+  }
+
+  // Helper to check if a position is inside a branch leg
+  function getBranchLeg(pos: number): number | undefined {
+    for (const region of branchRegions) {
+      if (pos > region.legStart && pos < region.branchEnd) {
+        return region.legNumber
+      }
+    }
+    return undefined
+  }
 
   // Track opcode distribution for debugging
   const opcodeStats = new Map<number, { count: number; samples: string[] }>()
@@ -1174,7 +1273,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             stat.samples.push(`${addr}->${decoded.type}`)
           }
 
-          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant, sourceA, sourceB, timerParams, counterParams })
+          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant, sourceA, sourceB, timerParams, counterParams, branchLeg: getBranchLeg(pos) })
           addresses.add(addr)
         } else {
           // Fallback: still add address but infer instruction type
@@ -1186,7 +1285,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             addr,
             opcode: 0xFF, // Unknown
             instType: inferredType,
-            operandCount: 1  // Single operand - rung markers will handle grouping
+            operandCount: 1,  // Single operand - rung markers will handle grouping
+            branchLeg: getBranchLeg(pos)
           })
         }
       }
@@ -1289,7 +1389,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             // MOV instruction with constant source: MOV(source, dest)
             instructions.push({
               type: 'MOV',
-              operands: [a.sourceConstant, a.addr]
+              operands: [a.sourceConstant, a.addr],
+              branchLeg: a.branchLeg
             })
             j++
             continue
@@ -1301,7 +1402,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             // Comparison instruction: EQU(sourceA, sourceB)
             instructions.push({
               type: a.instType,
-              operands: [a.sourceA, a.addr]
+              operands: [a.sourceA, a.addr],
+              branchLeg: a.branchLeg
             })
             j++
             continue
@@ -1314,7 +1416,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             const sourceB = a.sourceB || a.sourceA // Use sourceA if sourceB not found
             instructions.push({
               type: a.instType,
-              operands: [a.sourceA, sourceB, a.addr]
+              operands: [a.sourceA, sourceB, a.addr],
+              branchLeg: a.branchLeg
             })
             j++
             continue
@@ -1326,7 +1429,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             // Timer instruction: TON(timer, timeBase, preset, accum)
             instructions.push({
               type: a.instType,
-              operands: [a.addr, a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0']
+              operands: [a.addr, a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0'],
+              branchLeg: a.branchLeg
             })
             j++
             continue
@@ -1338,7 +1442,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             // Counter instruction: CTU(counter, preset, accum)
             instructions.push({
               type: a.instType,
-              operands: [a.addr, a.counterParams.preset, a.counterParams.accum || '0']
+              operands: [a.addr, a.counterParams.preset, a.counterParams.accum || '0'],
+              branchLeg: a.branchLeg
             })
             j++
             continue
@@ -1358,7 +1463,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             if (allValid && nextAddrs.length === a.operandCount - 1) {
               instructions.push({
                 type: a.instType,
-                operands: [a.addr, ...nextAddrs.map(x => x.addr)]
+                operands: [a.addr, ...nextAddrs.map(x => x.addr)],
+                branchLeg: a.branchLeg
               })
               j += a.operandCount
               continue
@@ -1368,14 +1474,18 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           // Single operand
           instructions.push({
             type: a.instType,
-            operands: [a.addr]
+            operands: [a.addr],
+            branchLeg: a.branchLeg
           })
           j++
         }
 
+        // Generate rawText with branch indicators
+        const rawText = formatInstructionsWithBranches(instructions)
+
         rungs.push({
           number: rungNumber++,
-          rawText: instructions.map(inst => `${inst.type}(${inst.operands.join(',')})`).join(' '),
+          rawText,
           instructions
         })
         currentRungAddresses = []
@@ -1393,14 +1503,16 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         if (a.instType === 'MOV' && a.sourceConstant) {
           return {
             type: 'MOV',
-            operands: [a.sourceConstant, a.addr]
+            operands: [a.sourceConstant, a.addr],
+            branchLeg: a.branchLeg
           }
         }
         // Handle comparison instructions with sourceA
         if (comparisonTypes.includes(a.instType) && a.sourceA) {
           return {
             type: a.instType,
-            operands: [a.sourceA, a.addr]
+            operands: [a.sourceA, a.addr],
+            branchLeg: a.branchLeg
           }
         }
         // Handle math instructions with sourceA and sourceB
@@ -1408,31 +1520,35 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           const sourceB = a.sourceB || a.sourceA
           return {
             type: a.instType,
-            operands: [a.sourceA, sourceB, a.addr]
+            operands: [a.sourceA, sourceB, a.addr],
+            branchLeg: a.branchLeg
           }
         }
         // Handle timer instructions with parameters
         if (timerTypes.includes(a.instType) && a.timerParams?.preset) {
           return {
             type: a.instType,
-            operands: [a.addr, a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0']
+            operands: [a.addr, a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0'],
+            branchLeg: a.branchLeg
           }
         }
         // Handle counter instructions with parameters
         if (counterTypes.includes(a.instType) && a.counterParams?.preset) {
           return {
             type: a.instType,
-            operands: [a.addr, a.counterParams.preset, a.counterParams.accum || '0']
+            operands: [a.addr, a.counterParams.preset, a.counterParams.accum || '0'],
+            branchLeg: a.branchLeg
           }
         }
         return {
           type: a.instType,
-          operands: [a.addr]
+          operands: [a.addr],
+          branchLeg: a.branchLeg
         }
       })
       rungs.push({
         number: rungNumber++,
-        rawText: instructions.map(inst => `${inst.type}(${inst.operands.join(',')})`).join(' '),
+        rawText: formatInstructionsWithBranches(instructions),
         instructions
       })
     }
@@ -1460,37 +1576,43 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       if (addr.instType === 'MOV' && addr.sourceConstant) {
         currentRungInstructions.push({
           type: 'MOV',
-          operands: [addr.sourceConstant, addr.addr]
+          operands: [addr.sourceConstant, addr.addr],
+          branchLeg: addr.branchLeg
         })
       } else if (comparisonTypes.includes(addr.instType) && addr.sourceA) {
         // Handle comparison instructions with sourceA
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.sourceA, addr.addr]
+          operands: [addr.sourceA, addr.addr],
+          branchLeg: addr.branchLeg
         })
       } else if (mathTypes.includes(addr.instType) && addr.sourceA) {
         // Handle math instructions with sourceA and sourceB
         const sourceB = addr.sourceB || addr.sourceA
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.sourceA, sourceB, addr.addr]
+          operands: [addr.sourceA, sourceB, addr.addr],
+          branchLeg: addr.branchLeg
         })
       } else if (timerTypes.includes(addr.instType) && addr.timerParams?.preset) {
         // Handle timer instructions with parameters
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.addr, addr.timerParams.timeBase || '1.0', addr.timerParams.preset, addr.timerParams.accum || '0']
+          operands: [addr.addr, addr.timerParams.timeBase || '1.0', addr.timerParams.preset, addr.timerParams.accum || '0'],
+          branchLeg: addr.branchLeg
         })
       } else if (counterTypes.includes(addr.instType) && addr.counterParams?.preset) {
         // Handle counter instructions with parameters
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.addr, addr.counterParams.preset, addr.counterParams.accum || '0']
+          operands: [addr.addr, addr.counterParams.preset, addr.counterParams.accum || '0'],
+          branchLeg: addr.branchLeg
         })
       } else {
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.addr]
+          operands: [addr.addr],
+          branchLeg: addr.branchLeg
         })
       }
 
@@ -1498,7 +1620,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       if (isOutput || currentRungInstructions.length >= 15) {
         rungs.push({
           number: rungNumber++,
-          rawText: currentRungInstructions.map(i => `${i.type}(${i.operands.join(',')})`).join(' '),
+          rawText: formatInstructionsWithBranches(currentRungInstructions),
           instructions: currentRungInstructions
         })
         currentRungInstructions = []
@@ -1508,7 +1630,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     if (currentRungInstructions.length > 0) {
       rungs.push({
         number: rungNumber++,
-        rawText: currentRungInstructions.map(i => `${i.type}(${i.operands.join(',')})`).join(' '),
+        rawText: formatInstructionsWithBranches(currentRungInstructions),
         instructions: currentRungInstructions
       })
     }
