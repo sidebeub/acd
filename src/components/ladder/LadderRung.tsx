@@ -1042,6 +1042,15 @@ function InstructionBox({
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
     >
+      {/* DEBUG: Show branch leg number */}
+      {(inst.branchLeg !== undefined && inst.branchLeg > 0) && (
+        <div
+          className="absolute -top-2 -right-1 text-[8px] px-1 rounded z-10"
+          style={{ background: 'rgba(139, 92, 246, 0.8)', color: 'white' }}
+        >
+          B{inst.branchLeg}
+        </div>
+      )}
       {/* Header with instruction name */}
       <div
         className="px-3 py-1.5 font-mono text-xs font-bold text-white flex justify-between items-center gap-1"
@@ -1238,6 +1247,15 @@ function ContactCoilElement({
     >
       {/* Force badge */}
       {forceState && <ForceBadge type={forceState} />}
+      {/* DEBUG: Show branch leg number */}
+      {(inst.branchLeg !== undefined && inst.branchLeg > 0) && (
+        <div
+          className="absolute -top-3 -right-1 text-[8px] px-1 rounded"
+          style={{ background: 'rgba(139, 92, 246, 0.8)', color: 'white' }}
+        >
+          B{inst.branchLeg}
+        </div>
+      )}
       {/* Tag description above (like Logix Designer) */}
       {description && (
         <div
