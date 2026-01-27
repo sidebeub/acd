@@ -170,6 +170,89 @@ function extractSourceAOperand(data: Buffer, text: string, currentAddrPos: numbe
 }
 
 /**
+ * Extract timer parameters (time base, preset, accumulated) from binary data
+ * Timer instructions are followed by: [len][timebase][len][preset][len][accum]
+ * Example: T4:14 followed by 04 30 2e 30 31 (0.01) 03 33 30 30 (300) 01 30 (0)
+ */
+function extractTimerParams(data: Buffer, text: string, timerAddrPos: number, timerAddrLen: number): { timeBase: string | null, preset: string | null, accum: string | null } {
+  const afterPos = timerAddrPos + timerAddrLen
+  const maxSearch = 20
+
+  const params: string[] = []
+
+  let pos = afterPos
+  while (params.length < 3 && pos < afterPos + maxSearch && pos < data.length - 1) {
+    const len = data[pos]
+    if (len >= 1 && len <= 10 && pos + len < data.length) {
+      let isValid = true
+      let value = ''
+      for (let i = 1; i <= len; i++) {
+        const c = data[pos + i]
+        // Allow digits and decimal point
+        if ((c >= 0x30 && c <= 0x39) || c === 0x2e) {
+          value += String.fromCharCode(c)
+        } else {
+          isValid = false
+          break
+        }
+      }
+      if (isValid && value.length === len && /^\d+\.?\d*$/.test(value)) {
+        params.push(value)
+        pos += len + 1
+        continue
+      }
+    }
+    pos++
+  }
+
+  return {
+    timeBase: params[0] || null,
+    preset: params[1] || null,
+    accum: params[2] || null
+  }
+}
+
+/**
+ * Extract counter parameters (preset, accumulated) from binary data
+ * Counter instructions are followed by: [len][preset][len][accum]
+ */
+function extractCounterParams(data: Buffer, text: string, counterAddrPos: number, counterAddrLen: number): { preset: string | null, accum: string | null } {
+  const afterPos = counterAddrPos + counterAddrLen
+  const maxSearch = 15
+
+  const params: string[] = []
+
+  let pos = afterPos
+  while (params.length < 2 && pos < afterPos + maxSearch && pos < data.length - 1) {
+    const len = data[pos]
+    if (len >= 1 && len <= 10 && pos + len < data.length) {
+      let isValid = true
+      let value = ''
+      for (let i = 1; i <= len; i++) {
+        const c = data[pos + i]
+        if (c >= 0x30 && c <= 0x39) {
+          value += String.fromCharCode(c)
+        } else {
+          isValid = false
+          break
+        }
+      }
+      if (isValid && value.length === len && /^\d+$/.test(value)) {
+        params.push(value)
+        pos += len + 1
+        continue
+      }
+    }
+    pos++
+  }
+
+  return {
+    preset: params[0] || null,
+    accum: params[1] || null
+  }
+}
+
+/**
  * Extract both Source A and Source B operands for math instructions (ADD, SUB, MUL, DIV)
  * These instructions have format: INST(SourceA, SourceB, Dest)
  * Returns { sourceA, sourceB } or null values if not found
@@ -867,6 +950,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     sourceConstant?: string  // For MOV instructions, the source constant value
     sourceA?: string         // For comparison/math instructions, Source A operand
     sourceB?: string         // For math instructions (ADD, SUB, MUL, DIV), Source B operand
+    timerParams?: { timeBase: string | null, preset: string | null, accum: string | null }
+    counterParams?: { preset: string | null, accum: string | null }
   }
   const allAddresses: ParsedAddress[] = []
 
@@ -937,6 +1022,24 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             }
           }
 
+          // For timer instructions (TON, TOF, RTO), extract time base, preset, and accumulated
+          let timerParams: { timeBase: string | null, preset: string | null, accum: string | null } | undefined
+          if (decoded.type === 'TON' || decoded.type === 'TOF' || decoded.type === 'RTO') {
+            timerParams = extractTimerParams(data, text, pos, addr.length)
+            if (timerParams.preset) {
+              console.log(`[RSS Parser] Timer ${addr}: timeBase=${timerParams.timeBase}, preset=${timerParams.preset}, accum=${timerParams.accum}`)
+            }
+          }
+
+          // For counter instructions (CTU, CTD), extract preset and accumulated
+          let counterParams: { preset: string | null, accum: string | null } | undefined
+          if (decoded.type === 'CTU' || decoded.type === 'CTD') {
+            counterParams = extractCounterParams(data, text, pos, addr.length)
+            if (counterParams.preset) {
+              console.log(`[RSS Parser] Counter ${addr}: preset=${counterParams.preset}, accum=${counterParams.accum}`)
+            }
+          }
+
           // Track opcode stats
           if (!opcodeStats.has(opcode)) {
             opcodeStats.set(opcode, { count: 0, samples: [] })
@@ -947,7 +1050,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             stat.samples.push(`${addr}->${decoded.type}`)
           }
 
-          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant, sourceA, sourceB })
+          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant, sourceA, sourceB, timerParams, counterParams })
           addresses.add(addr)
         } else {
           // Fallback: still add address but infer instruction type
@@ -1093,6 +1196,30 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             continue
           }
 
+          // Check if this is a timer instruction with parameters
+          const timerTypes = ['TON', 'TOF', 'RTO']
+          if (timerTypes.includes(a.instType) && a.timerParams?.preset) {
+            // Timer instruction: TON(timer, timeBase, preset, accum)
+            instructions.push({
+              type: a.instType,
+              operands: [a.addr, a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0']
+            })
+            j++
+            continue
+          }
+
+          // Check if this is a counter instruction with parameters
+          const counterTypes = ['CTU', 'CTD']
+          if (counterTypes.includes(a.instType) && a.counterParams?.preset) {
+            // Counter instruction: CTU(counter, preset, accum)
+            instructions.push({
+              type: a.instType,
+              operands: [a.addr, a.counterParams.preset, a.counterParams.accum || '0']
+            })
+            j++
+            continue
+          }
+
           // Check if this is a multi-operand instruction
           if (a.operandCount > 1 && j + a.operandCount - 1 < currentRungAddresses.length) {
             const nextAddrs = currentRungAddresses.slice(j + 1, j + a.operandCount)
@@ -1135,6 +1262,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     if (currentRungAddresses.length > 0) {
       const comparisonTypes = ['EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ']
       const mathTypes = ['ADD', 'SUB', 'MUL', 'DIV']
+      const timerTypes = ['TON', 'TOF', 'RTO']
+      const counterTypes = ['CTU', 'CTD']
       const instructions: PlcInstruction[] = currentRungAddresses.map(a => {
         // Handle MOV with constant source
         if (a.instType === 'MOV' && a.sourceConstant) {
@@ -1156,6 +1285,20 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           return {
             type: a.instType,
             operands: [a.sourceA, sourceB, a.addr]
+          }
+        }
+        // Handle timer instructions with parameters
+        if (timerTypes.includes(a.instType) && a.timerParams?.preset) {
+          return {
+            type: a.instType,
+            operands: [a.addr, a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0']
+          }
+        }
+        // Handle counter instructions with parameters
+        if (counterTypes.includes(a.instType) && a.counterParams?.preset) {
+          return {
+            type: a.instType,
+            operands: [a.addr, a.counterParams.preset, a.counterParams.accum || '0']
           }
         }
         return {
@@ -1186,6 +1329,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
     const comparisonTypes = ['EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ']
     const mathTypes = ['ADD', 'SUB', 'MUL', 'DIV']
+    const timerTypes = ['TON', 'TOF', 'RTO']
+    const counterTypes = ['CTU', 'CTD']
     for (const addr of allAddresses) {
       // Handle MOV with constant source
       if (addr.instType === 'MOV' && addr.sourceConstant) {
@@ -1205,6 +1350,18 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         currentRungInstructions.push({
           type: addr.instType,
           operands: [addr.sourceA, sourceB, addr.addr]
+        })
+      } else if (timerTypes.includes(addr.instType) && addr.timerParams?.preset) {
+        // Handle timer instructions with parameters
+        currentRungInstructions.push({
+          type: addr.instType,
+          operands: [addr.addr, addr.timerParams.timeBase || '1.0', addr.timerParams.preset, addr.timerParams.accum || '0']
+        })
+      } else if (counterTypes.includes(addr.instType) && addr.counterParams?.preset) {
+        // Handle counter instructions with parameters
+        currentRungInstructions.push({
+          type: addr.instType,
+          operands: [addr.addr, addr.counterParams.preset, addr.counterParams.accum || '0']
         })
       } else {
         currentRungInstructions.push({
