@@ -95,6 +95,48 @@ const TIMER_COUNTER_SUBFIELDS: Record<string, string> = {
 // Higher bits may encode branch position or other structural info
 
 /**
+ * Extract a constant value (stored as length-prefixed ASCII) from binary data
+ * Pattern: [length byte][ASCII digits]
+ * Example: 03 33 30 30 = length 3 + "300"
+ * Returns null if no valid constant found
+ */
+function extractConstantValue(data: Buffer, searchEndPos: number, maxSearchBytes: number = 30): string | null {
+  // Search backwards from the position looking for length-prefixed ASCII numbers
+  const searchStart = Math.max(0, searchEndPos - maxSearchBytes)
+
+  for (let pos = searchEndPos - 1; pos >= searchStart; pos--) {
+    const lengthByte = data[pos]
+
+    // Valid constant lengths are 1-10 digits
+    if (lengthByte >= 1 && lengthByte <= 10 && pos + lengthByte < searchEndPos) {
+      // Check if the following bytes are all ASCII digits (0x30-0x39)
+      let isValidConstant = true
+      let constantValue = ''
+
+      for (let i = 1; i <= lengthByte; i++) {
+        const charByte = data[pos + i]
+        if (charByte >= 0x30 && charByte <= 0x39) {
+          constantValue += String.fromCharCode(charByte)
+        } else {
+          isValidConstant = false
+          break
+        }
+      }
+
+      if (isValidConstant && constantValue.length === lengthByte) {
+        // Verify it's a valid number
+        const numValue = parseInt(constantValue, 10)
+        if (!isNaN(numValue)) {
+          return constantValue
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
  * Decode SLC 500 opcode to instruction type
  * Based on analysis of 5038 instructions from LANLOGIX_BR.RSS
  */
@@ -707,6 +749,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     opcode: number
     instType: string
     operandCount: number
+    sourceConstant?: string  // For MOV instructions, the source constant value
   }
   const allAddresses: ParsedAddress[] = []
 
@@ -740,6 +783,18 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             decoded = { type: 'XIC', operandCount: 1 }
           }
 
+          // For MOV instructions (timer/counter PRE/ACC), look for constant source value
+          let sourceConstant: string | undefined
+          if (decoded.type === 'MOV' || addr.match(/\.(PRE|ACC)$/i)) {
+            // Search backwards from the address marker position for a constant
+            // The marker is at pos-5, so search before that
+            const markerPos = pos - 5
+            sourceConstant = extractConstantValue(data, markerPos) || undefined
+            if (sourceConstant) {
+              console.log(`[RSS Parser] Found constant ${sourceConstant} for MOV -> ${addr}`)
+            }
+          }
+
           // Track opcode stats
           if (!opcodeStats.has(opcode)) {
             opcodeStats.set(opcode, { count: 0, samples: [] })
@@ -750,7 +805,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             stat.samples.push(`${addr}->${decoded.type}`)
           }
 
-          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount })
+          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant })
           addresses.add(addr)
         } else {
           // Fallback: still add address but infer instruction type
@@ -860,6 +915,17 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         while (j < currentRungAddresses.length) {
           const a = currentRungAddresses[j]
 
+          // Check if this is a MOV instruction with a constant source
+          if (a.instType === 'MOV' && a.sourceConstant) {
+            // MOV instruction with constant source: MOV(source, dest)
+            instructions.push({
+              type: 'MOV',
+              operands: [a.sourceConstant, a.addr]
+            })
+            j++
+            continue
+          }
+
           // Check if this is a multi-operand instruction
           if (a.operandCount > 1 && j + a.operandCount - 1 < currentRungAddresses.length) {
             const nextAddrs = currentRungAddresses.slice(j + 1, j + a.operandCount)
@@ -900,10 +966,19 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
     // Don't forget remaining addresses
     if (currentRungAddresses.length > 0) {
-      const instructions: PlcInstruction[] = currentRungAddresses.map(a => ({
-        type: a.instType,
-        operands: [a.addr]
-      }))
+      const instructions: PlcInstruction[] = currentRungAddresses.map(a => {
+        // Handle MOV with constant source
+        if (a.instType === 'MOV' && a.sourceConstant) {
+          return {
+            type: 'MOV',
+            operands: [a.sourceConstant, a.addr]
+          }
+        }
+        return {
+          type: a.instType,
+          operands: [a.addr]
+        }
+      })
       rungs.push({
         number: rungNumber++,
         rawText: instructions.map(inst => `${inst.type}(${inst.operands.join(',')})`).join(' '),
@@ -926,10 +1001,18 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     const fallbackOutputTypes = ['OTE', 'OTL', 'OTU', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'RES', 'MOV', 'ADD', 'SUB', 'MUL', 'DIV']
 
     for (const addr of allAddresses) {
-      currentRungInstructions.push({
-        type: addr.instType,
-        operands: [addr.addr]
-      })
+      // Handle MOV with constant source
+      if (addr.instType === 'MOV' && addr.sourceConstant) {
+        currentRungInstructions.push({
+          type: 'MOV',
+          operands: [addr.sourceConstant, addr.addr]
+        })
+      } else {
+        currentRungInstructions.push({
+          type: addr.instType,
+          operands: [addr.addr]
+        })
+      }
 
       const isOutput = fallbackOutputTypes.includes(addr.instType)
       if (isOutput || currentRungInstructions.length >= 15) {
