@@ -964,6 +964,15 @@ function createInstructionsFromAddresses(addrs: string[]): PlcInstruction[] {
 }
 
 /**
+ * Get display name for an address - returns symbol name if available, otherwise the address
+ * Format: "SYMBOL" if symbol exists, or "B3:2/0" if no symbol
+ */
+function getDisplayName(addr: string): string {
+  const symbol = lookupSymbol(addr)
+  return symbol ? symbol.symbol : addr
+}
+
+/**
  * Format instructions with branch indicators in rawText
  * Shows parallel branches with visual separators like: [Branch: XIC(A) XIC(B) | XIC(C) XIC(D)]
  */
@@ -1389,7 +1398,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             // MOV instruction with constant source: MOV(source, dest)
             instructions.push({
               type: 'MOV',
-              operands: [a.sourceConstant, a.addr],
+              operands: [a.sourceConstant, getDisplayName(a.addr)],
               branchLeg: a.branchLeg
             })
             j++
@@ -1402,7 +1411,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             // Comparison instruction: EQU(sourceA, sourceB)
             instructions.push({
               type: a.instType,
-              operands: [a.sourceA, a.addr],
+              operands: [getDisplayName(a.sourceA), getDisplayName(a.addr)],
               branchLeg: a.branchLeg
             })
             j++
@@ -1416,7 +1425,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             const sourceB = a.sourceB || a.sourceA // Use sourceA if sourceB not found
             instructions.push({
               type: a.instType,
-              operands: [a.sourceA, sourceB, a.addr],
+              operands: [getDisplayName(a.sourceA), getDisplayName(sourceB), getDisplayName(a.addr)],
               branchLeg: a.branchLeg
             })
             j++
@@ -1429,7 +1438,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             // Timer instruction: TON(timer, timeBase, preset, accum)
             instructions.push({
               type: a.instType,
-              operands: [a.addr, a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0'],
+              operands: [getDisplayName(a.addr), a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0'],
               branchLeg: a.branchLeg
             })
             j++
@@ -1442,7 +1451,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             // Counter instruction: CTU(counter, preset, accum)
             instructions.push({
               type: a.instType,
-              operands: [a.addr, a.counterParams.preset, a.counterParams.accum || '0'],
+              operands: [getDisplayName(a.addr), a.counterParams.preset, a.counterParams.accum || '0'],
               branchLeg: a.branchLeg
             })
             j++
@@ -1463,7 +1472,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             if (allValid && nextAddrs.length === a.operandCount - 1) {
               instructions.push({
                 type: a.instType,
-                operands: [a.addr, ...nextAddrs.map(x => x.addr)],
+                operands: [getDisplayName(a.addr), ...nextAddrs.map(x => getDisplayName(x.addr))],
                 branchLeg: a.branchLeg
               })
               j += a.operandCount
@@ -1474,7 +1483,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           // Single operand
           instructions.push({
             type: a.instType,
-            operands: [a.addr],
+            operands: [getDisplayName(a.addr)],
             branchLeg: a.branchLeg
           })
           j++
@@ -1503,7 +1512,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         if (a.instType === 'MOV' && a.sourceConstant) {
           return {
             type: 'MOV',
-            operands: [a.sourceConstant, a.addr],
+            operands: [a.sourceConstant, getDisplayName(a.addr)],
             branchLeg: a.branchLeg
           }
         }
@@ -1511,7 +1520,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         if (comparisonTypes.includes(a.instType) && a.sourceA) {
           return {
             type: a.instType,
-            operands: [a.sourceA, a.addr],
+            operands: [getDisplayName(a.sourceA), getDisplayName(a.addr)],
             branchLeg: a.branchLeg
           }
         }
@@ -1520,7 +1529,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           const sourceB = a.sourceB || a.sourceA
           return {
             type: a.instType,
-            operands: [a.sourceA, sourceB, a.addr],
+            operands: [getDisplayName(a.sourceA), getDisplayName(sourceB), getDisplayName(a.addr)],
             branchLeg: a.branchLeg
           }
         }
@@ -1528,7 +1537,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         if (timerTypes.includes(a.instType) && a.timerParams?.preset) {
           return {
             type: a.instType,
-            operands: [a.addr, a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0'],
+            operands: [getDisplayName(a.addr), a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0'],
             branchLeg: a.branchLeg
           }
         }
@@ -1536,13 +1545,13 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         if (counterTypes.includes(a.instType) && a.counterParams?.preset) {
           return {
             type: a.instType,
-            operands: [a.addr, a.counterParams.preset, a.counterParams.accum || '0'],
+            operands: [getDisplayName(a.addr), a.counterParams.preset, a.counterParams.accum || '0'],
             branchLeg: a.branchLeg
           }
         }
         return {
           type: a.instType,
-          operands: [a.addr],
+          operands: [getDisplayName(a.addr)],
           branchLeg: a.branchLeg
         }
       })
@@ -1576,14 +1585,14 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       if (addr.instType === 'MOV' && addr.sourceConstant) {
         currentRungInstructions.push({
           type: 'MOV',
-          operands: [addr.sourceConstant, addr.addr],
+          operands: [addr.sourceConstant, getDisplayName(addr.addr)],
           branchLeg: addr.branchLeg
         })
       } else if (comparisonTypes.includes(addr.instType) && addr.sourceA) {
         // Handle comparison instructions with sourceA
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.sourceA, addr.addr],
+          operands: [getDisplayName(addr.sourceA), getDisplayName(addr.addr)],
           branchLeg: addr.branchLeg
         })
       } else if (mathTypes.includes(addr.instType) && addr.sourceA) {
@@ -1591,27 +1600,27 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         const sourceB = addr.sourceB || addr.sourceA
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.sourceA, sourceB, addr.addr],
+          operands: [getDisplayName(addr.sourceA), getDisplayName(sourceB), getDisplayName(addr.addr)],
           branchLeg: addr.branchLeg
         })
       } else if (timerTypes.includes(addr.instType) && addr.timerParams?.preset) {
         // Handle timer instructions with parameters
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.addr, addr.timerParams.timeBase || '1.0', addr.timerParams.preset, addr.timerParams.accum || '0'],
+          operands: [getDisplayName(addr.addr), addr.timerParams.timeBase || '1.0', addr.timerParams.preset, addr.timerParams.accum || '0'],
           branchLeg: addr.branchLeg
         })
       } else if (counterTypes.includes(addr.instType) && addr.counterParams?.preset) {
         // Handle counter instructions with parameters
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.addr, addr.counterParams.preset, addr.counterParams.accum || '0'],
+          operands: [getDisplayName(addr.addr), addr.counterParams.preset, addr.counterParams.accum || '0'],
           branchLeg: addr.branchLeg
         })
       } else {
         currentRungInstructions.push({
           type: addr.instType,
-          operands: [addr.addr],
+          operands: [getDisplayName(addr.addr)],
           branchLeg: addr.branchLeg
         })
       }
