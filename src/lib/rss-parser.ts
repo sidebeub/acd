@@ -85,6 +85,127 @@ const TIMER_COUNTER_SUBFIELDS: Record<string, string> = {
   '.POS': 'Position',
 }
 
+// Symbol table type for address-to-name mappings
+export interface RssSymbol {
+  symbol: string
+  description: string
+}
+
+// Global symbol table extracted from RSS file
+let symbolTable: Map<string, RssSymbol> = new Map()
+
+/**
+ * Get the symbol table (for use by other modules)
+ */
+export function getSymbolTable(): Map<string, RssSymbol> {
+  return symbolTable
+}
+
+/**
+ * Look up a symbol for an address
+ */
+export function lookupSymbol(address: string): RssSymbol | undefined {
+  // Normalize address for lookup (remove leading zeros, standardize format)
+  const normalized = normalizeAddress(address)
+  return symbolTable.get(normalized) || symbolTable.get(address)
+}
+
+/**
+ * Normalize an address format
+ * B0003:002/02 -> B3:2/2
+ * B3:2/2 -> B3:2/2 (already normalized)
+ */
+function normalizeAddress(addr: string): string {
+  // Handle format like B0003:002/02 -> B3:2/2
+  const match = addr.match(/^([A-Z]+)0*(\d+):0*(\d+)(\/0*(\d+))?(\.[A-Z]+)?$/i)
+  if (match) {
+    let result = `${match[1].toUpperCase()}${parseInt(match[2])}:${parseInt(match[3])}`
+    if (match[5]) result += `/${parseInt(match[5])}`
+    if (match[6]) result += match[6].toUpperCase()
+    return result
+  }
+  return addr.toUpperCase()
+}
+
+/**
+ * Extract symbol table from MEM DATABASE stream in RSS file
+ * Symbols are stored as: [len][addr][len][symbol][len][desc1][len][desc2]...
+ */
+function extractSymbolTable(cfb: CFB.CFB$Container): Map<string, RssSymbol> {
+  const symbols = new Map<string, RssSymbol>()
+
+  try {
+    const entry = CFB.find(cfb, 'Root Entry/MEM DATABASE/ObjectData')
+    if (!entry || !entry.content || entry.content.length === 0) {
+      console.log('[RSS Parser] No MEM DATABASE/ObjectData stream found')
+      return symbols
+    }
+
+    const content = Buffer.from(entry.content)
+    let memData: Buffer
+
+    try {
+      memData = inflateSync(content.subarray(16))
+    } catch {
+      console.log('[RSS Parser] Could not decompress MEM DATABASE')
+      return symbols
+    }
+
+    // Scan for address patterns followed by symbols
+    for (let i = 0; i < memData.length - 20; i++) {
+      const len1 = memData[i]
+      if (len1 >= 8 && len1 <= 20) {
+        const addrBytes = memData.subarray(i + 1, i + 1 + len1)
+        const addr = Buffer.from(addrBytes).toString('latin1')
+
+        // Match patterns like B0003:002/02, N0007:005, T0004:007
+        if (/^[BNTCIOFSR]\d{4}:\d{3}(\/\d{2})?(\.[A-Z]+)?$/.test(addr)) {
+          const symbolLen = memData[i + 1 + len1]
+          if (symbolLen >= 2 && symbolLen <= 30) {
+            const symbolBytes = memData.subarray(i + 2 + len1, i + 2 + len1 + symbolLen)
+            const symbol = Buffer.from(symbolBytes).toString('latin1')
+
+            // Check if it looks like a valid symbol
+            if (/^[A-Z][A-Z0-9_]*$/i.test(symbol)) {
+              const normalAddr = normalizeAddress(addr)
+
+              // Get description parts
+              const descParts: string[] = []
+              let pos = i + 2 + len1 + symbolLen
+              for (let d = 0; d < 4 && pos < memData.length - 1; d++) {
+                const descLen = memData[pos]
+                if (descLen >= 1 && descLen <= 30) {
+                  const descBytes = memData.subarray(pos + 1, pos + 1 + descLen)
+                  const desc = Buffer.from(descBytes).toString('latin1')
+                  if (/^[\x20-\x7E]+$/.test(desc)) {
+                    descParts.push(desc)
+                    pos += 1 + descLen
+                  } else {
+                    break
+                  }
+                } else {
+                  break
+                }
+              }
+
+              symbols.set(normalAddr, {
+                symbol,
+                description: descParts.join(' ').trim()
+              })
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`[RSS Parser] Extracted ${symbols.size} symbols from MEM DATABASE`)
+  } catch (e) {
+    console.log('[RSS Parser] Error extracting symbols:', e)
+  }
+
+  return symbols
+}
+
 // RSLogix 500 instruction opcodes - decoded from binary analysis
 // Format: [type byte][0b][80][01][00][length][address]
 // The low 2 bits encode the base instruction type:
@@ -400,6 +521,9 @@ const SLC500_FILE_TYPES_BINARY: Record<number, string> = {
 export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
   const data = new Uint8Array(buffer)
   const cfb = CFB.read(data, { type: 'array' })
+
+  // Extract symbol table from MEM DATABASE (contains address-to-name mappings)
+  symbolTable = extractSymbolTable(cfb)
 
   // List all entries
   const entries = cfb.FullPaths || []
@@ -1707,6 +1831,9 @@ function addressToTag(address: string): PlcTag | null {
 
   const fileInfo = RSS500_FILE_TYPES[parsed.fileType] || { name: parsed.fileType, description: '' }
 
+  // Look up symbol name from symbol table
+  const symbol = lookupSymbol(address)
+
   // Determine data type based on file type
   let dataType = 'INT'
   switch (parsed.fileType) {
@@ -1738,11 +1865,18 @@ function addressToTag(address: string): PlcTag | null {
       break
   }
 
+  // Build description: include symbol name and description if available
+  let description = `${fileInfo.name} - ${fileInfo.description}`
+  if (symbol) {
+    description = symbol.description || symbol.symbol
+  }
+
   return {
-    name: address,
+    name: symbol ? symbol.symbol : address,
+    aliasFor: symbol ? address : undefined,  // Store address as aliasFor if we have a symbol
     dataType,
     scope: 'controller',
-    description: `${fileInfo.name} - ${fileInfo.description}`
+    description
   }
 }
 
