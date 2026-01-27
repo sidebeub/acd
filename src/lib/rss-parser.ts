@@ -1720,9 +1720,15 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         // Generate rawText with branch indicators
         const rawText = formatInstructionsWithBranches(instructions)
 
+        // Debug: count branch legs in this rung
+        const branchLegsInRung = new Set(instructions.map(i => i.branchLeg ?? 0))
+        const debugInfo = branchLegsInRung.size > 1
+          ? ` [DEBUG: ${branchLegsInRung.size} branch legs: ${[...branchLegsInRung].join(',')}]`
+          : ''
+
         rungs.push({
           number: rungNumber++,
-          rawText,
+          rawText: rawText + debugInfo,
           instructions
       })
     }
@@ -1820,6 +1826,16 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
   const totalRungs = [...routineRungs.values()].reduce((sum, r) => sum + r.length, 0)
   console.log(`[RSS Parser] Created ${totalRungs} rungs across ${routineRungs.size} routines`)
+  console.log(`[RSS Parser] Branch regions found: ${branchRegions.length}`)
+
+  // Add debug info to first rung of first routine
+  const firstRoutineName = [...routineRungs.keys()][0]
+  if (firstRoutineName) {
+    const firstRungs = routineRungs.get(firstRoutineName)
+    if (firstRungs && firstRungs.length > 0) {
+      firstRungs[0].rawText = `[DEBUG: ${branchRegions.length} CBranchLeg markers found] ` + firstRungs[0].rawText
+    }
+  }
 
   return { routineRungs, addresses, ladderFiles }
 }
