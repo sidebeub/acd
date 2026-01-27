@@ -455,75 +455,73 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
 
 /**
  * Analyze binary data to find instruction opcodes before addresses
- * RSLogix 500 stores instructions with metadata bytes before the address string
+ * RSLogix 500 format: [instruction_type][0b][80][01][00][length][address_string]
  */
-function analyzeInstructionOpcodes(data: Buffer): Map<string, { opcode: number, rawBytes: string }> {
-  const results = new Map<string, { opcode: number, rawBytes: string }>()
+function analyzeInstructionOpcodes(data: Buffer): Map<string, number> {
+  const results = new Map<string, number>() // address position -> instruction type
   const text = data.toString('latin1')
 
   // Find each address and look at bytes before it
   const addrPattern = /([BIOTCRNFSAL]\d+:\d+(?:\/\d+)?(?:\.[A-Z]+)?)/gi
   let match
 
-  // Sample first 50 addresses for pattern analysis
+  // Track instruction types for analysis
+  const instructionCounts: Map<number, number> = new Map()
+  const typeByAddress: Map<string, number[]> = new Map()
   let count = 0
-  const opcodePatterns: Map<string, number[]> = new Map()
 
-  while ((match = addrPattern.exec(text)) !== null && count < 100) {
+  while ((match = addrPattern.exec(text)) !== null) {
     const addr = match[0].toUpperCase()
     const pos = match.index
 
-    // Get bytes before the address (instruction metadata area)
-    // The address is preceded by a length byte, and before that is instruction data
-    if (pos >= 20) {
-      const beforeBytes = data.subarray(pos - 20, pos)
-      const hexBefore = beforeBytes.toString('hex')
-
-      // Look for the length byte that precedes the address string
-      // Format appears to be: [instruction data][length byte][address string]
+    if (pos >= 10) {
+      // Check for the pattern [type][0b][80][01][00][len][address]
+      // The address length byte should be at pos-1
+      const lengthByte = data[pos - 1]
       const addrLen = addr.length
-      const lengthBytePos = pos - 1
-      const lengthByte = data[lengthBytePos]
 
-      if (lengthByte === addrLen || lengthByte === addrLen + 1) {
-        // Found the length byte, instruction data is before it
-        // Look at bytes before the length byte
-        const instBytes = data.subarray(pos - 10, pos - 1)
+      if (lengthByte === addrLen) {
+        // Check if bytes at pos-5 to pos-2 are [0b][80][01][00]
+        const marker = data.subarray(pos - 5, pos - 1)
+        if (marker[0] === 0x0b && marker[1] === 0x80 && marker[2] === 0x01 && marker[3] === 0x00) {
+          // Found the pattern! Instruction type is at pos-6
+          const instType = data[pos - 6]
+          results.set(`${pos}`, instType)
 
-        // The instruction opcode appears to be in a specific position
-        // Based on the pattern: ... [4 bytes] [opcode area] [length] [address]
-        // Let's extract potential opcode bytes
-        const opcodeArea = data.subarray(pos - 6, pos - 1)
+          // Track for analysis
+          instructionCounts.set(instType, (instructionCounts.get(instType) || 0) + 1)
 
-        if (count < 20) {
-          console.log(`[RSS Opcode] ${addr}: preceding bytes = ${opcodeArea.toString('hex')}`)
+          const addrType = addr.charAt(0)
+          if (!typeByAddress.has(addrType)) {
+            typeByAddress.set(addrType, [])
+          }
+          typeByAddress.get(addrType)!.push(instType)
+
+          if (count < 30) {
+            console.log(`[RSS Opcode] ${addr}: type=0x${instType.toString(16).padStart(2, '0')}`)
+          }
+          count++
         }
-
-        // Try to identify opcode from the byte pattern
-        // Looking at position -4 or -5 from address start (after length byte)
-        const potentialOpcode = data[pos - 4] || data[pos - 5]
-
-        results.set(`${pos}:${addr}`, {
-          opcode: potentialOpcode,
-          rawBytes: opcodeArea.toString('hex')
-        })
-
-        // Track patterns by address type for analysis
-        const addrType = addr.charAt(0)
-        if (!opcodePatterns.has(addrType)) {
-          opcodePatterns.set(addrType, [])
-        }
-        opcodePatterns.get(addrType)!.push(potentialOpcode)
       }
     }
-    count++
   }
 
-  // Log pattern analysis
-  console.log('[RSS Opcode] Pattern analysis by address type:')
-  for (const [addrType, opcodes] of opcodePatterns) {
-    const uniqueOpcodes = [...new Set(opcodes)].slice(0, 10)
-    console.log(`  ${addrType}: opcodes seen = ${uniqueOpcodes.map(o => '0x' + o.toString(16).padStart(2, '0')).join(', ')}`)
+  // Log instruction type distribution
+  console.log('[RSS Opcode] Instruction type distribution:')
+  const sortedTypes = [...instructionCounts.entries()].sort((a, b) => b[1] - a[1])
+  for (const [type, count] of sortedTypes.slice(0, 15)) {
+    console.log(`  0x${type.toString(16).padStart(2, '0')}: ${count} occurrences`)
+  }
+
+  // Log patterns by address type
+  console.log('[RSS Opcode] Instruction types by address prefix:')
+  for (const [addrType, types] of typeByAddress) {
+    const typeCounts = new Map<number, number>()
+    for (const t of types) {
+      typeCounts.set(t, (typeCounts.get(t) || 0) + 1)
+    }
+    const topTypes = [...typeCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+    console.log(`  ${addrType}: ${topTypes.map(([t, c]) => `0x${t.toString(16).padStart(2, '0')}(${c})`).join(', ')}`)
   }
 
   return results
@@ -583,7 +581,7 @@ function createInstructionsFromAddresses(addrs: string[]): PlcInstruction[] {
  * RSLogix 500 stores ladder data with text markers and ASCII addresses
  * Structure: CProgHolder > CLadFile > CRung > CIns/CBranchLeg
  */
-function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, { opcode: number, rawBytes: string }>): { rungs: PlcRung[], addresses: Set<string>, ladderFiles: string[] } {
+function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): { rungs: PlcRung[], addresses: Set<string>, ladderFiles: string[] } {
   const rungs: PlcRung[] = []
   const addresses = new Set<string>()
   const ladderFiles: string[] = []
