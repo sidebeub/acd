@@ -833,7 +833,7 @@ function analyzeInstructionOpcodes(data: Buffer): Map<string, number> {
   const text = data.toString('latin1')
 
   // Find each address and look at bytes before it
-  const addrPattern = /([BIOTCRNFSAL]\d+:\d+(?:\/\d+)?(?:\.[A-Z]+)?)/gi
+  const addrPattern = /([BIOTCRNFSAL]\d+:\d+(?:\/\d+)?(?:\.[A-Z]+)?|U:\d+|HSC\d+(?:\.\d+)?)/gi
   let match
 
   // Track instruction types for analysis
@@ -1038,18 +1038,32 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
   // Extract all valid SLC 500 addresses from the text
   // Address patterns: B3:0/15, N7:5, T4:0.DN, I:0/0, O:0/0, etc.
-  const addressPattern = /\b([BIOTCRNFSAL])(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?\b/gi
+  // Standard addresses: B3:0/15, N11:0, T4:14.DN
+  // JSR subroutine files: U:4, U:250
+  const addressPattern = /\b([BIOTCRNFSAL])(\d+):(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?\b|\b(U):(\d+)\b|\b(HSC)(\d+)(?:\.(\d+))?\b/gi
   const ioPattern = /\b([IO]):(\d+)(?:\/(\d+))?\b/gi
 
   // Find all addresses
   let match
   while ((match = addressPattern.exec(text)) !== null) {
     const addr = match[0].toUpperCase()
-    // Validate reasonable file numbers (0-255) and elements (0-999)
-    const fileNum = parseInt(match[2])
-    const element = parseInt(match[3])
-    if (fileNum <= 255 && element <= 999) {
+    // Check if this is a U:X match (groups 6 and 7), HSC match (groups 8, 9, 10), or standard address
+    if (match[8]) {
+      // HSC format - HSC0, HSC1, HSC0.0, etc.
       addresses.add(addr)
+    } else if (match[6]) {
+      // U:X format - just validate file number
+      const fileNum = parseInt(match[7])
+      if (fileNum <= 999) {
+        addresses.add(addr)
+      }
+    } else {
+      // Standard address format - validate file number and element
+      const fileNum = parseInt(match[2])
+      const element = parseInt(match[3])
+      if (fileNum <= 255 && element <= 999) {
+        addresses.add(addr)
+      }
     }
   }
 
@@ -1084,11 +1098,13 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
       if (nameEnd > i + 6) {
         const nameBytes = data.subarray(i + 6, nameEnd)
-        const name = Buffer.from(nameBytes).toString('latin1').trim()
+        // Strip trailing non-alphanumeric characters (like parentheses) and trim
+        const rawName = Buffer.from(nameBytes).toString('latin1').trim()
+        const name = rawName.replace(/[^A-Z0-9_ ]+$/i, '').trim()
 
         // Validate it's a proper routine name (letters, numbers, underscore, space allowed)
         if (name.length >= 2 && /^[A-Z][A-Z0-9_ ]*$/i.test(name) &&
-            !['CProgHolder', 'CLadFile', 'CRung', 'CIns', 'CBranch', 'CBranchLeg', 'MODE SEL'].includes(name)) {
+            !['CProgHolder', 'CLadFile', 'CRung', 'CIns', 'CBranch', 'CBranchLeg'].includes(name)) {
           // Check if we haven't already found this routine
           if (!ladderFileInfos.some(lf => lf.name === name)) {
             ladderFileInfos.push({
@@ -1112,61 +1128,45 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
   const ladderFiles = ladderFileInfos.map(lf => lf.name)
   console.log(`[RSS Parser] Found ${ladderFiles.length} ladder files: ${ladderFiles.join(', ') || 'none'}`)
 
-  // Find rung START markers: pattern 00 00 01 00 00 0b 80
-  // This pattern precedes the first instruction of each new rung
-  // Branch instructions have 00 00 01 00 XX 0b 80 where XX > 0
+  // Find rung START markers: pattern 07 80 09 80
+  // This pattern marks the start of each new rung (rungs 1+)
+  // Rung 0 is before the first occurrence of this pattern
+  // Each 07 80 09 80 is followed by: XX 00 0b 80 00 00 01 00 ... then instruction data
   const rungStartPositions: number[] = []
-  for (let i = 0; i < data.length - 10; i++) {
-    if (data[i] === 0x00 &&
-        data[i+1] === 0x00 &&
-        data[i+2] === 0x01 &&
-        data[i+3] === 0x00 &&
-        data[i+4] === 0x00 &&  // Must be 00 for new rung (not branch)
-        data[i+5] === 0x0b &&
-        data[i+6] === 0x80) {
+  for (let i = 0; i < data.length - 8; i++) {
+    if (data[i] === 0x07 &&
+        data[i+1] === 0x80 &&
+        data[i+2] === 0x09 &&
+        data[i+3] === 0x80) {
       rungStartPositions.push(i)
     }
   }
 
-  // Also find CBranch markers (not CBranchLeg) which indicate visual rung boundaries
-  // CBranch appears between output of one rung and input of next rung
-  const cbranchMarker = 'CBranch'
-  let searchPos = 0
-  while (searchPos < text.length) {
-    const idx = text.indexOf(cbranchMarker, searchPos)
-    if (idx === -1) break
-    // Make sure it's not CBranchLeg
-    if (text.substring(idx, idx + 10) !== 'CBranchLeg') {
-      // The next instruction after CBranch is a new visual rung
-      // Find the position after CBranch where the next instruction marker would be
-      // CBranch is followed by instruction data, so add its position
-      rungStartPositions.push(idx)
-    }
-    searchPos = idx + cbranchMarker.length
-  }
-
-  // Sort and deduplicate rung positions
+  // Sort and deduplicate rung positions (filter out patterns that are too close together)
   rungStartPositions.sort((a, b) => a - b)
   const uniqueRungStarts = rungStartPositions.filter((pos, i) =>
-    i === 0 || pos - rungStartPositions[i - 1] > 20
+    i === 0 || pos - rungStartPositions[i - 1] > 30
   )
 
-  console.log(`[RSS Parser] Found ${uniqueRungStarts.length} rung boundaries (including CBranch markers)`)
+  console.log(`[RSS Parser] Found ${uniqueRungStarts.length} rung boundaries (07 80 09 80 patterns)`)
 
   // Helper function to determine which rung a position belongs to
+  // Pattern at index i marks the START of rung i+1 (rung 0 is before the first pattern)
   function getRungIndex(pos: number): number {
     for (let i = uniqueRungStarts.length - 1; i >= 0; i--) {
       if (pos >= uniqueRungStarts[i]) {
-        return i
+        return i + 1  // Pattern i marks start of rung i+1
       }
     }
-    return 0
+    return 0  // Before first pattern = rung 0
   }
 
   // Parse instructions using actual opcodes from binary
   // Format: [type byte at pos-6][0b][80][XX][00][length][address]
   // Note: XX can be 01, 04, etc. - not just 01
-  const addrRegex3 = /([BIOTCRNFSAL]\d+:\d+(?:\/\d+)?(?:\.[A-Z]+)?)/gi
+  // Include 'U:X' for subroutine file references (JSR U:4 etc.)
+  // Note: U:X has different format than other files (no element number after colon)
+  const addrRegex3 = /([BIOTCRNFSAL]\d+:\d+(?:\/\d+)?(?:\.[A-Z]+)?|U:\d+|HSC\d+(?:\.\d+)?)/gi
 
   // Find all addresses with their opcodes and positions
   interface ParsedAddress {
@@ -1424,6 +1424,25 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     // Sort addresses by position
     fileAddresses.sort((a, b) => a.pos - b.pos)
 
+    // Get file boundaries for this routine
+    const fileInfo = ladderFileInfos.find(lf => lf.name === fileName)
+    const fileStartPos = fileInfo?.startPos ?? 0
+    const fileEndPos = fileInfo?.endPos ?? data.length
+
+    // Filter rung boundaries to only those within this file's boundaries
+    const fileRungStarts = uniqueRungStarts.filter(pos => pos >= fileStartPos && pos < fileEndPos)
+    console.log(`[RSS Parser] File "${fileName}": ${fileRungStarts.length} rung boundaries (positions ${fileStartPos}-${fileEndPos})`)
+
+    // File-specific getRungIndex function
+    function getFileRungIndex(pos: number): number {
+      for (let i = fileRungStarts.length - 1; i >= 0; i--) {
+        if (pos >= fileRungStarts[i]) {
+          return i + 1  // Pattern i marks start of rung i+1
+        }
+      }
+      return 0  // Before first pattern = rung 0
+    }
+
     // First pass: identify likely output instructions based on patterns
     // In ladder logic, outputs typically come after inputs in each rung
     // We look for patterns where a bit address follows input addresses
@@ -1435,8 +1454,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       const isPhysicalOutput = addr.addr.startsWith('O:') || addr.addr.startsWith('O0:')
 
       // Check if next address is in a different rung (using markers)
-      const currentRungIdx = getRungIndex(addr.pos)
-      const nextRungIdx = nextAddr ? getRungIndex(nextAddr.pos) : currentRungIdx + 1
+      const currentRungIdx = getFileRungIndex(addr.pos)
+      const nextRungIdx = nextAddr ? getFileRungIndex(nextAddr.pos) : currentRungIdx + 1
       const isLastInRung = nextRungIdx > currentRungIdx
 
       // B (bit) file addresses can be outputs
@@ -1468,7 +1487,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
     const addressesByRung = new Map<number, ParsedAddress[]>()
     for (const addr of fileAddresses) {
-      const rungIdx = getRungIndex(addr.pos)
+      const rungIdx = getFileRungIndex(addr.pos)
       if (!addressesByRung.has(rungIdx)) {
         addressesByRung.set(rungIdx, [])
       }
@@ -1476,18 +1495,33 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     }
 
     // Process rung groups: detect parallel paths within each rung and assign branchLeg
-    // Then split only rungs without parallel paths
+    // Check if there are addresses before the first pattern (rung 0)
+    // If yes: total rungs = patterns + 1 (rung 0 exists before first pattern)
+    // If no: total rungs = patterns (first pattern marks rung 0, not rung 1)
+    const hasRung0Content = addressesByRung.has(0) && addressesByRung.get(0)!.length > 0
     const splitRungGroups: ParsedAddress[][] = []
-    const sortedRungIndices = [...addressesByRung.keys()].sort((a, b) => a - b)
-    for (const rungIdx of sortedRungIndices) {
-      const group = addressesByRung.get(rungIdx)!
-      if (group.length === 0) continue
+
+    // Determine which rung indices to process
+    // With rung 0 content: process indices 0 to N (where N = number of patterns)
+    // Without rung 0 content: process indices 1 to N (skip empty rung 0)
+    const rungIndicesToProcess: number[] = []
+    if (hasRung0Content) {
+      for (let i = 0; i <= fileRungStarts.length; i++) {
+        rungIndicesToProcess.push(i)
+      }
+    } else {
+      for (let i = 1; i <= fileRungStarts.length; i++) {
+        rungIndicesToProcess.push(i)
+      }
+    }
+
+    for (const rungIdx of rungIndicesToProcess) {
+      const group = addressesByRung.get(rungIdx) || []
 
       // First pass: detect parallel paths and assign branchLeg
       // A new parallel path (row) starts when an instruction has a "clean marker" pattern
       // The clean marker indicates the start of a new visual row in ladder logic
       let currentBranchLeg = 0
-      let hasParallelPaths = false
 
       for (let i = 0; i < group.length; i++) {
         const addr = group[i]
@@ -1496,73 +1530,22 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         // First instruction in rung is always branchLeg 0
         if (i > 0 && isNewParallelPath(addr.pos)) {
           currentBranchLeg++
-          hasParallelPaths = true
         }
 
         // Assign branch leg to this address
         addr.branchLeg = currentBranchLeg
       }
 
-      // If this rung has parallel paths, keep it as one rung
-      if (hasParallelPaths) {
-        splitRungGroups.push(group)
-        continue
-      }
-
-      // No parallel paths detected - use the old splitting logic
-      let currentGroup: ParsedAddress[] = []
-      for (let i = 0; i < group.length; i++) {
-        const addr = group[i]
-        currentGroup.push(addr)
-
-        // Check if this is an output instruction (not just the last one)
-        const isOutput = outputInstructionTypes.includes(addr.instType)
-        const hasMoreInstructions = i < group.length - 1
-
-        // If this is an output and there are more instructions, consider splitting
-        if (isOutput && hasMoreInstructions) {
-          const nextAddr = group[i + 1]
-          const sameTimerCounter = addr.addr.match(/^[TC]\d+:/) && nextAddr.addr.match(/^[TC]\d+:/) &&
-                                   addr.addr.split('.')[0] === nextAddr.addr.split('.')[0]
-
-          // Don't split if it's the same timer/counter (e.g., T4:14 and T4:14.DN)
-          if (sameTimerCounter) continue
-
-          // Check position gap - large gaps suggest new rungs, small gaps suggest same rung
-          const posGap = nextAddr.pos - addr.pos
-          const isSmallGap = posGap < 150
-
-          // Check if there's another output nearby
-          let hasNearbyOutput = false
-          for (let k = i + 1; k < Math.min(i + 6, group.length); k++) {
-            if (outputInstructionTypes.includes(group[k].instType)) {
-              const gapToNextOutput = group[k].pos - addr.pos
-              if (gapToNextOutput < 400) {
-                hasNearbyOutput = true
-                break
-              }
-            }
-          }
-
-          // Don't split if small gap AND there's another output nearby (suggests parallel branches)
-          if (isSmallGap && hasNearbyOutput) continue
-
-          // Otherwise, split here
-          splitRungGroups.push(currentGroup)
-          currentGroup = []
-        }
-      }
-      if (currentGroup.length > 0) {
-        splitRungGroups.push(currentGroup)
-      }
+      // Trust the rung boundaries from 07 80 09 80 pattern
+      // Each group is one rung - include even if empty
+      splitRungGroups.push(group)
     }
 
     const rungs: PlcRung[] = []
     let rungNumber = 0
 
-    // Create a rung for each split group
+    // Create a rung for each split group (including empty rungs like END/RET)
     for (const currentRungAddresses of splitRungGroups) {
-      if (currentRungAddresses.length === 0) continue
 
       // Convert addresses to instructions, handling multi-operand instructions
       const instructions: PlcInstruction[] = []
@@ -1802,10 +1785,11 @@ function formatBinaryAddress(fileType: number, fileNum: number, element: number,
 function extractAddresses(text: string): Set<string> {
   const addresses = new Set<string>()
 
-  // Pattern for SLC 500 addresses: B3:0/15, N7:5, T4:0.DN, I:0/0, O:0/0
+  // Pattern for SLC 500 addresses: B3:0/15, N7:5, T4:0.DN, I:0/0, O:0/0, HSC0.0
   const patterns = [
     /[BIOTCRNFSALDMGPSC][A-Z]?\d*:\d+(?:\/\d+)?(?:\.[A-Z]+)?/gi,
     /[IO]:\d+(?:\/\d+)?/gi,  // I:0/0, O:0/0 format
+    /HSC\d+(?:\.\d+)?/gi,    // HSC0, HSC1.0, etc.
   ]
 
   for (const pattern of patterns) {
@@ -1874,7 +1858,7 @@ function extractRungs(data: Buffer, text: string, addresses: Set<string>): PlcRu
 
       // Look for an address near this instruction (within 50 chars)
       const nearbyText = text.substring(position, position + 50)
-      const addrMatch = nearbyText.match(/[BIOTCRNFSALDMGPSC][A-Z]?\d*:\d+(?:\/\d+)?(?:\.[A-Z]+)?/i)
+      const addrMatch = nearbyText.match(/[BIOTCRNFSALDMGPSC][A-Z]?\d*:\d+(?:\/\d+)?(?:\.[A-Z]+)?|HSC\d+(?:\.\d+)?/i)
       const operand = addrMatch ? addrMatch[0].toUpperCase() : ''
 
       currentInstructions.push({
@@ -2044,6 +2028,17 @@ export function parseRss500Address(address: string): {
   bit?: number
   subfield?: string
 } | null {
+  // Match HSC addresses first (HSC0, HSC1.0, etc.)
+  const hscMatch = address.match(/^(HSC)(\d+)(?:\.(\d+))?$/i)
+  if (hscMatch) {
+    return {
+      fileType: 'HSC',
+      fileNumber: parseInt(hscMatch[2]),
+      element: hscMatch[3] ? parseInt(hscMatch[3]) : 0,
+      subfield: hscMatch[3] ? `.${hscMatch[3]}` : undefined
+    }
+  }
+
   // Match patterns like B3:0/15, N7:5, T4:0.DN, I:0/0
   const match = address.match(/^([BIOTCRNFSALDMGPSC][A-Z]?)(\d+)?:(\d+)(?:\/(\d+))?(?:\.([A-Z]+))?$/i)
 
