@@ -137,6 +137,39 @@ function extractConstantValue(data: Buffer, searchEndPos: number, maxSearchBytes
 }
 
 /**
+ * Extract Source A operand for comparison/math instructions
+ * Looks backwards for either a previous address marker or a constant
+ * Returns the source operand (address string or constant) or null
+ */
+function extractSourceAOperand(data: Buffer, text: string, currentAddrPos: number, maxSearchBytes: number = 50): string | null {
+  const searchStart = Math.max(0, currentAddrPos - maxSearchBytes)
+
+  // First, look for another address marker (0b 80 XX 00) before this one
+  for (let pos = currentAddrPos - 10; pos >= searchStart; pos--) {
+    if (data[pos] === 0x0b && data[pos + 1] === 0x80 && data[pos + 3] === 0x00) {
+      // Found a marker - extract the address
+      const addrLength = data[pos + 4]
+      if (addrLength > 0 && addrLength < 20 && pos + 5 + addrLength <= currentAddrPos) {
+        const addrText = text.substring(pos + 5, pos + 5 + addrLength)
+        // Validate it looks like an SLC address
+        if (/^[BIOTCRNFSAL]\d+/i.test(addrText)) {
+          return addrText.toUpperCase()
+        }
+      }
+    }
+  }
+
+  // If no address found, look for a constant
+  // Constants appear as length-prefixed ASCII digits
+  const constant = extractConstantValue(data, currentAddrPos - 5, maxSearchBytes)
+  if (constant) {
+    return constant
+  }
+
+  return null
+}
+
+/**
  * Decode SLC 500 opcode to instruction type
  * Based on analysis of 5038 instructions from LANLOGIX_BR.RSS
  */
@@ -750,6 +783,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     instType: string
     operandCount: number
     sourceConstant?: string  // For MOV instructions, the source constant value
+    sourceA?: string         // For comparison/math instructions, Source A operand
   }
   const allAddresses: ParsedAddress[] = []
 
@@ -795,6 +829,18 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             }
           }
 
+          // For comparison instructions (EQU, NEQ, LES, LEQ, GRT, GEQ), extract Source A
+          // These opcodes are 0x10-0x15
+          let sourceA: string | undefined
+          const comparisonOpcodes = [0x10, 0x11, 0x12, 0x13, 0x14, 0x15]
+          if (comparisonOpcodes.includes(opcode)) {
+            // Look backwards for Source A (either an address or constant)
+            sourceA = extractSourceAOperand(data, text, pos) || undefined
+            if (sourceA) {
+              console.log(`[RSS Parser] Found Source A "${sourceA}" for ${decoded.type}(${sourceA}, ${addr})`)
+            }
+          }
+
           // Track opcode stats
           if (!opcodeStats.has(opcode)) {
             opcodeStats.set(opcode, { count: 0, samples: [] })
@@ -805,7 +851,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             stat.samples.push(`${addr}->${decoded.type}`)
           }
 
-          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant })
+          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant, sourceA })
           addresses.add(addr)
         } else {
           // Fallback: still add address but infer instruction type
@@ -926,6 +972,18 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             continue
           }
 
+          // Check if this is a comparison instruction with sourceA
+          const comparisonTypes = ['EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ']
+          if (comparisonTypes.includes(a.instType) && a.sourceA) {
+            // Comparison instruction: EQU(sourceA, sourceB)
+            instructions.push({
+              type: a.instType,
+              operands: [a.sourceA, a.addr]
+            })
+            j++
+            continue
+          }
+
           // Check if this is a multi-operand instruction
           if (a.operandCount > 1 && j + a.operandCount - 1 < currentRungAddresses.length) {
             const nextAddrs = currentRungAddresses.slice(j + 1, j + a.operandCount)
@@ -966,12 +1024,20 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
     // Don't forget remaining addresses
     if (currentRungAddresses.length > 0) {
+      const comparisonTypes = ['EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ']
       const instructions: PlcInstruction[] = currentRungAddresses.map(a => {
         // Handle MOV with constant source
         if (a.instType === 'MOV' && a.sourceConstant) {
           return {
             type: 'MOV',
             operands: [a.sourceConstant, a.addr]
+          }
+        }
+        // Handle comparison instructions with sourceA
+        if (comparisonTypes.includes(a.instType) && a.sourceA) {
+          return {
+            type: a.instType,
+            operands: [a.sourceA, a.addr]
           }
         }
         return {
@@ -1000,12 +1066,19 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     let currentRungInstructions: PlcInstruction[] = []
     const fallbackOutputTypes = ['OTE', 'OTL', 'OTU', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'RES', 'MOV', 'ADD', 'SUB', 'MUL', 'DIV']
 
+    const comparisonTypes = ['EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ']
     for (const addr of allAddresses) {
       // Handle MOV with constant source
       if (addr.instType === 'MOV' && addr.sourceConstant) {
         currentRungInstructions.push({
           type: 'MOV',
           operands: [addr.sourceConstant, addr.addr]
+        })
+      } else if (comparisonTypes.includes(addr.instType) && addr.sourceA) {
+        // Handle comparison instructions with sourceA
+        currentRungInstructions.push({
+          type: addr.instType,
+          operands: [addr.sourceA, addr.addr]
         })
       } else {
         currentRungInstructions.push({
