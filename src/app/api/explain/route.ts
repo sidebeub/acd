@@ -13,7 +13,7 @@ import {
 } from '@/lib/instruction-library'
 
 // Cache version - increment this to invalidate old cached explanations
-const CACHE_VERSION = 14
+const CACHE_VERSION = 15
 
 // Helper to create a hash of rung text (includes version to invalidate old cache)
 function hashRung(text: string): string {

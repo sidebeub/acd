@@ -6981,6 +6981,23 @@ export function getInstructionExplanation(
   // Remove any unreplaced placeholders
   explanation = explanation.replace(/\{[0-9]\}/g, '?')
 
+  // Add SLC 500-specific note for XIC/XIO on numeric types (N, F, L files)
+  // In SLC 500, XIC on integer/float/long checks if value is non-zero
+  const upperInst = instruction.toUpperCase()
+  if ((upperInst === 'XIC' || upperInst === 'XIO') && operands[0]) {
+    const op = operands[0]
+    // Check for SLC 500 numeric file types without bit specifier
+    // N7:5 = integer, F8:0 = float, L25:7 = long (no /bit suffix = whole word)
+    const slcNumericPattern = /^[NFL]\d+:\d+$/i
+    if (slcNumericPattern.test(op)) {
+      if (upperInst === 'XIC') {
+        explanation += ' (checks if value is non-zero)'
+      } else {
+        explanation += ' (checks if value is zero)'
+      }
+    }
+  }
+
   return explanation
 }
 
@@ -7541,10 +7558,20 @@ function detectRungPurpose(
     const outputNames = outputs.map(o => humanizeTagName(o.operands[0])).join(', ')
     const conditionNames = conditions.map(c => humanizeTagName(c.operands[0])).join(' AND ')
 
+    // Determine what happens when conditions are NOT met
+    let consequence: string
+    if (outputs[0].instruction === 'OTE') {
+      consequence = `${outputNames} will be OFF (de-energized)`
+    } else if (outputs[0].instruction === 'OTL') {
+      consequence = `${outputNames} remains in current state (latch unchanged)`
+    } else { // OTU
+      consequence = `${outputNames} remains in current state (unlatch not triggered)`
+    }
+
     return {
       purpose: `Control ${outputNames}`,
       details: `Activates output when: ${conditionNames}`,
-      consequence: `${outputNames} will be ${outputs[0].instruction === 'OTU' ? 'cleared' : 'set'} when all conditions are true`
+      consequence
     }
   }
 
