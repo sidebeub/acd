@@ -1544,6 +1544,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       if (!hasCBranchLegInfo) {
         // No CBranchLeg info - try binary pattern detection
         let currentBranchLeg = 0
+        let binaryBranchesFound = 0
 
         for (let i = 0; i < group.length; i++) {
           const addr = group[i]
@@ -1552,11 +1553,16 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           // First instruction in rung is always branchLeg 0
           if (i > 0 && isNewParallelPath(addr.pos)) {
             currentBranchLeg++
+            binaryBranchesFound++
             addr.branchStart = true  // Mark this as start of new branch
           }
 
           // Assign branch leg to this address
           addr.branchLeg = currentBranchLeg
+        }
+
+        if (binaryBranchesFound > 0) {
+          console.log(`[RSS Parser] Rung ${rungIdx}: Binary pattern found ${binaryBranchesFound} branch starts`)
         }
       } else {
         // Use CBranchLeg-based detection - mark branchStart for each new leg
@@ -1833,7 +1839,10 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
   if (firstRoutineName) {
     const firstRungs = routineRungs.get(firstRoutineName)
     if (firstRungs && firstRungs.length > 0) {
-      firstRungs[0].rawText = `[DEBUG: ${branchRegions.length} CBranchLeg markers found] ` + firstRungs[0].rawText
+      // Add to both comment and rawText for visibility
+      const debugMsg = `[DEBUG: ${branchRegions.length} CBranchLeg markers, ${allAddresses.filter(a => a.branchLeg && a.branchLeg > 0).length} branched addrs]`
+      firstRungs[0].comment = debugMsg + (firstRungs[0].comment ? ' ' + firstRungs[0].comment : '')
+      firstRungs[0].rawText = debugMsg + ' ' + firstRungs[0].rawText
     }
   }
 
