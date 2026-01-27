@@ -7,6 +7,7 @@ interface Instruction {
   operands: string[]
   branch_level?: number  // 0 = main path, 1+ = in branch
   parallel_index?: number  // Which parallel path (0, 1, 2...)
+  branchLeg?: number  // RSS parser: which branch leg (1, 2, 3...), undefined = main rung
   is_input?: boolean  // True for inputs, false for outputs
 }
 
@@ -1291,23 +1292,24 @@ function ContactCoilElement({
 function organizeBranches(instructions: Instruction[]): { rows: Instruction[][]; hasBranches: boolean } {
   if (instructions.length === 0) return { rows: [[]], hasBranches: false }
 
-  // Check if we have any branches
-  const hasBranches = instructions.some(i => (i.branch_level ?? 0) > 0)
+  // Check if we have any branches (support both L5X branch_level and RSS branchLeg)
+  const hasBranches = instructions.some(i => (i.branch_level ?? 0) > 0 || (i.branchLeg ?? 0) > 0)
 
   if (!hasBranches) {
     // No branches - single row
     return { rows: [instructions], hasBranches: false }
   }
 
-  // Group by parallel_index at branch_level > 0
+  // Group by parallel_index/branchLeg
   const rows: Instruction[][] = []
   const mainPath: Instruction[] = []
   const branchGroups: Map<number, Instruction[]> = new Map()
 
   // Separate main path from branched instructions
   for (const inst of instructions) {
-    const level = inst.branch_level ?? 0
-    const parallel = inst.parallel_index ?? 0
+    // Support both L5X (branch_level) and RSS (branchLeg) formats
+    const level = inst.branch_level ?? inst.branchLeg ?? 0
+    const parallel = inst.parallel_index ?? inst.branchLeg ?? 0
 
     if (level === 0) {
       mainPath.push(inst)

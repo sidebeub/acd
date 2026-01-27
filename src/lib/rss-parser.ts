@@ -1442,6 +1442,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
     // Further split rung groups on output instructions
     // This handles cases where binary markers are too coarse
+    // BUT: Don't split parallel output branches (multiple outputs in same rung)
     const splitRungGroups: ParsedAddress[][] = []
     const sortedRungIndices = [...addressesByRung.keys()].sort((a, b) => a - b)
     for (const rungIdx of sortedRungIndices) {
@@ -1457,20 +1458,46 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         const isOutput = outputInstructionTypes.includes(addr.instType)
         const hasMoreInstructions = i < group.length - 1
 
-        // If this is an output and there are more instructions, split here
-        // But only if the next instruction is NOT in a parallel branch with this one
+        // If this is an output and there are more instructions, consider splitting
+        // But we need to detect parallel output branches
         if (isOutput && hasMoreInstructions) {
           const nextAddr = group[i + 1]
           const sameTimerCounter = addr.addr.match(/^[TC]\d+:/) && nextAddr.addr.match(/^[TC]\d+:/) &&
                                    addr.addr.split('.')[0] === nextAddr.addr.split('.')[0]
+
           // Don't split if it's the same timer/counter (e.g., T4:14 and T4:14.DN)
+          if (sameTimerCounter) continue
+
           // Don't split if both are in the same branch leg
           const sameBranch = addr.branchLeg !== undefined && addr.branchLeg === nextAddr.branchLeg
+          if (sameBranch) continue
 
-          if (!sameTimerCounter && !sameBranch) {
-            splitRungGroups.push(currentGroup)
-            currentGroup = []
+          // Check if we're in a parallel output branch structure
+          // Parallel branches have pattern: output followed by input(s) followed by output
+          // If the gap between instructions is small, they might be parallel branches
+          const posGap = nextAddr.pos - addr.pos
+          const isSmallGap = posGap < 200 // Parallel branches are typically close together
+
+          // Check if there's a pattern suggesting parallel outputs:
+          // Look ahead to see if there's another output soon (within next 5 instructions)
+          let hasNearbyOutput = false
+          for (let k = i + 1; k < Math.min(i + 6, group.length); k++) {
+            if (outputInstructionTypes.includes(group[k].instType)) {
+              // Found another output nearby - likely parallel branches
+              const gapToNextOutput = group[k].pos - addr.pos
+              if (gapToNextOutput < 400) {
+                hasNearbyOutput = true
+                break
+              }
+            }
           }
+
+          // Don't split if small gap AND there's another output nearby (suggests parallel branches)
+          if (isSmallGap && hasNearbyOutput) continue
+
+          // Otherwise, split here
+          splitRungGroups.push(currentGroup)
+          currentGroup = []
         }
       }
       if (currentGroup.length > 0) {
@@ -1530,26 +1557,40 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             continue
           }
 
-          // Check if this is a timer instruction with parameters
+          // Check if this is a timer instruction
           const timerTypes = ['TON', 'TOF', 'RTO']
-          if (timerTypes.includes(a.instType) && a.timerParams?.preset) {
+          if (timerTypes.includes(a.instType)) {
             // Timer instruction: TON(timer, timeBase, preset, accum)
+            const operands = [getDisplayName(a.addr)]
+            if (a.timerParams?.timeBase) operands.push(a.timerParams.timeBase)
+            else operands.push('1.0')  // Default time base
+            if (a.timerParams?.preset) operands.push(a.timerParams.preset)
+            else operands.push('0')    // Default preset
+            if (a.timerParams?.accum) operands.push(a.timerParams.accum)
+            else operands.push('0')    // Default accum
+
             instructions.push({
               type: a.instType,
-              operands: [getDisplayName(a.addr), a.timerParams.timeBase || '1.0', a.timerParams.preset, a.timerParams.accum || '0'],
+              operands,
               branchLeg: a.branchLeg
             })
             j++
             continue
           }
 
-          // Check if this is a counter instruction with parameters
+          // Check if this is a counter instruction
           const counterTypes = ['CTU', 'CTD']
-          if (counterTypes.includes(a.instType) && a.counterParams?.preset) {
+          if (counterTypes.includes(a.instType)) {
             // Counter instruction: CTU(counter, preset, accum)
+            const operands = [getDisplayName(a.addr)]
+            if (a.counterParams?.preset) operands.push(a.counterParams.preset)
+            else operands.push('0')    // Default preset
+            if (a.counterParams?.accum) operands.push(a.counterParams.accum)
+            else operands.push('0')    // Default accum
+
             instructions.push({
               type: a.instType,
-              operands: [getDisplayName(a.addr), a.counterParams.preset, a.counterParams.accum || '0'],
+              operands,
               branchLeg: a.branchLeg
             })
             j++
