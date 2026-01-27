@@ -1411,7 +1411,10 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       }
     }
 
-    // Group addresses by rung index
+    // Group addresses by rung index, then further split on output instructions
+    // Output instructions (OTE, OTL, OTU, TON, TOF, RTO, CTU, CTD) typically end a rung
+    const outputInstructionTypes = ['OTE', 'OTL', 'OTU', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'RES', 'MOV', 'ADD', 'SUB', 'MUL', 'DIV']
+
     const addressesByRung = new Map<number, ParsedAddress[]>()
     for (const addr of fileAddresses) {
       const rungIdx = getRungIndex(addr.pos)
@@ -1421,13 +1424,49 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       addressesByRung.get(rungIdx)!.push(addr)
     }
 
+    // Further split rung groups on output instructions
+    // This handles cases where binary markers are too coarse
+    const splitRungGroups: ParsedAddress[][] = []
+    const sortedRungIndices = [...addressesByRung.keys()].sort((a, b) => a - b)
+    for (const rungIdx of sortedRungIndices) {
+      const group = addressesByRung.get(rungIdx)!
+      if (group.length === 0) continue
+
+      let currentGroup: ParsedAddress[] = []
+      for (let i = 0; i < group.length; i++) {
+        const addr = group[i]
+        currentGroup.push(addr)
+
+        // Check if this is an output instruction (not just the last one)
+        const isOutput = outputInstructionTypes.includes(addr.instType)
+        const hasMoreInstructions = i < group.length - 1
+
+        // If this is an output and there are more instructions, split here
+        // But only if the next instruction is NOT in a parallel branch with this one
+        if (isOutput && hasMoreInstructions) {
+          const nextAddr = group[i + 1]
+          const sameTimerCounter = addr.addr.match(/^[TC]\d+:/) && nextAddr.addr.match(/^[TC]\d+:/) &&
+                                   addr.addr.split('.')[0] === nextAddr.addr.split('.')[0]
+          // Don't split if it's the same timer/counter (e.g., T4:14 and T4:14.DN)
+          // Don't split if both are in the same branch leg
+          const sameBranch = addr.branchLeg !== undefined && addr.branchLeg === nextAddr.branchLeg
+
+          if (!sameTimerCounter && !sameBranch) {
+            splitRungGroups.push(currentGroup)
+            currentGroup = []
+          }
+        }
+      }
+      if (currentGroup.length > 0) {
+        splitRungGroups.push(currentGroup)
+      }
+    }
+
     const rungs: PlcRung[] = []
     let rungNumber = 0
 
-    // Create a rung for each group of addresses
-    const sortedRungIndices = [...addressesByRung.keys()].sort((a, b) => a - b)
-    for (const rungIdx of sortedRungIndices) {
-      const currentRungAddresses = addressesByRung.get(rungIdx)!
+    // Create a rung for each split group
+    for (const currentRungAddresses of splitRungGroups) {
       if (currentRungAddresses.length === 0) continue
 
       // Convert addresses to instructions, handling multi-operand instructions
