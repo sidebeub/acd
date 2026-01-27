@@ -8,6 +8,8 @@ interface Instruction {
   branch_level?: number  // 0 = main path, 1+ = in branch
   parallel_index?: number  // Which parallel path (0, 1, 2...)
   branchLeg?: number  // RSS parser: which branch leg (1, 2, 3...), undefined = main rung
+  branchLevel?: number  // RSS parser: nesting depth (0=main, 1=first nest, etc.)
+  branchStart?: boolean  // RSS parser: true if this instruction starts a new branch
   is_input?: boolean  // True for inputs, false for outputs
 }
 
@@ -1289,7 +1291,15 @@ function ContactCoilElement({
 }
 
 // Organize instructions into rows based on branch structure
-function organizeBranches(instructions: Instruction[]): { rows: Instruction[][]; hasBranches: boolean } {
+// Returns rows with metadata for rendering nested branches properly
+interface BranchRow {
+  instructions: Instruction[]
+  branchLeg: number
+  branchLevel: number  // Nesting depth for indentation
+  startsNewBranch: boolean  // Whether this row starts a new branch group
+}
+
+function organizeBranches(instructions: Instruction[]): { rows: Instruction[][]; hasBranches: boolean; branchRows?: BranchRow[] } {
   if (instructions.length === 0) return { rows: [[]], hasBranches: false }
 
   // Check if we have any branches (support both L5X branch_level and RSS branchLeg)
@@ -1341,6 +1351,7 @@ function organizeBranches(instructions: Instruction[]): { rows: Instruction[][];
   // Row 0: Main path (inputs and outputs on the main line)
   // Row 1+: Each parallel branch leg
   const rows: Instruction[][] = []
+  const branchRows: BranchRow[] = []
 
   if (numBranchRows === 0) {
     // No actual branch groups, just main path
@@ -1369,15 +1380,35 @@ function organizeBranches(instructions: Instruction[]): { rows: Instruction[][];
 
   // Row 0: Main path inputs + first branch + main path outputs
   const firstBranch = sortedBranches[0]?.[1] || []
-  rows.push([...mainInputs, ...firstBranch, ...mainOutputs])
+  const firstRowInsts = [...mainInputs, ...firstBranch, ...mainOutputs]
+  rows.push(firstRowInsts)
+
+  // Determine the nesting level for first branch - check if any instruction has branchLevel
+  const firstBranchLevel = firstBranch.length > 0 ? (firstBranch[0].branchLevel ?? 0) : 0
+  branchRows.push({
+    instructions: firstRowInsts,
+    branchLeg: sortedBranches[0]?.[0] ?? 0,
+    branchLevel: firstBranchLevel,
+    startsNewBranch: firstBranch.some(i => i.branchStart)
+  })
 
   // Row 1+: Additional parallel branches (only the branched instructions)
   for (let i = 1; i < sortedBranches.length; i++) {
-    rows.push(sortedBranches[i][1])
+    const branchInsts = sortedBranches[i][1]
+    rows.push(branchInsts)
+
+    // Get nesting level from the instructions themselves
+    const nestLevel = branchInsts.length > 0 ? (branchInsts[0].branchLevel ?? 0) : 0
+    branchRows.push({
+      instructions: branchInsts,
+      branchLeg: sortedBranches[i][0],
+      branchLevel: nestLevel,
+      startsNewBranch: branchInsts.some(i => i.branchStart)
+    })
   }
 
   // hasBranches is true if we have any branch rows
-  return { rows, hasBranches: numBranchRows >= 1 }
+  return { rows, hasBranches: numBranchRows >= 1, branchRows }
 }
 
 // Main ladder visualization component with branch support
@@ -1398,8 +1429,9 @@ function LadderVisualization({
   onExpandAoi?: (name: string) => void
   forcedTags?: Record<string, 'on' | 'off'>
 }) {
-  const { rows, hasBranches } = organizeBranches(instructions)
+  const { rows, hasBranches, branchRows } = organizeBranches(instructions)
   const rowHeight = 130 // Height per row - enough space for instruction boxes with 3+ params
+  const indentPerLevel = 60 // Pixels to indent per nesting level
 
   // Calculate total height
   const totalHeight = Math.max(rows.length * rowHeight, 60)
@@ -1427,30 +1459,69 @@ function LadderVisualization({
         <div className="flex-shrink-0" style={{ minWidth: '300px' }}>
           {rows.length > 0 && rows[0].length > 0 ? (
             <div className="flex flex-col">
-              {rows.map((rowInsts, rowIdx) => (
+              {rows.map((rowInsts, rowIdx) => {
+                // Get nesting level for this row - use branchRows data if available
+                const branchInfo = branchRows?.[rowIdx]
+                const nestLevel = branchInfo?.branchLevel ?? 0
+                const indentPx = nestLevel * indentPerLevel
+
+                return (
                 <div
                   key={rowIdx}
-                  className="flex items-center"
+                  className="flex items-center relative"
                   style={{ height: `${rowHeight}px` }}
                 >
-                  {/* Branch vertical connection at start (for non-first rows) */}
-                  {hasBranches && rowIdx > 0 && (
-                    <div
-                      className="absolute w-0.5"
-                      style={{
-                        background: 'var(--text-muted)',
-                        left: '20px',
-                        top: `-${rowHeight / 2}px`,
-                        height: `${rowHeight / 2 + rowHeight / 2}px`
-                      }}
-                    />
+                  {/* Indentation spacer based on nesting level */}
+                  {indentPx > 0 && (
+                    <div style={{ width: `${indentPx}px`, flexShrink: 0 }} />
                   )}
 
-                  {/* Horizontal wire to first instruction (for branch rows) */}
+                  {/* Branch vertical connector and T-junction for nested branches */}
                   {hasBranches && rowIdx > 0 && (
                     <div
-                      className="w-6 h-0.5"
-                      style={{ background: 'var(--text-muted)', marginLeft: '20px' }}
+                      className="flex-shrink-0 relative"
+                      style={{ width: '24px', height: '100%' }}
+                    >
+                      {/* Vertical line connecting to parent branch */}
+                      <div
+                        className="absolute w-0.5"
+                        style={{
+                          background: 'var(--text-muted)',
+                          left: indentPx > 0 ? '0px' : '0px',
+                          top: '0px',
+                          height: '50%'
+                        }}
+                      />
+                      {/* T-junction: horizontal part */}
+                      <div
+                        className="absolute h-0.5"
+                        style={{
+                          background: 'var(--text-muted)',
+                          left: '0px',
+                          top: '50%',
+                          width: '24px'
+                        }}
+                      />
+                      {/* Vertical line extending down if not last row at this level */}
+                      {rowIdx < rows.length - 1 && (
+                        <div
+                          className="absolute w-0.5"
+                          style={{
+                            background: 'var(--text-muted)',
+                            left: '0px',
+                            top: '50%',
+                            height: '50%'
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* First row: just horizontal wire */}
+                  {rowIdx === 0 && hasBranches && (
+                    <div
+                      className="w-6 h-0.5 flex-shrink-0"
+                      style={{ background: 'var(--text-muted)' }}
                     />
                   )}
 
@@ -1516,7 +1587,8 @@ function LadderVisualization({
                     />
                   )}
                 </div>
-              ))}
+              )
+              })}
             </div>
           ) : (
             <div className="flex items-center h-full px-4">

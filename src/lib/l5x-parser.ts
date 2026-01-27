@@ -53,7 +53,9 @@ export interface PlcRung {
 export interface PlcInstruction {
   type: string
   operands: string[]
-  branchLeg?: number  // For parallel branches: which leg (1, 2, 3...), undefined = main rung
+  branchLeg?: number      // For parallel branches: which leg (0=main, 1+=branches)
+  branchLevel?: number    // Nesting depth (0=main, 1=first nest, 2=nested within nest, etc.)
+  branchStart?: boolean   // True if this instruction starts a new branch group
 }
 
 export interface PlcTask {

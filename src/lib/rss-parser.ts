@@ -1181,6 +1181,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     timerParams?: { timeBase: string | null, preset: string | null, accum: string | null }
     counterParams?: { preset: string | null, accum: string | null }
     branchLeg?: number       // Which branch leg this instruction is in (0 = main, 1+ = parallel legs)
+    branchStart?: boolean    // True if this instruction starts a new branch
+    branchLevel?: number     // Nesting depth (0=main, 1=first nest, etc.)
   }
   const allAddresses: ParsedAddress[] = []
 
@@ -1232,6 +1234,18 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       }
     }
     return undefined
+  }
+
+  // Helper to calculate branch nesting level
+  // Returns how many branch regions contain this position (0 = main, 1 = first level branch, etc.)
+  function getBranchLevel(pos: number): number {
+    let level = 0
+    for (const region of branchRegions) {
+      if (pos > region.legStart && pos < region.branchEnd) {
+        level++
+      }
+    }
+    return level
   }
 
   // Helper to detect if an instruction starts a new parallel path
@@ -1352,7 +1366,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             stat.samples.push(`${addr}->${decoded.type}`)
           }
 
-          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant, sourceA, sourceB, timerParams, counterParams, branchLeg: getBranchLeg(pos) })
+          allAddresses.push({ pos, addr, opcode, instType: decoded.type, operandCount: decoded.operandCount, sourceConstant, sourceA, sourceB, timerParams, counterParams, branchLeg: getBranchLeg(pos), branchLevel: getBranchLevel(pos) })
           addresses.add(addr)
         } else {
           // Fallback: still add address but infer instruction type
@@ -1365,7 +1379,8 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             opcode: 0xFF, // Unknown
             instType: inferredType,
             operandCount: 1,  // Single operand - rung markers will handle grouping
-            branchLeg: getBranchLeg(pos)
+            branchLeg: getBranchLeg(pos),
+            branchLevel: getBranchLevel(pos)
           })
         }
       }
@@ -1530,6 +1545,7 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         // First instruction in rung is always branchLeg 0
         if (i > 0 && isNewParallelPath(addr.pos)) {
           currentBranchLeg++
+          addr.branchStart = true  // Mark this as start of new branch
         }
 
         // Assign branch leg to this address
@@ -1559,7 +1575,9 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             instructions.push({
               type: 'MOV',
               operands: [a.sourceConstant, getDisplayName(a.addr)],
-              branchLeg: a.branchLeg
+              branchLeg: a.branchLeg,
+              branchLevel: a.branchLevel,
+              branchStart: a.branchStart
             })
             j++
             continue
@@ -1572,7 +1590,9 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             instructions.push({
               type: a.instType,
               operands: [getDisplayName(a.sourceA), getDisplayName(a.addr)],
-              branchLeg: a.branchLeg
+              branchLeg: a.branchLeg,
+              branchLevel: a.branchLevel,
+              branchStart: a.branchStart
             })
             j++
             continue
@@ -1586,7 +1606,9 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             instructions.push({
               type: a.instType,
               operands: [getDisplayName(a.sourceA), getDisplayName(sourceB), getDisplayName(a.addr)],
-              branchLeg: a.branchLeg
+              branchLeg: a.branchLeg,
+              branchLevel: a.branchLevel,
+              branchStart: a.branchStart
             })
             j++
             continue
@@ -1607,7 +1629,9 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             instructions.push({
               type: a.instType,
               operands,
-              branchLeg: a.branchLeg
+              branchLeg: a.branchLeg,
+              branchLevel: a.branchLevel,
+              branchStart: a.branchStart
             })
             j++
             continue
@@ -1626,7 +1650,9 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             instructions.push({
               type: a.instType,
               operands,
-              branchLeg: a.branchLeg
+              branchLeg: a.branchLeg,
+              branchLevel: a.branchLevel,
+              branchStart: a.branchStart
             })
             j++
             continue
@@ -1647,7 +1673,9 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
               instructions.push({
                 type: a.instType,
                 operands: [getDisplayName(a.addr), ...nextAddrs.map(x => getDisplayName(x.addr))],
-                branchLeg: a.branchLeg
+                branchLeg: a.branchLeg,
+                branchLevel: a.branchLevel,
+                branchStart: a.branchStart
               })
               j += a.operandCount
               continue
@@ -1658,7 +1686,9 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           instructions.push({
             type: a.instType,
             operands: [getDisplayName(a.addr)],
-            branchLeg: a.branchLeg
+            branchLeg: a.branchLeg,
+            branchLevel: a.branchLevel,
+            branchStart: a.branchStart
           })
           j++
         }
@@ -1697,14 +1727,16 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         currentRungInstructions.push({
           type: 'MOV',
           operands: [addr.sourceConstant, getDisplayName(addr.addr)],
-          branchLeg: addr.branchLeg
+          branchLeg: addr.branchLeg,
+          branchLevel: addr.branchLevel
         })
       } else if (comparisonTypes.includes(addr.instType) && addr.sourceA) {
         // Handle comparison instructions with sourceA
         currentRungInstructions.push({
           type: addr.instType,
           operands: [getDisplayName(addr.sourceA), getDisplayName(addr.addr)],
-          branchLeg: addr.branchLeg
+          branchLeg: addr.branchLeg,
+          branchLevel: addr.branchLevel
         })
       } else if (mathTypes.includes(addr.instType) && addr.sourceA) {
         // Handle math instructions with sourceA and sourceB
@@ -1712,27 +1744,31 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         currentRungInstructions.push({
           type: addr.instType,
           operands: [getDisplayName(addr.sourceA), getDisplayName(sourceB), getDisplayName(addr.addr)],
-          branchLeg: addr.branchLeg
+          branchLeg: addr.branchLeg,
+          branchLevel: addr.branchLevel
         })
       } else if (timerTypes.includes(addr.instType) && addr.timerParams?.preset) {
         // Handle timer instructions with parameters
         currentRungInstructions.push({
           type: addr.instType,
           operands: [getDisplayName(addr.addr), addr.timerParams.timeBase || '1.0', addr.timerParams.preset, addr.timerParams.accum || '0'],
-          branchLeg: addr.branchLeg
+          branchLeg: addr.branchLeg,
+          branchLevel: addr.branchLevel
         })
       } else if (counterTypes.includes(addr.instType) && addr.counterParams?.preset) {
         // Handle counter instructions with parameters
         currentRungInstructions.push({
           type: addr.instType,
           operands: [getDisplayName(addr.addr), addr.counterParams.preset, addr.counterParams.accum || '0'],
-          branchLeg: addr.branchLeg
+          branchLeg: addr.branchLeg,
+          branchLevel: addr.branchLevel
         })
       } else {
         currentRungInstructions.push({
           type: addr.instType,
           operands: [getDisplayName(addr.addr)],
-          branchLeg: addr.branchLeg
+          branchLeg: addr.branchLeg,
+          branchLevel: addr.branchLevel
         })
       }
 
