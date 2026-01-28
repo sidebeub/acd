@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { SimulationToggleButton, useSimulation, calculatePowerFlow } from './SimulationContext'
+import { SimulationToggleButton, useSimulation, calculatePowerFlow, getOutputUpdates, TimerDisplay, CounterDisplay } from './SimulationContext'
 
 interface Instruction {
   type: string
@@ -1051,9 +1051,17 @@ function InstructionBox({
   const isCounter = isCounterInstruction(inst.type)
   const headerColor = getInstructionColor(config)
 
+  // Get simulation state for timers/counters
+  const { enabled: simEnabled, timerStates, counterStates } = useSimulation()
+
   // Extract preset value for timers/counters
   const presetValue = (isTimer || isCounter) && inst.operands.length > 1 ? inst.operands[1] : null
-  const tagName = inst.operands[0] || ''
+  const rawTagName = inst.operands[0] || ''
+  const tagName = rawTagName.split('§')[0] || rawTagName
+
+  // Get timer/counter state
+  const timerState = isTimer ? timerStates[tagName] : null
+  const counterState = isCounter ? counterStates[tagName] : null
 
   // Search highlight styling
   const searchHighlightStyle = isSearchMatch ? {
@@ -1133,34 +1141,98 @@ function InstructionBox({
             {tagName}
           </div>
 
-          {/* Visual progress bar placeholder */}
+          {/* Visual progress bar - shows real value in simulation */}
           <div
-            className="h-1.5 rounded-full mb-1.5 overflow-hidden"
+            className="h-2 rounded-full mb-1.5 overflow-hidden"
             style={{ background: 'var(--surface-4)' }}
           >
             <div
-              className="h-full rounded-full"
+              className={`h-full rounded-full transition-all ${
+                isTimer && timerState?.TT ? 'animate-pulse' : ''
+              }`}
               style={{
-                background: headerColor,
-                width: '0%',
-                opacity: 0.6
+                background: isTimer
+                  ? (timerState?.DN ? '#22c55e' : timerState?.TT ? '#f59e0b' : headerColor)
+                  : (counterState?.DN ? '#22c55e' : headerColor),
+                width: simEnabled
+                  ? isTimer && timerState
+                    ? `${(timerState.ACC / timerState.PRE) * 100}%`
+                    : isCounter && counterState
+                      ? `${Math.min((counterState.ACC / counterState.PRE) * 100, 100)}%`
+                      : '0%'
+                  : '0%',
+                opacity: simEnabled ? 1 : 0.6
               }}
             />
           </div>
 
-          {/* Timer/Counter bits */}
-          <div className="flex gap-1 flex-wrap">
+          {/* ACC / PRE values */}
+          {simEnabled && (isTimer ? timerState : counterState) && (
+            <div className="text-[10px] font-mono text-center mb-1" style={{ color: 'var(--text-secondary)' }}>
+              {isTimer && timerState
+                ? `${(timerState.ACC / 1000).toFixed(1)}s / ${(timerState.PRE / 1000).toFixed(1)}s`
+                : counterState
+                  ? `${counterState.ACC} / ${counterState.PRE}`
+                  : ''
+              }
+            </div>
+          )}
+
+          {/* Timer/Counter bits - highlight active bits during simulation */}
+          <div className="flex gap-1 flex-wrap justify-center">
             {isTimer ? (
               <>
-                <span className="text-[8px] px-1 rounded" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)' }}>.EN</span>
-                <span className="text-[8px] px-1 rounded" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)' }}>.TT</span>
-                <span className="text-[8px] px-1 rounded" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)' }}>.DN</span>
+                <span
+                  className="text-[8px] px-1 rounded font-semibold"
+                  style={{
+                    background: simEnabled && timerState?.EN ? 'rgba(34, 197, 94, 0.3)' : 'var(--surface-4)',
+                    color: simEnabled && timerState?.EN ? '#22c55e' : 'var(--text-muted)',
+                    boxShadow: simEnabled && timerState?.EN ? '0 0 4px rgba(34, 197, 94, 0.5)' : 'none'
+                  }}
+                >.EN</span>
+                <span
+                  className="text-[8px] px-1 rounded font-semibold"
+                  style={{
+                    background: simEnabled && timerState?.TT ? 'rgba(245, 158, 11, 0.3)' : 'var(--surface-4)',
+                    color: simEnabled && timerState?.TT ? '#f59e0b' : 'var(--text-muted)',
+                    boxShadow: simEnabled && timerState?.TT ? '0 0 4px rgba(245, 158, 11, 0.5)' : 'none'
+                  }}
+                >.TT</span>
+                <span
+                  className="text-[8px] px-1 rounded font-semibold"
+                  style={{
+                    background: simEnabled && timerState?.DN ? 'rgba(34, 197, 94, 0.3)' : 'var(--surface-4)',
+                    color: simEnabled && timerState?.DN ? '#22c55e' : 'var(--text-muted)',
+                    boxShadow: simEnabled && timerState?.DN ? '0 0 4px rgba(34, 197, 94, 0.5)' : 'none'
+                  }}
+                >.DN</span>
               </>
             ) : (
               <>
-                <span className="text-[8px] px-1 rounded" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)' }}>.CU</span>
-                <span className="text-[8px] px-1 rounded" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)' }}>.DN</span>
-                <span className="text-[8px] px-1 rounded" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)' }}>.OV</span>
+                <span
+                  className="text-[8px] px-1 rounded font-semibold"
+                  style={{
+                    background: simEnabled && counterState?.CU ? 'rgba(34, 197, 94, 0.3)' : 'var(--surface-4)',
+                    color: simEnabled && counterState?.CU ? '#22c55e' : 'var(--text-muted)',
+                    boxShadow: simEnabled && counterState?.CU ? '0 0 4px rgba(34, 197, 94, 0.5)' : 'none'
+                  }}
+                >.CU</span>
+                <span
+                  className="text-[8px] px-1 rounded font-semibold"
+                  style={{
+                    background: simEnabled && counterState?.DN ? 'rgba(34, 197, 94, 0.3)' : 'var(--surface-4)',
+                    color: simEnabled && counterState?.DN ? '#22c55e' : 'var(--text-muted)',
+                    boxShadow: simEnabled && counterState?.DN ? '0 0 4px rgba(34, 197, 94, 0.5)' : 'none'
+                  }}
+                >.DN</span>
+                <span
+                  className="text-[8px] px-1 rounded font-semibold"
+                  style={{
+                    background: simEnabled && counterState?.OV ? 'rgba(239, 68, 68, 0.3)' : 'var(--surface-4)',
+                    color: simEnabled && counterState?.OV ? '#ef4444' : 'var(--text-muted)',
+                    boxShadow: simEnabled && counterState?.OV ? '0 0 4px rgba(239, 68, 68, 0.5)' : 'none'
+                  }}
+                >.OV</span>
               </>
             )}
           </div>
@@ -1472,13 +1544,50 @@ function LadderVisualization({
   const indentPerLevel = 60 // Pixels to indent per nesting level
 
   // Simulation state
-  const { enabled: simEnabled, tagStates, toggleTag } = useSimulation()
+  const {
+    enabled: simEnabled,
+    tagStates,
+    timerStates,
+    counterStates,
+    toggleTag,
+    setTagStates,
+    updateTimers,
+    updateCounters,
+    scanCycle
+  } = useSimulation()
 
   // Calculate power flow when simulation is enabled
   const powerFlow = React.useMemo(() => {
     if (!simEnabled) return null
-    return calculatePowerFlow(instructions, tagStates, rows)
-  }, [simEnabled, instructions, tagStates, rows])
+    return calculatePowerFlow(instructions, tagStates, rows, timerStates, counterStates)
+  }, [simEnabled, instructions, tagStates, rows, timerStates, counterStates])
+
+  // Apply output updates (OTE sets tags, timers accumulate, etc.)
+  React.useEffect(() => {
+    if (!simEnabled || !powerFlow) return
+
+    const { tagUpdates, timerUpdates, counterUpdates } = getOutputUpdates(
+      instructions,
+      powerFlow,
+      timerStates,
+      counterStates
+    )
+
+    // Apply tag updates (OTE, OTL, OTU)
+    if (Object.keys(tagUpdates).length > 0) {
+      setTagStates(tagUpdates)
+    }
+
+    // Apply timer updates
+    if (Object.keys(timerUpdates).length > 0) {
+      updateTimers(timerUpdates)
+    }
+
+    // Apply counter updates
+    if (Object.keys(counterUpdates).length > 0) {
+      updateCounters(counterUpdates)
+    }
+  }, [simEnabled, powerFlow, instructions, scanCycle])
 
   // Calculate total height
   const totalHeight = Math.max(rows.length * rowHeight, 60)

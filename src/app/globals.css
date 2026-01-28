@@ -428,6 +428,109 @@ body {
   50% { opacity: 0.5; }
 }
 
+/* Timer Display */
+.timer-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  min-width: 100px;
+}
+
+.timer-bar {
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.timer-fill {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.1s linear;
+  border-radius: 4px;
+}
+
+.timer-fill.timer-timing {
+  background: #f59e0b;
+  animation: timer-pulse 0.5s ease-in-out infinite;
+}
+
+.timer-fill.timer-done {
+  background: #22c55e;
+}
+
+@keyframes timer-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.timer-values {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.timer-bits {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.bit-on {
+  color: #22c55e;
+  text-shadow: 0 0 4px rgba(34, 197, 94, 0.5);
+}
+
+.bit-off {
+  color: var(--text-muted);
+}
+
+/* Counter Display */
+.counter-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 6px;
+  min-width: 80px;
+}
+
+.counter-values {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.counter-acc {
+  color: #a855f7;
+}
+
+.counter-pre {
+  color: var(--text-secondary);
+}
+
+.counter-bits {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  font-size: 9px;
+  font-weight: 600;
+}
+
 /* Instruction blocks */
 .inst-block {
   padding: 8px 12px;
