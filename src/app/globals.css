@@ -2057,7 +2057,7 @@ body {
   container-name: watch-window;
   position: fixed;
   z-index: 1000;
-  width: min(380px, calc(100vw - var(--space-4)));
+  width: min(340px, calc(100vw - var(--space-8)));
   max-height: calc(100dvh - 100px);
   background: var(--surface-2);
   border: 1px solid var(--border-default);
@@ -2069,19 +2069,38 @@ body {
   user-select: none;
 }
 
-/* Mobile: dock to bottom */
+/* Mobile: dock to bottom as sheet */
 @media (max-width: 639px) {
   .watch-window {
     position: fixed;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
+    left: var(--space-2) !important;
+    right: var(--space-2) !important;
+    bottom: var(--space-2) !important;
     top: auto !important;
-    width: 100%;
-    max-width: 100%;
-    max-height: 60dvh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: auto;
+    max-width: calc(100vw - var(--space-4));
+    max-height: 50dvh;
+    border-radius: var(--radius-md);
     padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: var(--shadow-xl), 0 0 0 1px var(--border-default);
+  }
+
+  /* Drag handle indicator on mobile */
+  .watch-window::before {
+    content: '';
+    position: absolute;
+    top: var(--space-2);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 4px;
+    background: var(--surface-5);
+    border-radius: 2px;
+    z-index: 1;
+  }
+
+  .watch-window-header {
+    padding-top: var(--space-4);
   }
 }
 
