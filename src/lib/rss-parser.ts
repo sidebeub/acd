@@ -1539,27 +1539,65 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       // 3. branchStart markers
 
       // Detect parallel paths using binary "clean marker" pattern
-      // Always use binary detection - it's more reliable than CBranchLeg text detection
+      // The binary pattern marks branch points, but we need smarter grouping
+      // to match RSLogix visual structure where instructions on the same
+      // horizontal row belong to the same branchLeg
+
+      // Output instruction types that typically end a branch row
+      const outputTypes = ['OTE', 'OTL', 'OTU', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'MOV', 'JSR', 'RET']
+
+      // First pass: mark all binary pattern matches
+      const branchMarkers: boolean[] = []
+      for (let i = 0; i < group.length; i++) {
+        branchMarkers[i] = i > 0 && isNewParallelPath(group[i].pos)
+      }
+
+      // Second pass: smart grouping
+      // Only start a new branchLeg when we see a branch marker AND:
+      // 1. The previous leg had at least one output (completed a branch), OR
+      // 2. This is an input instruction after we've processed the main row
       let currentBranchLeg = 0
       let binaryBranchesFound = 0
+      let outputCountOnCurrentLeg = 0
+      let mainRowComplete = false  // True after first branch marker
 
       for (let i = 0; i < group.length; i++) {
         const addr = group[i]
+        const isOutput = outputTypes.includes(addr.instType)
+        const hasBranchMarker = branchMarkers[i]
 
-        // Check if this starts a new parallel path (new visual row)
-        // First instruction in rung is always branchLeg 0
-        if (i > 0 && isNewParallelPath(addr.pos)) {
-          currentBranchLeg++
-          binaryBranchesFound++
-          addr.branchStart = true  // Mark this as start of new branch
+        // Decide whether to start a new leg
+        if (hasBranchMarker) {
+          // First branch marker after main row - always start new leg
+          if (!mainRowComplete) {
+            mainRowComplete = true
+            currentBranchLeg++
+            binaryBranchesFound++
+            outputCountOnCurrentLeg = 0  // Reset output count for new branch
+            addr.branchStart = true
+          }
+          // Subsequent markers: only new leg if we've completed at least one output
+          // on the current leg (meaning we finished a parallel branch)
+          else if (outputCountOnCurrentLeg > 0) {
+            currentBranchLeg++
+            binaryBranchesFound++
+            outputCountOnCurrentLeg = 0
+            addr.branchStart = true
+          }
+          // Otherwise, stay on current leg (continuing the same branch row)
         }
 
-        // Assign branch leg to this address (override any previous value from text detection)
+        // Assign branch leg
         addr.branchLeg = currentBranchLeg
+
+        // Track outputs on current leg
+        if (isOutput) {
+          outputCountOnCurrentLeg++
+        }
       }
 
       if (binaryBranchesFound > 0) {
-        console.log(`[RSS Parser] Rung ${rungIdx}: Binary pattern found ${binaryBranchesFound} branch starts`)
+        console.log(`[RSS Parser] Rung ${rungIdx}: Grouped into ${currentBranchLeg + 1} branch legs (${binaryBranchesFound} branch starts)`)
       }
 
       // Trust the rung boundaries from 07 80 09 80 pattern
