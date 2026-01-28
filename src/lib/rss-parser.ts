@@ -1673,6 +1673,52 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         }
       }
 
+      // Second merge pass: Handle output-only legs
+      // If a leg has ONLY outputs (no inputs), and ANY output shares a tag with
+      // an output from a PREVIOUS leg that HAS inputs, merge the output-only leg
+      // into that previous leg (so they share the same conditions)
+      const updatedSortedLegs = Array.from(legGroups.keys()).sort((a, b) => a - b)
+      for (let i = updatedSortedLegs.length - 1; i >= 0; i--) {
+        const currentLeg = updatedSortedLegs[i]
+        const currentLegAddrs = legGroups.get(currentLeg)!
+
+        // Check if this leg is output-only (no inputs)
+        const hasInputs = currentLegAddrs.some(a => inputTypes.includes(a.instType))
+        if (hasInputs) continue
+
+        // This leg has only outputs - look for a previous leg to merge into
+        const currentOutputTags = currentLegAddrs
+          .filter(a => outputTypes.includes(a.instType))
+          .map(a => a.addr)
+
+        // Search previous legs for one with matching output tag AND has inputs
+        for (let j = i - 1; j >= 0; j--) {
+          const prevLeg = updatedSortedLegs[j]
+          const prevLegAddrs = legGroups.get(prevLeg)!
+
+          // Previous leg must have inputs (conditions)
+          const prevHasInputs = prevLegAddrs.some(a => inputTypes.includes(a.instType))
+          if (!prevHasInputs) continue
+
+          // Check if any output tag matches
+          const prevOutputTags = prevLegAddrs
+            .filter(a => outputTypes.includes(a.instType))
+            .map(a => a.addr)
+
+          const hasMatchingTag = currentOutputTags.some(tag => prevOutputTags.includes(tag))
+          if (hasMatchingTag) {
+            // Merge: move all outputs from current leg to previous leg
+            console.log(`[RSS Parser] Rung ${rungIdx}: Merging output-only leg ${currentLeg} into leg ${prevLeg} (shared tag)`)
+            for (const addr of currentLegAddrs) {
+              addr.branchLeg = prevLeg
+              legGroups.get(prevLeg)!.push(addr)
+            }
+            legGroups.set(currentLeg, [])
+            break
+          }
+        }
+      }
+
       // After merging, reorder instructions within each leg to put inputs before outputs
       // This matches RSLogix visual order: contacts → coils
       // Also sort the main group array to reflect this order
