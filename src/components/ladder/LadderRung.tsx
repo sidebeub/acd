@@ -1663,9 +1663,9 @@ function ContactCoilElement({
   const isContact = config.isContact
   const isCoil = config.isCoil
 
-  // Handle right-click for force menu
+  // Handle right-click for force menu (works for contacts and coils)
   const handleContextMenu = (e: React.MouseEvent) => {
-    if (simEnabled && isContact) {
+    if (simEnabled && (isContact || isCoil)) {
       e.preventDefault()
       e.stopPropagation()
       setContextMenu({ x: e.clientX, y: e.clientY })
@@ -1676,7 +1676,7 @@ function ContactCoilElement({
   const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null)
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (simEnabled && isContact) {
+    if (simEnabled && (isContact || isCoil)) {
       const touch = e.touches[0]
       longPressTimerRef.current = setTimeout(() => {
         setContextMenu({ x: touch.clientX, y: touch.clientY })
@@ -1737,7 +1737,7 @@ function ContactCoilElement({
     isContact ? (isEnergized ? 'contact-energized' : 'contact-de-energized') :
     isCoil ? (isEnergized ? 'coil-energized' : 'coil-de-energized') : ''
   ) : ''
-  const clickableClass = simEnabled && isContact ? 'contact-clickable' : ''
+  const clickableClass = simEnabled && (isContact || isCoil) ? 'contact-clickable' : ''
   const forcedClass = forceState ? 'contact-forced' : ''
 
   // Cross-reference clickable class (when not in simulation mode or for non-contacts)
@@ -1753,8 +1753,8 @@ function ContactCoilElement({
       return
     }
 
-    // In simulation mode, contacts toggle state
-    if (simEnabled && isContact && onToggleTag) {
+    // In simulation mode, contacts and coils toggle state
+    if (simEnabled && (isContact || isCoil) && onToggleTag) {
       onToggleTag()
       return
     }
@@ -1767,7 +1767,7 @@ function ContactCoilElement({
 
   return (
     <div
-      className={`${isContact ? 'ladder-contact' : 'ladder-coil'} relative flex flex-col items-center touch-ripple ${simEnabled && isContact ? 'touch-ripple-green' : ''} ${simEnabled && isContact ? 'cursor-pointer' : !simEnabled && onTagXRef ? 'cursor-pointer' : 'cursor-default'} ${isSearchMatch ? 'search-highlight' : ''} ${simClass} ${clickableClass} ${forcedClass} ${xrefClickableClass}`}
+      className={`${isContact ? 'ladder-contact' : 'ladder-coil'} relative flex flex-col items-center touch-ripple ${simEnabled && isContact ? 'touch-ripple-green' : ''} ${simEnabled && isCoil ? 'touch-ripple-amber' : ''} ${simEnabled && (isContact || isCoil) ? 'cursor-pointer' : !simEnabled && onTagXRef ? 'cursor-pointer' : 'cursor-default'} ${isSearchMatch ? 'search-highlight' : ''} ${simClass} ${clickableClass} ${forcedClass} ${xrefClickableClass}`}
       style={{
         transform: isHovered ? 'translateY(-2px)' : 'none',
         transition: 'transform 0.15s ease',

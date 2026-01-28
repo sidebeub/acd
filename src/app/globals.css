@@ -746,6 +746,17 @@ body {
   background: rgba(34, 197, 94, 0.2);
 }
 
+/* Clickable coils in simulation mode - amber variant */
+.ladder-coil.contact-clickable:hover {
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.4);
+  background: rgba(234, 179, 8, 0.1);
+}
+
+.ladder-coil.contact-clickable:active {
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.8);
+  background: rgba(234, 179, 8, 0.2);
+}
+
 /* Contact state badge (shows 0/1) */
 .contact-state-badge {
   position: absolute;
@@ -3077,6 +3088,11 @@ body {
   background: rgba(34, 197, 94, 0.4);
 }
 
+/* Amber ripple for coils in simulation */
+.touch-ripple-amber:active::after {
+  background: rgba(234, 179, 8, 0.4);
+}
+
 /* ================================================
    Pull-to-Refresh Indicator
    ================================================ */
@@ -3589,7 +3605,8 @@ body {
   .tree-item:hover,
   .tab-item:hover,
   .inst-block:hover,
-  .contact-clickable:hover {
+  .contact-clickable:hover,
+  .ladder-coil.contact-clickable:hover {
     transform: none;
     box-shadow: none;
   }
