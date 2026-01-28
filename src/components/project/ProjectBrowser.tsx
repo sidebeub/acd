@@ -1,10 +1,14 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { LadderRung } from '../ladder/LadderRung'
 import { ChatPanel } from '../chat/ChatPanel'
 import { GlobalSearch } from '../search/GlobalSearch'
+import { TagSearchBar } from '../search/TagSearchBar'
 import { StructuredTextViewer } from '../structured-text/StructuredTextViewer'
+import { MiniMap } from '../ladder/MiniMap'
+import { IOVisualization } from '../IOVisualization'
+import { buildTagExportData, generateTagCSV, downloadCSV, generateCSVFilename } from '@/lib/csv-export'
 
 interface Tag {
   id: string
@@ -265,6 +269,23 @@ const IconDownload = () => (
   </svg>
 )
 
+const IconExportCSV = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+    <path d="M14 2v6h6" />
+    <path d="M8 13h3M8 17h3M13 13h3M13 17h3" />
+  </svg>
+)
+
+const IconPrint = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="6 9 6 2 18 2 18 9" />
+    <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" />
+  </svg>
+)
+
+
 const IconMenu = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="3" y1="6" x2="21" y2="6" />
@@ -395,7 +416,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
   const [xrefData, setXrefData] = useState<{ tags: XRefTag[]; totalReferences: number } | null>(null)
   const [callTreeData, setCallTreeData] = useState<{ trees: CallTreeNode[]; roots: string[]; orphans: string[]; circular: string[][] } | null>(null)
   const [timerData, setTimerData] = useState<{ timers: TimerInfo[]; counters: CounterInfo[] } | null>(null)
-  const [ioData, setIOData] = useState<{ inputs: IOPoint[]; outputs: IOPoint[] } | null>(null)
+  const [ioData, setIOData] = useState<{ inputs: IOPoint[]; outputs: IOPoint[]; hardwareModules: Array<{ name: string; catalogNumber: string | null; slot: number | null; parent?: string | null }> } | null>(null)
   const [alarmData, setAlarmData] = useState<{ alarms: AlarmInfo[] } | null>(null)
   const [aoiData, setAoiData] = useState<{ aois: Array<{ name: string; description: string | null; parameters: string | null; localTags: string | null; logic: string | null }> } | null>(null)
   const [udtData, setUdtData] = useState<{ udts: Array<{ name: string; description: string | null; members: string | null }> } | null>(null)
@@ -428,6 +449,14 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
   const [showOnlyBookmarked, setShowOnlyBookmarked] = useState(false)
   const [openNavDropdown, setOpenNavDropdown] = useState<'analysis' | 'hardware' | 'structure' | null>(null)
 
+  // Tag search state
+  const [tagSearchOpen, setTagSearchOpen] = useState(false)
+  const [tagSearchTerm, setTagSearchTerm] = useState('')
+  const [currentTagSearchMatchIndex, setCurrentTagSearchMatchIndex] = useState(0)
+
+  // Ref for the main content scroll container (for mini-map)
+  const ladderScrollRef = useRef<HTMLElement>(null)
+
   // Load bookmarks from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(`bookmarks_${project.id}`)
@@ -456,6 +485,20 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
     })
   }, [project.id])
 
+  // Scroll to a specific rung (for mini-map click)
+  const handleMiniMapRungClick = useCallback((rungId: string) => {
+    const rungElement = document.getElementById(`rung-${rungId}`)
+    if (rungElement) {
+      rungElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      rungElement.style.outline = '2px solid var(--accent-blue)'
+      rungElement.style.outlineOffset = '4px'
+      setTimeout(() => {
+        rungElement.style.outline = ''
+        rungElement.style.outlineOffset = ''
+      }, 1500)
+    }
+  }, [])
+
   const currentProgram = project.programs.find(p => p.id === selectedProgram)
   const currentRoutine = currentProgram?.routines.find(r => r.id === selectedRoutine)
 
@@ -477,6 +520,86 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  // Tag search keyboard shortcut (Ctrl+F)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f' && activeTab === 'ladder') {
+        e.preventDefault()
+        setTagSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeTab])
+
+  // Calculate tag search matches across all visible rungs
+  const tagSearchMatches = useMemo(() => {
+    if (!tagSearchTerm || !currentRoutine) return []
+
+    const matches: Array<{ rungId: string; rungIndex: number; instructionIndex: number }> = []
+    const rungs = currentRoutine.rungs.filter(rung => !showOnlyBookmarked || bookmarkedRungs.has(rung.id))
+
+    rungs.forEach((rung, rungIndex) => {
+      const instructions = rung.instructions ? JSON.parse(rung.instructions) : []
+      instructions.forEach((inst: { type: string; operands: string[] }, instIndex: number) => {
+        const hasMatch = inst.operands?.some((op: string) => {
+          const symbol = op.includes('\u00A7') ? op.split('\u00A7')[0] : op
+          return symbol.toUpperCase().includes(tagSearchTerm.toUpperCase())
+        })
+        if (hasMatch) {
+          matches.push({ rungId: rung.id, rungIndex, instructionIndex: instIndex })
+        }
+      })
+    })
+
+    return matches
+  }, [tagSearchTerm, currentRoutine, showOnlyBookmarked, bookmarkedRungs])
+
+  // Navigate to next/prev tag search match
+  const handleTagSearchNext = useCallback(() => {
+    if (tagSearchMatches.length === 0) return
+    const nextIndex = (currentTagSearchMatchIndex + 1) % tagSearchMatches.length
+    setCurrentTagSearchMatchIndex(nextIndex)
+    const match = tagSearchMatches[nextIndex]
+    const rungElement = document.getElementById(`rung-${match.rungId}`)
+    if (rungElement) {
+      rungElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [tagSearchMatches, currentTagSearchMatchIndex])
+
+  const handleTagSearchPrev = useCallback(() => {
+    if (tagSearchMatches.length === 0) return
+    const prevIndex = currentTagSearchMatchIndex === 0 ? tagSearchMatches.length - 1 : currentTagSearchMatchIndex - 1
+    setCurrentTagSearchMatchIndex(prevIndex)
+    const match = tagSearchMatches[prevIndex]
+    const rungElement = document.getElementById(`rung-${match.rungId}`)
+    if (rungElement) {
+      rungElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [tagSearchMatches, currentTagSearchMatchIndex])
+
+  // Reset match index when search term changes
+  useEffect(() => {
+    setCurrentTagSearchMatchIndex(0)
+  }, [tagSearchTerm])
+
+  // Close tag search when switching tabs
+  useEffect(() => {
+    if (activeTab !== 'ladder') {
+      setTagSearchOpen(false)
+    }
+  }, [activeTab])
+
+  // Calculate searchMatchStartIndex for each rung
+  const getRungSearchStartIndex = useCallback((rungId: string): number => {
+    let startIndex = 0
+    for (const match of tagSearchMatches) {
+      if (match.rungId === rungId) return startIndex
+      startIndex++
+    }
+    return -1
+  }, [tagSearchMatches])
 
   // Fetch analysis data when tab changes
   useEffect(() => {
@@ -510,7 +633,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
         try {
           const res = await fetch(`/api/projects/${project.id}/io`)
           const data = await res.json()
-          setIOData({ inputs: data.inputs, outputs: data.outputs })
+          setIOData({ inputs: data.inputs, outputs: data.outputs, hardwareModules: data.hardwareModules || [] })
         } catch (e) { console.error('Failed to fetch io:', e) }
         setAnalysisLoading(null)
       } else if (activeTab === 'alarms' && !alarmData) {
@@ -643,6 +766,30 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
       tag.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Handle CSV export of tags
+  const handleExportCSV = useCallback(() => {
+    const tagData = project.tags.map(tag => ({
+      name: tag.name,
+      dataType: tag.dataType,
+      scope: tag.scope,
+      description: tag.description
+    }))
+    const programData = project.programs.map(program => ({
+      name: program.name,
+      routines: program.routines.map(routine => ({
+        name: routine.name,
+        rungs: routine.rungs.map(rung => ({
+          rawText: rung.rawText,
+          instructions: rung.instructions
+        }))
+      }))
+    }))
+    const exportData = buildTagExportData(tagData, programData)
+    const csvContent = generateTagCSV(exportData)
+    const filename = generateCSVFilename(project.name)
+    downloadCSV(csvContent, filename)
+  }, [project])
+
   // Build tag descriptions map for ladder view
   const tagDescriptions = useMemo(() => {
     const map: Record<string, string> = {}
@@ -680,7 +827,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
     <div className="h-screen flex flex-col" style={{ background: 'var(--surface-0)' }}>
       {/* Header bar */}
       <header
-        className="flex-shrink-0 h-12 flex items-center justify-between px-2 sm:px-4 border-b"
+        className="flex-shrink-0 h-12 flex items-center justify-between px-2 sm:px-4 border-b no-print"
         style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
       >
         <div className="flex items-center gap-2 sm:gap-4">
@@ -894,10 +1041,32 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
             </kbd>
           </button>
 
+          {/* Print / Export PDF button */}
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors no-print"
+            style={{
+              background: 'var(--surface-3)',
+              color: 'var(--text-secondary)'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--surface-4)'
+              e.currentTarget.style.color = 'var(--text-primary)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'var(--surface-3)'
+              e.currentTarget.style.color = 'var(--text-secondary)'
+            }}
+            title="Print / Export PDF"
+          >
+            <IconPrint />
+            <span className="hidden sm:inline">Print</span>
+          </button>
+
           {/* Chat button */}
           <button
             onClick={() => setChatPanelOpen(!chatPanelOpen)}
-            className={`ml-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`ml-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors no-print ${
               chatPanelOpen ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent' : ''
             }`}
             style={{
@@ -912,13 +1081,26 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
         </div>
       </header>
 
+      {/* Print Header - Only visible when printing */}
+      <div className="print-header" style={{ display: 'none' }}>
+        <h1>{project.name}</h1>
+        <div className="print-meta">
+          {project.processorType && <span>Processor: {project.processorType}</span>}
+          <span> | Programs: {project.programs.length}</span>
+          <span> | Routines: {totalRoutines}</span>
+          <span> | Rungs: {totalRungs}</span>
+          <span> | Tags: {project.tags.length}</span>
+          <span> | Printed: {new Date().toLocaleDateString()}</span>
+        </div>
+      </div>
+
       <div className="flex-1 flex overflow-hidden relative">
         {activeTab === 'ladder' ? (
           <>
             {/* Mobile overlay backdrop */}
             {sidebarOpen && (
               <div
-                className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                className="fixed inset-0 bg-black/50 z-40 lg:hidden no-print"
                 onClick={() => setSidebarOpen(false)}
               />
             )}
@@ -926,7 +1108,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
             {/* Sidebar */}
             <aside
               className={`
-                flex-shrink-0 overflow-y-auto border-r z-50
+                flex-shrink-0 overflow-y-auto border-r z-50 no-print
                 fixed lg:relative inset-y-0 left-0 top-12
                 transform transition-transform duration-200 ease-in-out
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -1042,7 +1224,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
             </aside>
 
             {/* Main content area */}
-            <main className="flex-1 overflow-y-auto overflow-x-hidden" style={{ background: 'var(--surface-0)' }}>
+            <main ref={ladderScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden" style={{ background: 'var(--surface-0)' }}>
               {currentRoutine ? (
                 // Check if this is a Structured Text routine
                 currentRoutine.type.toLowerCase().includes('st') ||
@@ -1148,7 +1330,8 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                       .map((rung, index) => (
                       <div
                         key={rung.id}
-                        className="animate-fade-in"
+                        id={`rung-${rung.id}`}
+                        className={`animate-fade-in ${tagSearchMatches.some(m => m.rungId === rung.id) ? 'rung-has-matches' : ''}`}
                         style={{ animationDelay: `${index * 30}ms` }}
                       >
                         {ladderViewMode === 'graphic' ? (
@@ -1171,6 +1354,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                             aoiNames={aoiNames}
                             isBookmarked={bookmarkedRungs.has(rung.id)}
                             onToggleBookmark={handleToggleBookmark}
+                            searchTerm={tagSearchOpen ? tagSearchTerm : undefined}
+                            currentSearchMatchIndex={currentTagSearchMatchIndex}
+                            searchMatchStartIndex={getRungSearchStartIndex(rung.id)}
                           />
                         ) : (
                           /* Simple text view */
@@ -1250,6 +1436,16 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                       </div>
                     ))}
                   </div>
+
+                  {/* Mini-map for navigation */}
+                  {currentRoutine.rungs.length > 5 && ladderViewMode === 'graphic' && (
+                    <MiniMap
+                      rungs={currentRoutine.rungs}
+                      scrollContainerRef={ladderScrollRef}
+                      onRungClick={handleMiniMapRungClick}
+                      bookmarkedRungs={bookmarkedRungs}
+                    />
+                  )}
                 </div>
                 )
               ) : (
@@ -1268,25 +1464,40 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
         ) : (
           /* Tags View */
           <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            {/* Search header */}
+            {/* Search header with Export CSV button */}
             <div
               className="flex-shrink-0 p-4 border-b"
               style={{ borderColor: 'var(--border-subtle)' }}
             >
-              <div className="relative max-w-md">
-                <div
-                  className="absolute left-3 top-1/2 -translate-y-1/2"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  <IconSearch />
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <div
+                    className="absolute left-3 top-1/2 -translate-y-1/2"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <IconSearch />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search tags by name or description..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="input-field w-full pl-9"
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search tags by name or description..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input-field w-full pl-9"
-                />
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+                  style={{
+                    background: 'var(--accent-emerald-muted)',
+                    color: 'var(--accent-emerald)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}
+                  title="Export all tags to CSV file"
+                >
+                  <IconExportCSV />
+                  <span className="hidden sm:inline">Export CSV</span>
+                </button>
               </div>
               <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
                 {filteredTags.length} of {project.tags.length} tags
@@ -1582,77 +1793,22 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
         {/* I/O View */}
         {activeTab === 'io' && (
           <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-              {ioData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <span style={{ color: 'var(--accent-emerald)' }}>{ioData.inputs.length} inputs</span>
-                  <span style={{ color: 'var(--accent-amber)' }}>{ioData.outputs.length} outputs</span>
-                </div>
-              )}
-            </div>
-            <div className="flex-1 overflow-auto p-4">
-              {analysisLoading === 'io' ? (
-                <div className="flex items-center justify-center h-32">
-                  <span style={{ color: 'var(--text-muted)' }}>Analyzing I/O points...</span>
-                </div>
-              ) : ioData ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--accent-emerald)' }}>
-                      <span className="w-2 h-2 rounded-full bg-current"></span> Inputs
-                    </h3>
-                    <div className="space-y-2">
-                      {ioData.inputs.map((io, i) => (
-                        <div key={io.tagName} className="p-3 rounded" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
-                          {io.aliasName ? (
-                            <>
-                              <code className="text-[13px] font-mono font-semibold" style={{ color: 'var(--accent-emerald)' }}>{io.aliasName}</code>
-                              <div className="text-xs mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>{io.tagName}</div>
-                            </>
-                          ) : (
-                            <code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>{io.tagName}</code>
-                          )}
-                          {io.description && <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{io.description}</div>}
-                          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Used {io.usage.length} times</div>
-                        </div>
-                      ))}
-                      {ioData.inputs.length === 0 && (
-                        <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No inputs found</div>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--accent-amber)' }}>
-                      <span className="w-2 h-2 rounded-full bg-current"></span> Outputs
-                    </h3>
-                    <div className="space-y-2">
-                      {ioData.outputs.map((io, i) => (
-                        <div key={io.tagName} className="p-3 rounded" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
-                          {io.aliasName ? (
-                            <>
-                              <code className="text-[13px] font-mono font-semibold" style={{ color: 'var(--accent-amber)' }}>{io.aliasName}</code>
-                              <div className="text-xs mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>{io.tagName}</div>
-                            </>
-                          ) : (
-                            <code className="text-[13px] font-mono" style={{ color: 'var(--accent-amber)' }}>{io.tagName}</code>
-                          )}
-                          {io.description && <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{io.description}</div>}
-                          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Used {io.usage.length} times</div>
-                        </div>
-                      ))}
-                      {ioData.outputs.length === 0 && (
-                        <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No outputs found</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-                  <IconIO />
-                  <p className="mt-2 text-sm">No I/O data</p>
-                </div>
-              )}
-            </div>
+            {analysisLoading === 'io' ? (
+              <div className="flex items-center justify-center h-32">
+                <span style={{ color: 'var(--text-muted)' }}>Analyzing I/O points...</span>
+              </div>
+            ) : ioData ? (
+              <IOVisualization
+                inputs={ioData.inputs}
+                outputs={ioData.outputs}
+                hardwareModules={ioData.hardwareModules}
+              />
+            ) : (
+              <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <IconIO />
+                <p className="mt-2 text-sm">No I/O data</p>
+              </div>
+            )}
           </main>
         )}
 
@@ -2416,6 +2572,17 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                       <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Printable web page format</div>
                     </div>
                   </a>
+                  <button
+                    onClick={handleExportCSV}
+                    className="w-full flex items-center gap-3 p-4 rounded border transition-colors text-left"
+                    style={{ background: 'var(--surface-1)', borderColor: 'var(--accent-emerald)' }}
+                  >
+                    <IconExportCSV />
+                    <div>
+                      <div className="font-medium" style={{ color: 'var(--text-primary)' }}>CSV Tag Export</div>
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>All tags with addresses, types, and usage data</div>
+                    </div>
+                  </button>
                 </div>
 
                 <h3 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--text-primary)' }}>Operator Documentation</h3>
@@ -2494,6 +2661,21 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
             setActiveTab('modules')
           }
         }}
+      />
+
+      {/* Tag Search Bar - appears when Ctrl+F is pressed in ladder view */}
+      <TagSearchBar
+        isOpen={tagSearchOpen}
+        onClose={() => {
+          setTagSearchOpen(false)
+          setTagSearchTerm('')
+        }}
+        searchTerm={tagSearchTerm}
+        onSearchChange={setTagSearchTerm}
+        matchCount={tagSearchMatches.length}
+        currentMatchIndex={currentTagSearchMatchIndex}
+        onNavigateNext={handleTagSearchNext}
+        onNavigatePrev={handleTagSearchPrev}
       />
     </div>
   )

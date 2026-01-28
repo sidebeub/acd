@@ -68,6 +68,27 @@ interface LadderRungProps {
   isBookmarked?: boolean  // Whether this rung is bookmarked
   onToggleBookmark?: (rungId: string) => void  // Toggle bookmark callback
   forcedTags?: Record<string, 'on' | 'off'>  // Tags that are forced (tag name -> force state)
+  // Tag search highlighting props
+  searchTerm?: string  // Search term for highlighting matching operands
+  currentSearchMatchIndex?: number  // The currently focused match index (for scroll-to and highlight focus)
+  searchMatchStartIndex?: number  // Starting index of matches in this rung within the global match list
+  // Keyboard navigation props
+  isSelected?: boolean  // Whether this rung is selected via keyboard navigation
+  selectedInstructionIndex?: number | null  // Index of the selected instruction within this rung
+  onInstructionSelect?: (instructionIndex: number) => void  // Callback when an instruction is clicked/selected
+}
+
+// Helper to check if an operand matches the search term (partial, case-insensitive)
+function operandMatchesSearch(operand: string, searchTerm: string): boolean {
+  if (!searchTerm || !operand) return false
+  const symbol = operand.includes('\u00A7') ? operand.split('\u00A7')[0] : operand
+  return symbol.toUpperCase().includes(searchTerm.toUpperCase())
+}
+
+// Helper to check if any operand in an instruction matches the search term
+function instructionMatchesSearch(inst: Instruction, searchTerm: string): boolean {
+  if (!searchTerm) return false
+  return inst.operands.some(op => operandMatchesSearch(op, searchTerm))
 }
 
 // Instruction categories with their visual styling
@@ -1010,7 +1031,9 @@ function InstructionBox({
   isHovered,
   onHover,
   isAoi,
-  onExpandAoi
+  onExpandAoi,
+  isSearchMatch,
+  isCurrentSearchMatch
 }: {
   inst: Instruction
   config: typeof DEFAULT_CONFIG
@@ -1018,6 +1041,8 @@ function InstructionBox({
   onHover: (hovered: boolean) => void
   isAoi?: boolean
   onExpandAoi?: () => void
+  isSearchMatch?: boolean
+  isCurrentSearchMatch?: boolean
 }) {
   const paramLabels = getParamLabels(inst.type)
   const hasParams = paramLabels.length > 0 && inst.operands.length > 0
@@ -1029,15 +1054,25 @@ function InstructionBox({
   const presetValue = (isTimer || isCounter) && inst.operands.length > 1 ? inst.operands[1] : null
   const tagName = inst.operands[0] || ''
 
+  // Search highlight styling
+  const searchHighlightStyle = isSearchMatch ? {
+    boxShadow: isCurrentSearchMatch
+      ? '0 0 0 3px rgba(251, 191, 36, 0.8), 0 0 20px rgba(251, 191, 36, 0.6)'
+      : '0 0 0 2px rgba(251, 191, 36, 0.5), 0 0 12px rgba(251, 191, 36, 0.3)',
+    border: isCurrentSearchMatch ? '2px solid rgb(251, 191, 36)' : `2px solid rgba(251, 191, 36, 0.7)`,
+    animation: isCurrentSearchMatch ? 'search-pulse 1.5s ease-in-out infinite' : undefined
+  } : {}
+
   return (
     <div
-      className="relative flex-shrink-0 sm:flex-shrink-0 rounded cursor-default transition-all overflow-hidden"
+      className={`relative flex-shrink-0 sm:flex-shrink-0 rounded cursor-default transition-all overflow-hidden ${isSearchMatch ? 'search-highlight' : ''}`}
       style={{
         border: `2px solid ${config.border}`,
         transform: isHovered ? 'translateY(-2px)' : 'none',
         boxShadow: isHovered ? '0 4px 12px rgba(0,0,0,0.3)' : 'none',
         minWidth: hasParams ? '120px' : 'auto',
-        maxWidth: '180px'
+        maxWidth: '180px',
+        ...searchHighlightStyle
       }}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
@@ -1221,7 +1256,9 @@ function ContactCoilElement({
   isHovered,
   onHover,
   tagDescriptions,
-  forcedTags
+  forcedTags,
+  isSearchMatch,
+  isCurrentSearchMatch
 }: {
   inst: Instruction
   config: typeof DEFAULT_CONFIG & { isContact?: boolean; isCoil?: boolean }
@@ -1229,18 +1266,32 @@ function ContactCoilElement({
   onHover: (hovered: boolean) => void
   tagDescriptions?: Record<string, string>
   forcedTags?: Record<string, 'on' | 'off'>
+  isSearchMatch?: boolean
+  isCurrentSearchMatch?: boolean
 }) {
   const tagName = inst.operands[0] || ''
   const instType = inst.type.toUpperCase()
   const description = tagDescriptions ? getTagDescription(tagName, tagDescriptions) : undefined
   const forceState = getForceState(tagName, forcedTags)
 
+  // Search highlight styling
+  const searchHighlightStyle = isSearchMatch ? {
+    boxShadow: isCurrentSearchMatch
+      ? '0 0 0 3px rgba(251, 191, 36, 0.8), 0 0 20px rgba(251, 191, 36, 0.6)'
+      : '0 0 0 2px rgba(251, 191, 36, 0.5), 0 0 12px rgba(251, 191, 36, 0.3)',
+    backgroundColor: isCurrentSearchMatch ? 'rgba(251, 191, 36, 0.2)' : 'rgba(251, 191, 36, 0.1)',
+    borderRadius: '4px',
+    padding: '4px',
+    animation: isCurrentSearchMatch ? 'search-pulse 1.5s ease-in-out infinite' : undefined
+  } : {}
+
   return (
     <div
-      className="relative flex flex-col items-center cursor-default"
+      className={`relative flex flex-col items-center cursor-default ${isSearchMatch ? 'search-highlight' : ''}`}
       style={{
         transform: isHovered ? 'translateY(-2px)' : 'none',
-        transition: 'transform 0.15s ease'
+        transition: 'transform 0.15s ease',
+        ...searchHighlightStyle
       }}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
@@ -1373,7 +1424,10 @@ function LadderVisualization({
   tagDescriptions,
   aoiNames,
   onExpandAoi,
-  forcedTags
+  forcedTags,
+  searchTerm,
+  currentSearchMatchIndex,
+  searchMatchStartIndex
 }: {
   instructions: Instruction[]
   hoveredInstruction: number | null
@@ -1382,6 +1436,9 @@ function LadderVisualization({
   aoiNames?: string[]
   onExpandAoi?: (name: string) => void
   forcedTags?: Record<string, 'on' | 'off'>
+  searchTerm?: string
+  currentSearchMatchIndex?: number
+  searchMatchStartIndex?: number
 }) {
   const { rows, hasBranches, branchRows } = organizeBranches(instructions)
   const rowHeight = 130 // Height per row - enough space for instruction boxes with 3+ params
@@ -1486,8 +1543,27 @@ function LadderVisualization({
                     const isHovered = hoveredInstruction === globalIndex
                     const isContactOrCoil = config.isContact || config.isCoil
 
+                    // Check if this instruction matches the search term
+                    const isSearchMatch = searchTerm ? instructionMatchesSearch(inst, searchTerm) : false
+                    // Calculate if this is the current focused search match
+                    let matchIndex = -1
+                    if (isSearchMatch && searchMatchStartIndex !== undefined && searchMatchStartIndex >= 0) {
+                      let matchesBefore = 0
+                      for (const [testInst, testIdx] of idxMap.entries()) {
+                        if (testIdx < globalIndex && instructionMatchesSearch(testInst, searchTerm || '')) {
+                          matchesBefore++
+                        }
+                      }
+                      matchIndex = searchMatchStartIndex + matchesBefore
+                    }
+                    const isCurrentSearchMatch = matchIndex >= 0 && matchIndex === currentSearchMatchIndex
+
                     return (
-                      <div key={instIdx} className="flex items-center">
+                      <div
+                        key={instIdx}
+                        className={`flex items-center ${isCurrentSearchMatch ? 'current-search-match' : ''}`}
+                        data-search-match-index={isSearchMatch ? matchIndex : undefined}
+                      >
                         {/* Connecting wire */}
                         {(instIdx > 0 || rowIdx === 0) && (
                           <div
@@ -1505,6 +1581,8 @@ function LadderVisualization({
                             onHover={(h) => setHoveredInstruction(h ? globalIndex : null)}
                             tagDescriptions={tagDescriptions}
                             forcedTags={forcedTags}
+                            isSearchMatch={isSearchMatch}
+                            isCurrentSearchMatch={isCurrentSearchMatch}
                           />
                         ) : (
                           <InstructionBox
@@ -1514,6 +1592,8 @@ function LadderVisualization({
                             onHover={(h) => setHoveredInstruction(h ? globalIndex : null)}
                             isAoi={aoiNames?.includes(inst.type.toUpperCase()) || aoiNames?.includes(inst.type)}
                             onExpandAoi={onExpandAoi ? () => onExpandAoi(inst.type) : undefined}
+                            isSearchMatch={isSearchMatch}
+                            isCurrentSearchMatch={isCurrentSearchMatch}
                           />
                         )}
                       </div>
@@ -1593,7 +1673,10 @@ export function LadderRung({
   aoiNames,
   isBookmarked,
   onToggleBookmark,
-  forcedTags
+  forcedTags,
+  searchTerm,
+  currentSearchMatchIndex,
+  searchMatchStartIndex
 }: LadderRungProps) {
   const [isExplaining, setIsExplaining] = useState(false)
   const [showRaw, setShowRaw] = useState(false)
@@ -1935,6 +2018,9 @@ export function LadderRung({
         aoiNames={aoiNames}
         onExpandAoi={projectId ? handleExpandAoi : undefined}
         forcedTags={forcedTags}
+        searchTerm={searchTerm}
+        currentSearchMatchIndex={currentSearchMatchIndex}
+        searchMatchStartIndex={searchMatchStartIndex}
       />
 
       {/* AOI Modal */}

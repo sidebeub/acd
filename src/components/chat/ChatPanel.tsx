@@ -396,7 +396,7 @@ export function ChatPanel({ projectId, isOpen, onClose }: ChatPanelProps) {
   if (!isOpen) return null
 
   return (
-    <>
+    <div className="no-print">
       {/* Mobile backdrop */}
       <div
         className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -676,6 +676,6 @@ export function ChatPanel({ projectId, isOpen, onClose }: ChatPanelProps) {
           </div>
         </form>
       </aside>
-    </>
+    </div>
   )
 }
