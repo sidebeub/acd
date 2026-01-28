@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { SimulationToggleButton, useSimulation } from './SimulationContext'
+import { SimulationToggleButton, useSimulation, calculatePowerFlow } from './SimulationContext'
 
 interface Instruction {
   type: string
@@ -1259,7 +1259,11 @@ function ContactCoilElement({
   tagDescriptions,
   forcedTags,
   isSearchMatch,
-  isCurrentSearchMatch
+  isCurrentSearchMatch,
+  simEnabled,
+  isEnergized,
+  tagState,
+  onToggleTag
 }: {
   inst: Instruction
   config: typeof DEFAULT_CONFIG & { isContact?: boolean; isCoil?: boolean }
@@ -1269,11 +1273,19 @@ function ContactCoilElement({
   forcedTags?: Record<string, 'on' | 'off'>
   isSearchMatch?: boolean
   isCurrentSearchMatch?: boolean
+  simEnabled?: boolean
+  isEnergized?: boolean
+  tagState?: boolean
+  onToggleTag?: () => void
 }) {
-  const tagName = inst.operands[0] || ''
+  const rawOperand = inst.operands[0] || ''
+  const [symbolName] = rawOperand.includes('§') ? rawOperand.split('§') : [rawOperand, null]
+  const tagName = symbolName
   const instType = inst.type.toUpperCase()
   const description = tagDescriptions ? getTagDescription(tagName, tagDescriptions) : undefined
   const forceState = getForceState(tagName, forcedTags)
+  const isContact = config.isContact
+  const isCoil = config.isCoil
 
   // Search highlight styling
   const searchHighlightStyle = isSearchMatch ? {
@@ -1286,9 +1298,16 @@ function ContactCoilElement({
     animation: isCurrentSearchMatch ? 'search-pulse 1.5s ease-in-out infinite' : undefined
   } : {}
 
+  // Simulation classes
+  const simClass = simEnabled ? (
+    isContact ? (isEnergized ? 'contact-energized' : 'contact-de-energized') :
+    isCoil ? (isEnergized ? 'coil-energized' : 'coil-de-energized') : ''
+  ) : ''
+  const clickableClass = simEnabled && isContact ? 'contact-clickable' : ''
+
   return (
     <div
-      className={`relative flex flex-col items-center cursor-default ${isSearchMatch ? 'search-highlight' : ''}`}
+      className={`relative flex flex-col items-center ${simEnabled && isContact ? 'cursor-pointer' : 'cursor-default'} ${isSearchMatch ? 'search-highlight' : ''} ${simClass} ${clickableClass}`}
       style={{
         transform: isHovered ? 'translateY(-2px)' : 'none',
         transition: 'transform 0.15s ease',
@@ -1296,7 +1315,14 @@ function ContactCoilElement({
       }}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
+      onClick={simEnabled && isContact && onToggleTag ? onToggleTag : undefined}
     >
+      {/* Simulation state badge */}
+      {simEnabled && isContact && (
+        <div className={`contact-state-badge ${tagState ? 'contact-state-on' : 'contact-state-off'}`}>
+          {tagState ? '1' : '0'}
+        </div>
+      )}
       {/* Force badge */}
       {forceState && <ForceBadge type={forceState} />}
       {/* DEBUG: Show branch leg number */}
@@ -1445,6 +1471,15 @@ function LadderVisualization({
   const rowHeight = 130 // Height per row - enough space for instruction boxes with 3+ params
   const indentPerLevel = 60 // Pixels to indent per nesting level
 
+  // Simulation state
+  const { enabled: simEnabled, tagStates, toggleTag } = useSimulation()
+
+  // Calculate power flow when simulation is enabled
+  const powerFlow = React.useMemo(() => {
+    if (!simEnabled) return null
+    return calculatePowerFlow(instructions, tagStates, rows)
+  }, [simEnabled, instructions, tagStates, rows])
+
   // Calculate total height
   const totalHeight = Math.max(rows.length * rowHeight, 60)
 
@@ -1457,13 +1492,13 @@ function LadderVisualization({
 
   return (
     <div
-      className="px-2 sm:px-4 pt-4 pb-8 overflow-x-auto"
+      className={`px-2 sm:px-4 pt-4 pb-8 overflow-x-auto ${simEnabled ? 'sim-mode-active' : ''}`}
       style={{ background: 'var(--surface-1)' }}
     >
       <div className="inline-flex min-w-full" style={{ minHeight: `${totalHeight}px` }}>
         {/* Left power rail */}
         <div
-          className="power-rail flex-shrink-0"
+          className={`power-rail flex-shrink-0 ${simEnabled ? 'power-rail-energized' : ''}`}
           style={{ height: `${totalHeight}px` }}
         />
 
@@ -1496,9 +1531,9 @@ function LadderVisualization({
                     >
                       {/* Vertical line connecting to parent branch */}
                       <div
-                        className="absolute w-0.5"
+                        className={`absolute w-0.5 ${simEnabled && powerFlow?.wireEnergized[rowIdx]?.[0] ? 'wire-energized' : ''}`}
                         style={{
-                          background: 'var(--text-muted)',
+                          background: simEnabled && powerFlow?.wireEnergized[rowIdx]?.[0] ? '#22c55e' : 'var(--text-muted)',
                           left: indentPx > 0 ? '0px' : '0px',
                           top: '0px',
                           height: '50%'
@@ -1506,9 +1541,9 @@ function LadderVisualization({
                       />
                       {/* T-junction: horizontal part */}
                       <div
-                        className="absolute h-0.5"
+                        className={`absolute h-0.5 ${simEnabled && powerFlow?.wireEnergized[rowIdx]?.[0] ? 'wire-energized' : ''}`}
                         style={{
-                          background: 'var(--text-muted)',
+                          background: simEnabled && powerFlow?.wireEnergized[rowIdx]?.[0] ? '#22c55e' : 'var(--text-muted)',
                           left: '0px',
                           top: '50%',
                           width: '24px'
@@ -1517,9 +1552,9 @@ function LadderVisualization({
                       {/* Vertical line extending down if not last row at this level */}
                       {rowIdx < rows.length - 1 && (
                         <div
-                          className="absolute w-0.5"
+                          className={`absolute w-0.5 ${simEnabled && powerFlow?.wireEnergized[rowIdx]?.[0] ? 'wire-energized' : ''}`}
                           style={{
-                            background: 'var(--text-muted)',
+                            background: simEnabled && powerFlow?.wireEnergized[rowIdx]?.[0] ? '#22c55e' : 'var(--text-muted)',
                             left: '0px',
                             top: '50%',
                             height: '50%'
@@ -1532,8 +1567,8 @@ function LadderVisualization({
                   {/* First row: just horizontal wire */}
                   {rowIdx === 0 && hasBranches && (
                     <div
-                      className="w-6 h-0.5 flex-shrink-0"
-                      style={{ background: 'var(--text-muted)' }}
+                      className={`w-6 h-0.5 flex-shrink-0 ${simEnabled && powerFlow?.wireEnergized[0]?.[0] ? 'wire-energized' : ''}`}
+                      style={{ background: simEnabled && powerFlow?.wireEnergized[0]?.[0] ? '#22c55e' : 'var(--text-muted)' }}
                     />
                   )}
 
@@ -1568,8 +1603,8 @@ function LadderVisualization({
                         {/* Connecting wire */}
                         {(instIdx > 0 || rowIdx === 0) && (
                           <div
-                            className="w-6 h-0.5 flex-shrink-0"
-                            style={{ background: 'var(--text-muted)' }}
+                            className={`w-6 h-0.5 flex-shrink-0 ${simEnabled && powerFlow?.wireEnergized[rowIdx]?.[instIdx] ? 'wire-energized' : ''}`}
+                            style={{ background: simEnabled && powerFlow?.wireEnergized[rowIdx]?.[instIdx] ? '#22c55e' : 'var(--text-muted)' }}
                           />
                         )}
 
@@ -1584,6 +1619,10 @@ function LadderVisualization({
                             forcedTags={forcedTags}
                             isSearchMatch={isSearchMatch}
                             isCurrentSearchMatch={isCurrentSearchMatch}
+                            simEnabled={simEnabled}
+                            isEnergized={powerFlow?.instructionEnergized[globalIndex]}
+                            tagState={tagStates[(inst.operands[0]?.split('§')[0] || '')]}
+                            onToggleTag={() => toggleTag(inst.operands[0]?.split('§')[0] || '')}
                           />
                         ) : (
                           <InstructionBox
@@ -1604,8 +1643,8 @@ function LadderVisualization({
                   {/* Final connecting wire to right rail */}
                   {rowInsts.length > 0 && (
                     <div
-                      className="flex-1 h-0.5 min-w-6"
-                      style={{ background: 'var(--text-muted)' }}
+                      className={`flex-1 h-0.5 min-w-6 ${simEnabled && powerFlow?.wireEnergized[rowIdx]?.[rowInsts.length] ? 'wire-energized' : ''}`}
+                      style={{ background: simEnabled && powerFlow?.wireEnergized[rowIdx]?.[rowInsts.length] ? '#22c55e' : 'var(--text-muted)' }}
                     />
                   )}
 
@@ -1647,7 +1686,7 @@ function LadderVisualization({
 
         {/* Right power rail */}
         <div
-          className="power-rail flex-shrink-0"
+          className={`power-rail flex-shrink-0 ${simEnabled && powerFlow?.rungEnergized ? 'power-rail-energized' : ''}`}
           style={{ height: `${totalHeight}px` }}
         />
       </div>
