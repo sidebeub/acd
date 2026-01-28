@@ -1619,6 +1619,83 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
         console.log(`[RSS Parser] Rung ${rungIdx}: Grouped into ${currentBranchLeg + 1} branch legs (${binaryBranchesFound} branch starts)`)
       }
 
+      // Post-processing: merge legs where an input on leg N+1 should be on leg N
+      // This handles cases where binary order is: input1, output1, input2, output2
+      // but visual order should be: input1, input2, output1 (with output2 on sub-branch)
+      //
+      // Heuristic: If leg N ends with an output, and leg N+1 starts with inputs
+      // followed by an output on the SAME tag (like OTE followed by OTL), then
+      // the inputs from leg N+1 should move to leg N
+      const inputTypes = ['XIC', 'XIO']
+      const legGroups = new Map<number, typeof group>()
+      for (const addr of group) {
+        const leg = addr.branchLeg ?? 0
+        if (!legGroups.has(leg)) legGroups.set(leg, [])
+        legGroups.get(leg)!.push(addr)
+      }
+
+      // Check each pair of adjacent legs for merge opportunity
+      const sortedLegs = Array.from(legGroups.keys()).sort((a, b) => a - b)
+      for (let i = 0; i < sortedLegs.length - 1; i++) {
+        const legN = sortedLegs[i]
+        const legN1 = sortedLegs[i + 1]
+        const legNAddrs = legGroups.get(legN)!
+        const legN1Addrs = legGroups.get(legN1)!
+
+        if (legNAddrs.length === 0 || legN1Addrs.length === 0) continue
+
+        // Find last output on leg N
+        const lastOutputN = [...legNAddrs].reverse().find(a => outputTypes.includes(a.instType))
+        if (!lastOutputN) continue
+
+        // Find outputs on leg N+1
+        const outputsN1 = legN1Addrs.filter(a => outputTypes.includes(a.instType))
+        if (outputsN1.length === 0) continue
+
+        // Check if any output on leg N+1 is on the same tag as leg N's last output
+        // (like OTE GATESTOPREQUEST followed by OTL GATESTOPREQUEST)
+        const sameTagOutput = outputsN1.find(a => a.addr === lastOutputN.addr)
+        if (sameTagOutput) {
+          // This looks like a sub-branch pattern
+          // Move inputs from leg N+1 to leg N (they should be on the same visual row)
+          const inputsToMove = legN1Addrs.filter(a => inputTypes.includes(a.instType))
+          for (const input of inputsToMove) {
+            input.branchLeg = legN
+            // Also update the leg groups
+            legGroups.get(legN)!.push(input)
+          }
+          // Keep only outputs on leg N+1
+          legGroups.set(legN1, legN1Addrs.filter(a => !inputTypes.includes(a.instType)))
+
+          if (rungIdx === 2) {
+            console.log(`[RSS Parser] Rung 2: Merged ${inputsToMove.length} inputs from leg ${legN1} to leg ${legN}`)
+          }
+        }
+      }
+
+      // After merging, reorder instructions within each leg to put inputs before outputs
+      // This matches RSLogix visual order: contacts → coils
+      // Also sort the main group array to reflect this order
+      const reorderedGroup: typeof group = []
+      for (const leg of sortedLegs) {
+        const addrs = legGroups.get(leg)!
+        if (addrs.length <= 1) {
+          reorderedGroup.push(...addrs)
+          continue
+        }
+
+        // Separate inputs and outputs, preserving relative order within each group
+        const inputs = addrs.filter(a => inputTypes.includes(a.instType))
+        const outputs = addrs.filter(a => !inputTypes.includes(a.instType))
+
+        // Add inputs first, then outputs
+        reorderedGroup.push(...inputs, ...outputs)
+      }
+
+      // Replace the group contents with reordered version
+      group.length = 0
+      group.push(...reorderedGroup)
+
       // Trust the rung boundaries from 07 80 09 80 pattern
       // Each group is one rung - include even if empty
       splitRungGroups.push(group)
