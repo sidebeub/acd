@@ -1538,42 +1538,28 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
       // 2. Binary "clean marker" pattern (isNewParallelPath)
       // 3. branchStart markers
 
-      // Check if any instruction already has branchLeg from CBranchLeg detection
-      const hasCBranchLegInfo = group.some(addr => addr.branchLeg !== undefined && addr.branchLeg > 0)
+      // Detect parallel paths using binary "clean marker" pattern
+      // Always use binary detection - it's more reliable than CBranchLeg text detection
+      let currentBranchLeg = 0
+      let binaryBranchesFound = 0
 
-      if (!hasCBranchLegInfo) {
-        // No CBranchLeg info - try binary pattern detection
-        let currentBranchLeg = 0
-        let binaryBranchesFound = 0
+      for (let i = 0; i < group.length; i++) {
+        const addr = group[i]
 
-        for (let i = 0; i < group.length; i++) {
-          const addr = group[i]
-
-          // Check if this starts a new parallel path (new visual row)
-          // First instruction in rung is always branchLeg 0
-          if (i > 0 && isNewParallelPath(addr.pos)) {
-            currentBranchLeg++
-            binaryBranchesFound++
-            addr.branchStart = true  // Mark this as start of new branch
-          }
-
-          // Assign branch leg to this address
-          addr.branchLeg = currentBranchLeg
+        // Check if this starts a new parallel path (new visual row)
+        // First instruction in rung is always branchLeg 0
+        if (i > 0 && isNewParallelPath(addr.pos)) {
+          currentBranchLeg++
+          binaryBranchesFound++
+          addr.branchStart = true  // Mark this as start of new branch
         }
 
-        if (binaryBranchesFound > 0) {
-          console.log(`[RSS Parser] Rung ${rungIdx}: Binary pattern found ${binaryBranchesFound} branch starts`)
-        }
-      } else {
-        // Use CBranchLeg-based detection - mark branchStart for each new leg
-        let lastLeg = -1
-        for (const addr of group) {
-          const leg = addr.branchLeg ?? 0
-          if (leg !== lastLeg && leg > 0) {
-            addr.branchStart = true
-          }
-          lastLeg = leg
-        }
+        // Assign branch leg to this address (override any previous value from text detection)
+        addr.branchLeg = currentBranchLeg
+      }
+
+      if (binaryBranchesFound > 0) {
+        console.log(`[RSS Parser] Rung ${rungIdx}: Binary pattern found ${binaryBranchesFound} branch starts`)
       }
 
       // Trust the rung boundaries from 07 80 09 80 pattern
