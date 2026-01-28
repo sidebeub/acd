@@ -7611,20 +7611,51 @@ export function generateFullRungExplanation(
     return { instruction, operands, raw: instrString, explanation: expl }
   }
 
+  // Helper to get a short description for a branch based on its output instruction
+  const getBranchDescription = (branchParts: { instruction: string; operands: string[]; raw: string; explanation: string | null }[]) => {
+    // Find the output instruction (OTE, OTL, OTU, MOV, COP, etc.)
+    const outputInst = branchParts.find(p => ['OTE', 'OTL', 'OTU', 'MOV', 'COP', 'ADD', 'SUB', 'MUL', 'DIV', 'TON', 'TOF', 'CTU', 'CTD', 'RES'].includes(p.instruction))
+    if (!outputInst) return null
+
+    const tag = outputInst.operands[outputInst.instruction === 'COP' || outputInst.instruction === 'MOV' ? 1 : 0] || ''
+
+    // Try to derive a meaningful name from the tag
+    if (tag.includes('HMI')) return 'HMI Status Update'
+    if (tag.includes('_Seq') || tag.includes('Seq_')) return 'Sequence Control'
+    if (tag.includes('_Start') || tag.includes('Start_')) return 'Start Command'
+    if (tag.includes('_Stop') || tag.includes('Stop_')) return 'Stop Command'
+    if (tag.includes('_Fault') || tag.includes('Fault_')) return 'Fault Handling'
+    if (tag.includes('_Alarm') || tag.includes('Alarm_')) return 'Alarm Control'
+    if (outputInst.instruction === 'TON' || outputInst.instruction === 'TOF') return 'Timer Operation'
+    if (outputInst.instruction === 'CTU' || outputInst.instruction === 'CTD') return 'Counter Operation'
+    if (outputInst.instruction === 'COP') return 'Data Copy'
+    if (outputInst.instruction === 'MOV') return 'Data Move'
+
+    return null
+  }
+
+  // Helper to format a single instruction as a bullet point
+  const formatInstruction = (p: { instruction: string; operands: string[]; raw: string; explanation: string | null }) => {
+    const isOutput = ['OTE', 'OTL', 'OTU', 'MOV', 'COP', 'ADD', 'SUB', 'MUL', 'DIV', 'TON', 'TOF', 'CTU', 'CTD', 'RES'].includes(p.instruction)
+    const prefix = isOutput ? '**' : ''
+    const suffix = isOutput ? '**' : ''
+    return `- \`${p.raw}\` - ${prefix}${p.explanation}${suffix}`
+  }
+
   // Detect rung purpose
   const purpose = detectRungPurpose(allInstructions, rungText)
 
+  // Main Function section
   if (purpose) {
-    explanation = `**Purpose:** ${purpose.purpose}\n`
+    explanation = `## Main Function:\n${purpose.purpose}`
     if (purpose.details) {
-      explanation += `${purpose.details}\n`
+      explanation += ` ${purpose.details}`
     }
-    explanation += '\n'
+    explanation += '\n\n'
   }
 
-  // Logic Flow - numbered steps (skip the raw code block for cleaner display)
-  explanation += '**Logic Flow:**\n'
-  let stepNum = 1
+  // Logic Breakdown section
+  explanation += '## Logic Breakdown:\n\n'
 
   // Get shared prefix (main conditions)
   const prefixParts = structure.sharedPrefix
@@ -7642,98 +7673,78 @@ export function generateFullRungExplanation(
     // Has parallel branches
     const nonEmptyBranches = structure.branches.filter(b => b.length > 0)
 
-    // Main Conditions as numbered steps
-    prefixConditions.forEach(c => {
-      const tag = c.operands[0] || ''
-      const device = detectDeviceType(tag)
-      const deviceInfo = device ? ` (${device.friendlyName})` : ''
-      explanation += `${stepNum}. **${c.raw}**${deviceInfo} — ${c.explanation}\n`
-      stepNum++
-    })
-
-    // Branches
-    if (nonEmptyBranches.length > 1) {
-      explanation += `${stepNum}. If above conditions true, THEN (parallel branches):\n`
-      stepNum++
+    // If there are shared conditions, show them first
+    if (prefixConditions.length > 0) {
+      explanation += '**Common Conditions (all branches):**\n'
+      prefixConditions.forEach(c => {
+        explanation += formatInstruction(c) + '\n'
+      })
+      explanation += '\n'
     }
 
+    // Process each branch
     nonEmptyBranches.forEach((branch, idx) => {
       const branchParts = branch
         .map(s => getInstrDetails(s))
         .filter(Boolean) as { instruction: string; operands: string[]; raw: string; explanation: string | null }[]
 
-      if (nonEmptyBranches.length > 1) {
-        explanation += `\n   **Branch ${idx + 1}:**\n`
-      }
+      const branchDesc = getBranchDescription(branchParts)
+      const branchTitle = branchDesc ? `Branch ${idx + 1} - ${branchDesc}:` : `Branch ${idx + 1}:`
 
+      explanation += `**${branchTitle}**\n`
       branchParts.forEach(p => {
-        let tag = p.operands[0] || p.instruction
-        if (p.instruction === 'COP' && p.operands[1]) tag = p.operands[1]
-        if (p.instruction === 'MOV' && p.operands[1]) tag = p.operands[1]
-
-        const device = detectDeviceType(tag)
-        const deviceInfo = device ? ` (${device.friendlyName})` : ''
-        const prefix = nonEmptyBranches.length > 1 ? '   ' : ''
-        explanation += `${prefix}${stepNum}. **${p.raw}**${deviceInfo} — ${p.explanation}\n`
-        stepNum++
+        explanation += formatInstruction(p) + '\n'
       })
+      explanation += '\n'
     })
 
-    // Suffix
-    suffixParts.forEach(s => {
-      const device = detectDeviceType(s.operands[0] || '')
-      const deviceInfo = device ? ` (${device.friendlyName})` : ''
-      explanation += `${stepNum}. **${s.raw}**${deviceInfo} — ${s.explanation}\n`
-      stepNum++
-    })
+    // Suffix (shared outputs after branches)
+    if (suffixParts.length > 0) {
+      explanation += '**Then (all branches):**\n'
+      suffixParts.forEach(s => {
+        explanation += formatInstruction(s) + '\n'
+      })
+      explanation += '\n'
+    }
 
   } else {
     // Simple linear rung - no branches
-    allInstructions.forEach(i => {
-      let tag = i.operands[0] || i.instruction
-      if (i.instruction === 'COP' && i.operands[1]) tag = i.operands[1]
-      if (i.instruction === 'MOV' && i.operands[1]) tag = i.operands[1]
+    const conditions = allInstructions.filter(i => isConditionInstruction(i.instruction))
+    const outputs = allInstructions.filter(i => !isConditionInstruction(i.instruction))
 
-      const device = i.device
-      const deviceInfo = device ? ` (${device.friendlyName})` : ''
-      const instrStr = `${i.instruction}(${i.operands.join(',')})`
-      explanation += `${stepNum}. **${instrStr}**${deviceInfo} — ${i.explanation}\n`
-      stepNum++
-    })
+    if (conditions.length > 0) {
+      explanation += '**Conditions:**\n'
+      conditions.forEach(i => {
+        const instrStr = `${i.instruction}(${i.operands.join(',')})`
+        explanation += `- \`${instrStr}\` - ${i.explanation}\n`
+      })
+      explanation += '\n'
+    }
+
+    if (outputs.length > 0) {
+      explanation += '**Actions:**\n'
+      outputs.forEach(i => {
+        const instrStr = `${i.instruction}(${i.operands.join(',')})`
+        explanation += `- \`${instrStr}\` - **${i.explanation}**\n`
+      })
+      explanation += '\n'
+    }
   }
 
-  // Add consequence/what happens if not true
-  if (purpose?.consequence) {
-    explanation += `\n**If conditions NOT met:** ${purpose.consequence}\n`
-  }
-
-  // Add operational note
-  if (purpose?.operationalNote) {
-    explanation += `\n**Note:** ${purpose.operationalNote}\n`
-  }
-
-  // Add quick checks (fast visual things to verify first)
-  const quickChecks = allInstructions
-    .filter(i => i.device?.quickChecks && i.device.quickChecks.length > 0)
-    .flatMap(i => i.device!.quickChecks!)
-
-  if (quickChecks.length > 0) {
-    const uniqueChecks = Array.from(new Set(quickChecks)).slice(0, 4)
-    explanation += '\n\n**Quick Checks:**\n' + uniqueChecks.map(c => `  - ${c}`).join('\n')
-  }
-
-  // Add troubleshooting tips (limit to 3 unique tips)
-  const troubleshootingTips = allInstructions
-    .filter(i => i.troubleshooting && i.troubleshooting.length > 0)
-    .flatMap(i => i.troubleshooting!)
-
-  if (troubleshootingTips.length > 0) {
-    const uniqueTips = Array.from(new Set(troubleshootingTips)).slice(0, 3)
-    explanation += '\n\n**Troubleshooting:**\n' + uniqueTips.map(t => `  - ${t}`).join('\n')
+  // Purpose summary section
+  if (purpose?.operationalNote || purpose?.consequence) {
+    explanation += '## Purpose:\n'
+    if (purpose?.operationalNote) {
+      explanation += `${purpose.operationalNote}`
+    }
+    if (purpose?.consequence) {
+      explanation += ` If conditions are not met: ${purpose.consequence}`
+    }
+    explanation += '\n'
   }
 
   if (includeRaw) {
-    explanation += `\n\n---\nRAW: ${rungText}`
+    explanation += `\n---\nRAW: ${rungText}`
   }
 
   return explanation.trim()

@@ -912,150 +912,203 @@ const SOURCE_LABELS: Record<string, { label: string }> = {
   learned: { label: 'Learned' }
 }
 
-// Format explanation text for better readability
+// Format explanation text for better readability - matches AI chat style
 function formatExplanation(text: string): React.ReactNode {
   if (!text) return text
 
-  // Split into sections by **Section:** pattern
   const sections: React.ReactNode[] = []
   const lines = text.split('\n')
-  let currentSection: { title: string | null; content: string[] } = { title: null, content: [] }
+  let currentSection: { type: 'h2' | 'h3' | 'content'; title: string | null; content: string[] } = { type: 'content', title: null, content: [] }
 
-  lines.forEach((line, idx) => {
-    // Check for section header: **Purpose:** or **Logic Flow:** etc.
-    const sectionMatch = line.match(/^\*\*([^*]+):\*\*\s*(.*)/)
-    if (sectionMatch) {
-      // Save previous section if it has content
-      if (currentSection.title || currentSection.content.length > 0) {
-        sections.push(renderSection(currentSection, sections.length))
-      }
-      currentSection = {
-        title: sectionMatch[1],
-        content: sectionMatch[2] ? [sectionMatch[2]] : []
-      }
-    } else if (line.trim()) {
+  const flushSection = () => {
+    if (currentSection.title || currentSection.content.length > 0) {
+      sections.push(renderSection(currentSection, sections.length))
+    }
+    currentSection = { type: 'content', title: null, content: [] }
+  }
+
+  lines.forEach((line) => {
+    // Check for ## Section Header (h2)
+    const h2Match = line.match(/^##\s+(.+?):?\s*$/)
+    if (h2Match) {
+      flushSection()
+      currentSection = { type: 'h2', title: h2Match[1], content: [] }
+      return
+    }
+
+    // Check for **Subsection:** (h3)
+    const h3Match = line.match(/^\*\*([^*]+):\*\*\s*$/)
+    if (h3Match) {
+      flushSection()
+      currentSection = { type: 'h3', title: h3Match[1], content: [] }
+      return
+    }
+
+    // Regular content
+    if (line.trim()) {
       currentSection.content.push(line)
-    } else if (currentSection.content.length > 0) {
-      currentSection.content.push('') // preserve empty lines within sections
     }
   })
 
-  // Add the last section
-  if (currentSection.title || currentSection.content.length > 0) {
-    sections.push(renderSection(currentSection, sections.length))
-  }
+  flushSection()
 
-  return <div className="space-y-3">{sections}</div>
+  return <div className="space-y-4">{sections}</div>
 }
 
-function renderSection(section: { title: string | null; content: string[] }, key: number): React.ReactNode {
-  const sectionStyles: Record<string, { bg: string; border: string; titleColor: string }> = {
-    'Purpose': { bg: 'var(--surface-3)', border: 'var(--border-default)', titleColor: 'var(--accent-blue)' },
-    'Logic Flow': { bg: 'transparent', border: 'transparent', titleColor: 'var(--text-secondary)' },
-    'If conditions NOT met': { bg: 'var(--accent-red-muted)', border: 'rgba(239, 68, 68, 0.2)', titleColor: 'var(--accent-red)' },
-    'Note': { bg: 'var(--accent-amber-muted)', border: 'rgba(245, 158, 11, 0.2)', titleColor: 'var(--accent-amber)' },
-    'Quick Checks': { bg: 'var(--surface-2)', border: 'var(--border-subtle)', titleColor: 'var(--accent-emerald)' },
-    'Troubleshooting': { bg: 'var(--surface-2)', border: 'var(--border-subtle)', titleColor: 'var(--accent-amber)' },
-  }
+function renderSection(section: { type: 'h2' | 'h3' | 'content'; title: string | null; content: string[] }, key: number): React.ReactNode {
+  // H2 headers get special styling
+  if (section.type === 'h2' && section.title) {
+    const isMainFunction = section.title === 'Main Function'
+    const isPurpose = section.title === 'Purpose'
 
-  const style = section.title ? sectionStyles[section.title] || { bg: 'transparent', border: 'transparent', titleColor: 'var(--text-secondary)' } : { bg: 'transparent', border: 'transparent', titleColor: 'var(--text-secondary)' }
-
-  return (
-    <div
-      key={key}
-      style={{
-        background: style.bg,
-        borderLeft: style.bg !== 'transparent' ? `2px solid ${style.border}` : 'none',
-        padding: style.bg !== 'transparent' ? 'var(--space-2) var(--space-3)' : '0',
-        borderRadius: 'var(--radius-sm)'
-      }}
-    >
-      {section.title && (
+    return (
+      <div key={key} className="space-y-2">
         <div
-          className="text-fluid-xs font-semibold uppercase tracking-wider mb-1"
-          style={{ color: style.titleColor }}
+          className="text-fluid-sm font-semibold pb-1"
+          style={{
+            color: isMainFunction ? 'var(--accent-blue)' : isPurpose ? 'var(--accent-emerald)' : 'var(--text-primary)',
+            borderBottom: '1px solid var(--border-subtle)'
+          }}
         >
           {section.title}
         </div>
-      )}
-      <div className="space-y-1">
-        {section.content.filter(c => c.trim()).map((line, i) => (
-          <div key={i} className="text-fluid-sm" style={{ color: 'var(--text-primary)' }}>
-            {formatLine(line)}
-          </div>
-        ))}
+        <div className="space-y-1">
+          {section.content.map((line, i) => (
+            <div key={i} className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>
+              {formatLine(line)}
+            </div>
+          ))}
+        </div>
       </div>
+    )
+  }
+
+  // H3 subsection headers (Branch titles, Conditions, Actions)
+  if (section.type === 'h3' && section.title) {
+    const isBranch = section.title.startsWith('Branch')
+
+    return (
+      <div key={key} className="space-y-1">
+        <div
+          className="text-fluid-xs font-semibold"
+          style={{
+            color: isBranch ? 'var(--accent-blue)' : 'var(--text-secondary)',
+            paddingLeft: isBranch ? 'var(--space-2)' : '0',
+            borderLeft: isBranch ? '2px solid var(--accent-blue)' : 'none'
+          }}
+        >
+          {section.title}
+        </div>
+        <div className="space-y-0.5 pl-1">
+          {section.content.map((line, i) => (
+            <div key={i}>
+              {formatLine(line)}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Plain content
+  return (
+    <div key={key} className="space-y-1">
+      {section.content.map((line, i) => (
+        <div key={i} className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>
+          {formatLine(line)}
+        </div>
+      ))}
     </div>
   )
 }
 
 function formatLine(line: string): React.ReactNode {
-  // Handle numbered steps: "1. **XIC(tag)** — explanation"
-  const stepMatch = line.match(/^(\s*)(\d+)\.\s*\*\*([^*]+)\*\*\s*(?:—|-)?\s*(.*)/)
-  if (stepMatch) {
-    const [, indent, num, instruction, desc] = stepMatch
-    const isOutput = /OTE|OTL|OTU|MOV|COP|ADD|SUB|MUL|DIV/.test(instruction)
+  // Handle bullet points with backtick code: - `XIC(tag)` - explanation
+  const bulletCodeMatch = line.match(/^-\s+`([^`]+)`\s+-\s+(.+)/)
+  if (bulletCodeMatch) {
+    const [, instruction, explanation] = bulletCodeMatch
+    const isOutput = /^(OTE|OTL|OTU|MOV|COP|ADD|SUB|MUL|DIV|TON|TOF|CTU|CTD|RES)\(/.test(instruction)
+    // Check if explanation is bold (wrapped in **)
+    const explBoldMatch = explanation.match(/^\*\*(.+)\*\*$/)
+
     return (
-      <div style={{ paddingLeft: indent ? '1rem' : '0', display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline' }}>
-        <span className="text-fluid-xs font-mono" style={{ color: 'var(--text-muted)', minWidth: '1.5rem' }}>{num}.</span>
-        <span>
-          <code
-            className="text-fluid-xs font-mono px-1.5 py-0.5"
-            style={{
-              background: isOutput ? 'var(--accent-amber-muted)' : 'var(--accent-blue-muted)',
-              color: isOutput ? 'var(--accent-amber)' : 'var(--accent-blue)',
-              borderRadius: 'var(--radius-sm)'
-            }}
-          >
-            {instruction}
-          </code>
-          {desc && <span className="ml-2" style={{ color: 'var(--text-secondary)' }}>{desc}</span>}
+      <div className="flex items-start gap-2 text-fluid-sm py-0.5">
+        <span style={{ color: 'var(--text-muted)' }}>-</span>
+        <code
+          className="text-fluid-xs font-mono px-1.5 py-0.5 flex-shrink-0"
+          style={{
+            background: isOutput ? 'var(--accent-amber-muted)' : 'var(--surface-3)',
+            color: isOutput ? 'var(--accent-amber)' : 'var(--accent-blue)',
+            borderRadius: 'var(--radius-sm)'
+          }}
+        >
+          {instruction}
+        </code>
+        <span style={{ color: explBoldMatch ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+          {explBoldMatch ? <strong>{explBoldMatch[1]}</strong> : explanation}
         </span>
       </div>
     )
   }
 
-  // Handle branch headers: "**Branch 1:**"
-  const branchMatch = line.match(/^\s*\*\*Branch (\d+):\*\*/)
-  if (branchMatch) {
+  // Handle simple bullet points: - something
+  const simpleBulletMatch = line.match(/^-\s+(.+)/)
+  if (simpleBulletMatch) {
     return (
-      <div
-        className="text-fluid-xs font-semibold mt-2 mb-1 pl-4"
-        style={{ color: 'var(--accent-blue)', borderLeft: '2px solid var(--accent-blue)', paddingLeft: 'var(--space-2)' }}
-      >
-        Branch {branchMatch[1]}
-      </div>
-    )
-  }
-
-  // Handle list items: "  - something"
-  const listMatch = line.match(/^\s*-\s+(.+)/)
-  if (listMatch) {
-    return (
-      <div className="flex gap-2 pl-2">
+      <div className="flex items-start gap-2 text-fluid-sm py-0.5">
         <span style={{ color: 'var(--text-muted)' }}>-</span>
-        <span style={{ color: 'var(--text-secondary)' }}>{listMatch[1]}</span>
+        <span style={{ color: 'var(--text-secondary)' }}>{formatInlineText(simpleBulletMatch[1])}</span>
       </div>
     )
   }
 
-  // Handle bold text: **text**
-  const parts = line.split(/(\*\*[^*]+\*\*)/)
-  if (parts.length > 1) {
-    return (
-      <>
-        {parts.map((part, i) => {
-          const boldMatch = part.match(/^\*\*([^*]+)\*\*$/)
-          if (boldMatch) {
-            return <strong key={i} style={{ color: 'var(--text-primary)' }}>{boldMatch[1]}</strong>
-          }
-          return <span key={i}>{part}</span>
-        })}
-      </>
-    )
+  // Handle inline formatting
+  return formatInlineText(line)
+}
+
+function formatInlineText(text: string): React.ReactNode {
+  // Handle bold text: **text** and backticks: `code`
+  const parts: React.ReactNode[] = []
+  let remaining = text
+  let keyIdx = 0
+
+  while (remaining.length > 0) {
+    // Find the next special pattern
+    const boldMatch = remaining.match(/^(.*?)\*\*([^*]+)\*\*(.*)$/)
+    const codeMatch = remaining.match(/^(.*?)`([^`]+)`(.*)$/)
+
+    // Check which comes first
+    const boldIndex = boldMatch ? boldMatch[1].length : Infinity
+    const codeIndex = codeMatch ? codeMatch[1].length : Infinity
+
+    if (boldIndex === Infinity && codeIndex === Infinity) {
+      // No more special patterns
+      parts.push(<span key={keyIdx++}>{remaining}</span>)
+      break
+    }
+
+    if (boldIndex < codeIndex && boldMatch) {
+      // Bold comes first
+      if (boldMatch[1]) parts.push(<span key={keyIdx++}>{boldMatch[1]}</span>)
+      parts.push(<strong key={keyIdx++} style={{ color: 'var(--text-primary)' }}>{boldMatch[2]}</strong>)
+      remaining = boldMatch[3]
+    } else if (codeMatch) {
+      // Code comes first
+      if (codeMatch[1]) parts.push(<span key={keyIdx++}>{codeMatch[1]}</span>)
+      parts.push(
+        <code
+          key={keyIdx++}
+          className="text-fluid-xs font-mono px-1 py-0.5"
+          style={{ background: 'var(--surface-3)', color: 'var(--accent-blue)', borderRadius: 'var(--radius-sm)' }}
+        >
+          {codeMatch[2]}
+        </code>
+      )
+      remaining = codeMatch[3]
+    }
   }
 
-  return line
+  return parts.length > 0 ? <>{parts}</> : text
 }
 
 // Contact Symbol Component -| |- or -|/|-
