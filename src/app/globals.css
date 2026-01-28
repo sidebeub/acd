@@ -243,9 +243,28 @@ body {
 /* Simulation mode active indicator */
 .sim-mode-active {
   background: linear-gradient(135deg,
-    rgba(34, 197, 94, 0.03) 0%,
-    rgba(34, 197, 94, 0.01) 100%
+    rgba(34, 197, 94, 0.08) 0%,
+    rgba(34, 197, 94, 0.03) 100%
   ) !important;
+  border: 2px solid rgba(34, 197, 94, 0.3) !important;
+  border-radius: 8px;
+  position: relative;
+}
+
+.sim-mode-active::before {
+  content: 'SIMULATION MODE - Click contacts to toggle';
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 600;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  padding: 2px 12px;
+  border-radius: 4px;
+  z-index: 10;
+  white-space: nowrap;
 }
 
 /* Power rail energized state */
@@ -304,43 +323,57 @@ body {
 /* Clickable contacts in simulation mode */
 .contact-clickable {
   cursor: pointer !important;
-  transition: transform 0.1s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  border-radius: 4px;
+  padding: 4px;
 }
 
 .contact-clickable:hover {
-  transform: scale(1.05);
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.1);
 }
 
 .contact-clickable:active {
-  transform: scale(0.98);
+  transform: scale(0.95);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.8);
+  background: rgba(34, 197, 94, 0.2);
 }
 
 /* Contact state badge (shows 0/1) */
 .contact-state-badge {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 18px;
-  height: 18px;
+  top: -12px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
-  z-index: 10;
+  z-index: 20;
   border: 2px solid var(--surface-2);
+  transition: all 0.15s ease;
 }
 
 .contact-state-on {
   background: #22c55e;
   color: white;
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.8), 0 0 24px rgba(34, 197, 94, 0.4);
+  animation: badge-pulse-on 0.8s ease-in-out infinite;
+}
+
+@keyframes badge-pulse-on {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }
 
 .contact-state-off {
-  background: #6b7280;
+  background: #dc2626;
   color: white;
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
 }
 
 /* Simulation toggle button */

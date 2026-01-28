@@ -959,7 +959,7 @@ function formatMainSection(text: string): string[] {
 function ContactSymbol({ type, color }: { type: 'XIC' | 'XIO'; color: string }) {
   const isNC = type === 'XIO'
   return (
-    <svg width="40" height="24" viewBox="0 0 40 24" className="flex-shrink-0">
+    <svg width="40" height="24" viewBox="0 0 40 24" className="flex-shrink-0" style={{ pointerEvents: 'none' }}>
       {/* Left vertical line */}
       <line x1="8" y1="4" x2="8" y2="20" stroke={color} strokeWidth="2" />
       {/* Right vertical line */}
@@ -976,7 +976,7 @@ function ContactSymbol({ type, color }: { type: 'XIC' | 'XIO'; color: string }) 
 function CoilSymbol({ type, color }: { type: 'OTE' | 'OTL' | 'OTU'; color: string }) {
   const letter = type === 'OTL' ? 'L' : type === 'OTU' ? 'U' : null
   return (
-    <svg width="32" height="24" viewBox="0 0 32 24" className="flex-shrink-0">
+    <svg width="32" height="24" viewBox="0 0 32 24" className="flex-shrink-0" style={{ pointerEvents: 'none' }}>
       {/* Left arc */}
       <path d="M 8 12 A 8 8 0 0 1 8 12" stroke={color} strokeWidth="2" fill="none" />
       <path d="M 6 4 Q 2 12 6 20" stroke={color} strokeWidth="2" fill="none" />
