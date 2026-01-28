@@ -75,7 +75,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen relative" style={{ background: 'var(--surface-0)' }}>
+    <div className="min-h-screen-safe relative safe-area-inset" style={{ background: 'var(--surface-0)' }}>
       {/* Subtle grid background */}
       <div
         className="fixed inset-0 grid-pattern opacity-20 pointer-events-none"
@@ -83,12 +83,25 @@ export default function Home() {
       />
 
       {/* Navigation */}
-      <header className="sticky top-0 z-50 border-b backdrop-blur-sm" style={{ borderColor: 'var(--border-subtle)', background: 'rgba(11, 13, 16, 0.8)' }}>
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header
+        className="sticky top-0 z-50 backdrop-blur-sm safe-area-top"
+        style={{
+          borderBlockEnd: '1px solid var(--border-subtle)',
+          background: 'rgba(11, 13, 16, 0.8)',
+          minHeight: 'var(--touch-target-min)'
+        }}
+      >
+        <div className="container-default flex items-center justify-between" style={{ height: 'clamp(56px, 8vw, 64px)' }}>
+          <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
             <div
-              className="w-9 h-9 flex items-center justify-center"
-              style={{ background: 'var(--accent-blue-muted)', border: '1px solid var(--accent-blue)' }}
+              className="flex items-center justify-center"
+              style={{
+                width: 'clamp(36px, 5vw, 40px)',
+                height: 'clamp(36px, 5vw, 40px)',
+                background: 'var(--accent-blue-muted)',
+                border: '1px solid var(--accent-blue)',
+                borderRadius: 'var(--radius-sm)'
+              }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2.5">
                 <path d="M4 6h16M4 12h16M4 18h16" />
@@ -97,15 +110,36 @@ export default function Home() {
                 <circle cx="12" cy="18" r="1" fill="currentColor" />
               </svg>
             </div>
-            <span className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-fluid-base font-semibold" style={{ color: 'var(--text-primary)' }}>
               PLC Viewer
             </span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm font-medium transition-colors hover:text-white" style={{ color: 'var(--text-tertiary)' }}>Features</a>
-            <a href="#how-it-works" className="text-sm font-medium transition-colors hover:text-white" style={{ color: 'var(--text-tertiary)' }}>How It Works</a>
-            <a href="#upload" className="btn btn-primary text-sm px-4 py-2">
+          <nav className="hide-mobile flex items-center" style={{ gap: 'var(--space-8)' }}>
+            <a
+              href="#features"
+              className="text-fluid-sm font-medium transition-colors hover:text-white"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Features
+            </a>
+            <a
+              href="#how-it-works"
+              className="text-fluid-sm font-medium transition-colors hover:text-white"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              How It Works
+            </a>
+            <a
+              href="#upload"
+              className="btn btn-primary text-fluid-sm"
+              style={{
+                paddingInline: 'var(--space-4)',
+                paddingBlock: 'var(--space-2)',
+                minHeight: 'var(--touch-target-min)',
+                borderRadius: 'var(--radius-md)'
+              }}
+            >
               Upload File
             </a>
           </nav>
@@ -114,35 +148,88 @@ export default function Home() {
 
       <main className="relative z-10">
         {/* ==================== HERO SECTION ==================== */}
-        <section className="py-24 md:py-32">
-          <div className="max-w-6xl mx-auto px-6 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 mb-8"
-                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-              <span className="w-2 h-2 animate-pulse-subtle" style={{ background: 'var(--accent-emerald)' }} />
-              <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+        <section className="py-fluid-20" style={{ paddingBlock: 'var(--space-24)' }}>
+          <div className="container-default text-center">
+            <div
+              className="inline-flex items-center"
+              style={{
+                gap: 'var(--space-2)',
+                paddingInline: 'var(--space-4)',
+                paddingBlock: 'var(--space-2)',
+                marginBlockEnd: 'var(--space-8)',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)'
+              }}
+            >
+              <span
+                className="animate-pulse-subtle"
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  background: 'var(--accent-emerald)',
+                  borderRadius: 'var(--radius-sm)'
+                }}
+              />
+              <span className="text-fluid-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                 Rockwell Automation Compatible
               </span>
             </div>
 
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6" style={{ color: 'var(--text-primary)' }}>
+            <h1
+              className="text-fluid-6xl font-bold tracking-tight"
+              style={{
+                color: 'var(--text-primary)',
+                marginBlockEnd: 'var(--space-6)',
+                lineHeight: '1.1'
+              }}
+            >
               Understand Your
               <br />
               <span style={{ color: 'var(--accent-blue)' }}>PLC Programs</span>
             </h1>
 
-            <p className="text-xl max-w-2xl mx-auto mb-10" style={{ color: 'var(--text-secondary)', lineHeight: '1.7' }}>
+            <p
+              className="text-fluid-xl"
+              style={{
+                color: 'var(--text-secondary)',
+                lineHeight: '1.7',
+                maxWidth: '42rem',
+                marginInline: 'auto',
+                marginBlockEnd: 'var(--space-10)'
+              }}
+            >
               Upload your Studio 5000 files and instantly visualize ladder logic,
               browse tags, and get AI-powered explanations that make complex control code easy to understand.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="#upload" className="btn btn-primary text-base px-8 py-3">
+            <div className="stack-to-row justify-center" style={{ gap: 'var(--space-4)' }}>
+              <a
+                href="#upload"
+                className="btn btn-primary text-fluid-base inline-flex items-center justify-center"
+                style={{
+                  paddingInline: 'var(--space-8)',
+                  paddingBlock: 'var(--space-3)',
+                  gap: 'var(--space-2)',
+                  minHeight: 'var(--touch-target-min)',
+                  borderRadius: 'var(--radius-md)'
+                }}
+              >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                 </svg>
                 Upload PLC File
               </a>
-              <a href="#how-it-works" className="btn btn-secondary text-base px-8 py-3">
+              <a
+                href="#how-it-works"
+                className="btn btn-secondary text-fluid-base inline-flex items-center justify-center"
+                style={{
+                  paddingInline: 'var(--space-8)',
+                  paddingBlock: 'var(--space-3)',
+                  minHeight: 'var(--touch-target-min)',
+                  borderRadius: 'var(--radius-md)'
+                }}
+              >
                 See How It Works
               </a>
             </div>
@@ -150,88 +237,112 @@ export default function Home() {
         </section>
 
         {/* ==================== TRUST INDICATORS ==================== */}
-        <section className="py-8 border-y" style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-1)' }}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
-              <div className="flex items-center gap-3">
+        <section
+          className="py-fluid-8"
+          style={{
+            borderBlock: '1px solid var(--border-subtle)',
+            background: 'var(--surface-1)'
+          }}
+        >
+          <div className="container-default">
+            <div
+              className="flex flex-wrap items-center justify-center"
+              style={{ gap: 'var(--space-8)' }}
+            >
+              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   <path d="M9 12l2 2 4-4" />
                 </svg>
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Files processed locally</span>
+                <span className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>Files processed locally</span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0110 0v4" />
                 </svg>
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>No cloud storage required</span>
+                <span className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>No cloud storage required</span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 6v6l4 2" />
                 </svg>
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Parse in seconds</span>
+                <span className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>Parse in seconds</span>
               </div>
             </div>
           </div>
         </section>
 
         {/* ==================== PROBLEM / SOLUTION ==================== */}
-        <section className="py-24" style={{ background: 'var(--surface-0)' }}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
+        <section className="py-fluid-20" style={{ background: 'var(--surface-0)', paddingBlock: 'var(--space-24)' }}>
+          <div className="container-default">
+            <div
+              className="grid items-center"
+              style={{
+                gap: 'var(--space-12)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))'
+              }}
+            >
               <div>
-                <span className="text-sm font-semibold uppercase tracking-wider mb-4 block" style={{ color: 'var(--accent-blue)' }}>
+                <span
+                  className="text-fluid-sm font-semibold uppercase tracking-wider block"
+                  style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+                >
                   The Problem
                 </span>
-                <h2 className="text-3xl md:text-4xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
+                <h2
+                  className="text-fluid-4xl font-bold"
+                  style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-6)' }}
+                >
                   PLC code is hard to understand quickly
                 </h2>
-                <div className="space-y-4" style={{ color: 'var(--text-secondary)' }}>
-                  <p>
+                <div className="stack" style={{ color: 'var(--text-secondary)', gap: 'var(--space-4)' }}>
+                  <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
                     Maintenance technicians often face unfamiliar machines with thousands of rungs of ladder logic.
                     Understanding what a rung does requires experience with the specific controller, instruction set, and the machine itself.
                   </p>
-                  <p>
+                  <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
                     Without Studio 5000 on every workstation, reviewing PLC programs becomes a bottleneck.
                     Teams waste time searching for tag references and trying to trace signal flow through complex programs.
                   </p>
                 </div>
               </div>
-              <div className="p-6" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-4 p-4" style={{ background: 'var(--accent-red-muted)' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2" className="flex-shrink-0 mt-0.5">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M15 9l-6 6M9 9l6 6" />
-                    </svg>
-                    <div>
-                      <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Studio 5000 license required</p>
-                      <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Expensive software limits who can view code</p>
+              <div
+                className="container-inline"
+                style={{
+                  padding: 'var(--space-6)',
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)'
+                }}
+              >
+                <div className="stack" style={{ gap: 'var(--space-4)' }}>
+                  {[
+                    { title: 'Studio 5000 license required', desc: 'Expensive software limits who can view code' },
+                    { title: 'Cryptic instruction mnemonics', desc: 'XIC, OTE, TON - what do they mean?' },
+                    { title: 'No context for troubleshooting', desc: 'Hard to know where to look when things break' }
+                  ].map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start"
+                      style={{
+                        gap: 'var(--space-4)',
+                        padding: 'var(--space-4)',
+                        background: 'var(--accent-red-muted)',
+                        borderRadius: 'var(--radius-sm)'
+                      }}
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2" className="flex-shrink-0" style={{ marginBlockStart: '2px' }}>
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M15 9l-6 6M9 9l6 6" />
+                      </svg>
+                      <div>
+                        <p className="text-fluid-base font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
+                        <p className="text-fluid-sm" style={{ color: 'var(--text-tertiary)' }}>{item.desc}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4" style={{ background: 'var(--accent-red-muted)' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2" className="flex-shrink-0 mt-0.5">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M15 9l-6 6M9 9l6 6" />
-                    </svg>
-                    <div>
-                      <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Cryptic instruction mnemonics</p>
-                      <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>XIC, OTE, TON - what do they mean?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4" style={{ background: 'var(--accent-red-muted)' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2" className="flex-shrink-0 mt-0.5">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M15 9l-6 6M9 9l6 6" />
-                    </svg>
-                    <div>
-                      <p className="font-medium" style={{ color: 'var(--text-primary)' }}>No context for troubleshooting</p>
-                      <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Hard to know where to look when things break</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -239,67 +350,115 @@ export default function Home() {
         </section>
 
         {/* ==================== HOW IT WORKS ==================== */}
-        <section id="how-it-works" className="py-24" style={{ background: 'var(--surface-1)' }}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <span className="text-sm font-semibold uppercase tracking-wider mb-4 block" style={{ color: 'var(--accent-blue)' }}>
+        <section id="how-it-works" className="py-fluid-20" style={{ background: 'var(--surface-1)', paddingBlock: 'var(--space-24)' }}>
+          <div className="container-default">
+            <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
+              <span
+                className="text-fluid-sm font-semibold uppercase tracking-wider block"
+                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+              >
                 How It Works
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              <h2 className="text-fluid-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
                 Three steps to clarity
               </h2>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
+            <div
+              className="grid-auto-fit container-inline"
+              style={{ gap: 'var(--space-8)' }}
+            >
               {/* Step 1 */}
               <div className="relative">
-                <div className="text-6xl font-bold mb-6" style={{ color: 'var(--surface-4)' }}>01</div>
                 <div
-                  className="w-14 h-14 flex items-center justify-center mb-5"
-                  style={{ background: 'var(--accent-blue-muted)', border: '1px solid var(--accent-blue)' }}
+                  className="text-fluid-6xl font-bold"
+                  style={{ color: 'var(--surface-4)', marginBlockEnd: 'var(--space-6)' }}
+                >
+                  01
+                </div>
+                <div
+                  className="flex items-center justify-center"
+                  style={{
+                    width: 'clamp(48px, 8vw, 56px)',
+                    height: 'clamp(48px, 8vw, 56px)',
+                    marginBlockEnd: 'var(--space-5)',
+                    background: 'var(--accent-blue-muted)',
+                    border: '1px solid var(--accent-blue)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
                 >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Upload Your File</h3>
-                <p style={{ color: 'var(--text-secondary)' }}>
+                <h3 className="text-fluid-xl font-semibold" style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-3)' }}>
+                  Upload Your File
+                </h3>
+                <p className="text-fluid-base" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                   Drop an L5X, ACD, or RSS file. Supports Studio 5000 (ControlLogix/CompactLogix) and RSLogix 500 (SLC 500/MicroLogix).
                 </p>
               </div>
 
               {/* Step 2 */}
               <div className="relative">
-                <div className="text-6xl font-bold mb-6" style={{ color: 'var(--surface-4)' }}>02</div>
                 <div
-                  className="w-14 h-14 flex items-center justify-center mb-5"
-                  style={{ background: 'var(--accent-emerald-muted)', border: '1px solid var(--accent-emerald)' }}
+                  className="text-fluid-6xl font-bold"
+                  style={{ color: 'var(--surface-4)', marginBlockEnd: 'var(--space-6)' }}
+                >
+                  02
+                </div>
+                <div
+                  className="flex items-center justify-center"
+                  style={{
+                    width: 'clamp(48px, 8vw, 56px)',
+                    height: 'clamp(48px, 8vw, 56px)',
+                    marginBlockEnd: 'var(--space-5)',
+                    background: 'var(--accent-emerald-muted)',
+                    border: '1px solid var(--accent-emerald)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
                 >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" />
                     <path d="M9 9h6M9 13h6M9 17h4" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Browse Structure</h3>
-                <p style={{ color: 'var(--text-secondary)' }}>
+                <h3 className="text-fluid-xl font-semibold" style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-3)' }}>
+                  Browse Structure
+                </h3>
+                <p className="text-fluid-base" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                   Navigate programs, routines, and tags in an intuitive tree view. Find what you need fast.
                 </p>
               </div>
 
               {/* Step 3 */}
               <div className="relative">
-                <div className="text-6xl font-bold mb-6" style={{ color: 'var(--surface-4)' }}>03</div>
                 <div
-                  className="w-14 h-14 flex items-center justify-center mb-5"
-                  style={{ background: 'var(--accent-amber-muted)', border: '1px solid var(--accent-amber)' }}
+                  className="text-fluid-6xl font-bold"
+                  style={{ color: 'var(--surface-4)', marginBlockEnd: 'var(--space-6)' }}
+                >
+                  03
+                </div>
+                <div
+                  className="flex items-center justify-center"
+                  style={{
+                    width: 'clamp(48px, 8vw, 56px)',
+                    height: 'clamp(48px, 8vw, 56px)',
+                    marginBlockEnd: 'var(--space-5)',
+                    background: 'var(--accent-amber-muted)',
+                    border: '1px solid var(--accent-amber)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
                 >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Get Explanations</h3>
-                <p style={{ color: 'var(--text-secondary)' }}>
+                <h3 className="text-fluid-xl font-semibold" style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-3)' }}>
+                  Get Explanations
+                </h3>
+                <p className="text-fluid-base" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                   Click any rung to get AI-powered explanations in plain English. See troubleshooting tips instantly.
                 </p>
               </div>
@@ -308,159 +467,181 @@ export default function Home() {
         </section>
 
         {/* ==================== FEATURES ==================== */}
-        <section id="features" className="py-24" style={{ background: 'var(--surface-0)' }}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <span className="text-sm font-semibold uppercase tracking-wider mb-4 block" style={{ color: 'var(--accent-blue)' }}>
+        <section id="features" className="py-fluid-20" style={{ background: 'var(--surface-0)', paddingBlock: 'var(--space-24)' }}>
+          <div className="container-default">
+            <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
+              <span
+                className="text-fluid-sm font-semibold uppercase tracking-wider block"
+                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+              >
                 Features
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+              <h2
+                className="text-fluid-4xl font-bold"
+                style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
+              >
                 Everything you need to understand PLC code
               </h2>
-              <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
+              <p
+                className="text-fluid-lg"
+                style={{
+                  color: 'var(--text-secondary)',
+                  maxWidth: '42rem',
+                  marginInline: 'auto'
+                }}
+              >
                 Purpose-built for controls engineers, maintenance technicians, and anyone who works with Allen-Bradley PLCs.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Feature 1 - Ladder Logic Visualization */}
-              <div className="p-6" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+            <div
+              className="grid container-inline"
+              style={{
+                gap: 'var(--space-6)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'
+              }}
+            >
+              {[
+                {
+                  icon: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-input)" strokeWidth="1.5">
+                      <rect x="3" y="6" width="4" height="12" rx="1" />
+                      <rect x="10" y="6" width="4" height="12" rx="1" />
+                      <rect x="17" y="6" width="4" height="12" rx="1" />
+                      <path d="M5 9h2M5 12h2M5 15h2M12 9h2M12 12h2M19 9h2M19 12h2M19 15h2" strokeWidth="1" />
+                    </svg>
+                  ),
+                  iconBg: 'rgba(34, 197, 94, 0.1)',
+                  iconBorder: 'rgba(34, 197, 94, 0.2)',
+                  title: 'Ladder Logic Visualization',
+                  desc: 'Color-coded instructions make it easy to identify inputs, outputs, timers, counters, and math at a glance.'
+                },
+                {
+                  icon: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
+                      <path d="M12 2a4 4 0 014 4v1a3 3 0 013 3v1h1a3 3 0 013 3v2a4 4 0 01-4 4h-1" />
+                      <path d="M12 2a4 4 0 00-4 4v1a3 3 0 00-3 3v1H4a3 3 0 00-3 3v2a4 4 0 004 4h1" />
+                      <circle cx="12" cy="14" r="4" />
+                    </svg>
+                  ),
+                  iconBg: 'var(--accent-blue-muted)',
+                  iconBorder: 'rgba(59, 130, 246, 0.3)',
+                  title: 'AI-Powered Explanations',
+                  desc: 'Get plain-English summaries of what each rung does. Choose between friendly, technical, or operator modes.'
+                },
+                {
+                  icon: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-counter)" strokeWidth="1.5">
+                      <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                      <path d="M2 17l10 5 10-5" />
+                      <path d="M2 12l10 5 10-5" />
+                    </svg>
+                  ),
+                  iconBg: 'rgba(168, 85, 247, 0.1)',
+                  iconBorder: 'rgba(168, 85, 247, 0.2)',
+                  title: 'Complete Tag Browser',
+                  desc: 'Search and filter all controller and program-scoped tags. See data types, descriptions, and usage.'
+                },
+                {
+                  icon: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
+                      <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+                    </svg>
+                  ),
+                  iconBg: 'var(--accent-amber-muted)',
+                  iconBorder: 'rgba(245, 158, 11, 0.3)',
+                  title: 'Troubleshooting Tips',
+                  desc: 'Each instruction includes context-aware troubleshooting suggestions to help diagnose issues faster.'
+                },
+                {
+                  icon: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-jump)" strokeWidth="1.5">
+                      <circle cx="5" cy="12" r="3" />
+                      <circle cx="19" cy="6" r="3" />
+                      <circle cx="19" cy="18" r="3" />
+                      <path d="M8 12h4l3-6M12 12l3 6" />
+                    </svg>
+                  ),
+                  iconBg: 'rgba(249, 115, 22, 0.1)',
+                  iconBorder: 'rgba(249, 115, 22, 0.2)',
+                  title: 'Program Structure View',
+                  desc: 'Navigate tasks, programs, and routines in a hierarchical tree. See how your code is organized.'
+                },
+                {
+                  icon: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="1.5">
+                      <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                      <path d="M22 4L12 14.01l-3-3" />
+                    </svg>
+                  ),
+                  iconBg: 'var(--accent-emerald-muted)',
+                  iconBorder: 'rgba(16, 185, 129, 0.3)',
+                  title: 'No PLC Software Required',
+                  desc: 'View and analyze PLC programs without expensive software licenses. Works with L5X, ACD, and RSS files.'
+                }
+              ].map((feature, idx) => (
                 <div
-                  className="w-12 h-12 flex items-center justify-center mb-5"
-                  style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)' }}
+                  key={idx}
+                  className="surface-card container-inline"
+                  style={{ padding: 'var(--space-6)' }}
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-input)" strokeWidth="1.5">
-                    <rect x="3" y="6" width="4" height="12" rx="1" />
-                    <rect x="10" y="6" width="4" height="12" rx="1" />
-                    <rect x="17" y="6" width="4" height="12" rx="1" />
-                    <path d="M5 9h2M5 12h2M5 15h2M12 9h2M12 12h2M19 9h2M19 12h2M19 15h2" strokeWidth="1" />
-                  </svg>
+                  <div
+                    className="flex items-center justify-center"
+                    style={{
+                      width: 'clamp(40px, 6vw, 48px)',
+                      height: 'clamp(40px, 6vw, 48px)',
+                      marginBlockEnd: 'var(--space-5)',
+                      background: feature.iconBg,
+                      border: `1px solid ${feature.iconBorder}`,
+                      borderRadius: 'var(--radius-sm)'
+                    }}
+                  >
+                    {feature.icon}
+                  </div>
+                  <h3
+                    className="text-fluid-lg font-semibold"
+                    style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-2)' }}
+                  >
+                    {feature.title}
+                  </h3>
+                  <p className="text-fluid-sm" style={{ color: 'var(--text-tertiary)', lineHeight: '1.6' }}>
+                    {feature.desc}
+                  </p>
                 </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  Ladder Logic Visualization
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                  Color-coded instructions make it easy to identify inputs, outputs, timers, counters, and math at a glance.
-                </p>
-              </div>
-
-              {/* Feature 2 - AI Explanations */}
-              <div className="p-6" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-                <div
-                  className="w-12 h-12 flex items-center justify-center mb-5"
-                  style={{ background: 'var(--accent-blue-muted)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
-                    <path d="M12 2a4 4 0 014 4v1a3 3 0 013 3v1h1a3 3 0 013 3v2a4 4 0 01-4 4h-1" />
-                    <path d="M12 2a4 4 0 00-4 4v1a3 3 0 00-3 3v1H4a3 3 0 00-3 3v2a4 4 0 004 4h1" />
-                    <circle cx="12" cy="14" r="4" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  AI-Powered Explanations
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                  Get plain-English summaries of what each rung does. Choose between friendly, technical, or operator modes.
-                </p>
-              </div>
-
-              {/* Feature 3 - Tag Browser */}
-              <div className="p-6" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-                <div
-                  className="w-12 h-12 flex items-center justify-center mb-5"
-                  style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)' }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-counter)" strokeWidth="1.5">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  Complete Tag Browser
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                  Search and filter all controller and program-scoped tags. See data types, descriptions, and usage.
-                </p>
-              </div>
-
-              {/* Feature 4 - Troubleshooting Tips */}
-              <div className="p-6" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-                <div
-                  className="w-12 h-12 flex items-center justify-center mb-5"
-                  style={{ background: 'var(--accent-amber-muted)', border: '1px solid rgba(245, 158, 11, 0.3)' }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
-                    <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  Troubleshooting Tips
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                  Each instruction includes context-aware troubleshooting suggestions to help diagnose issues faster.
-                </p>
-              </div>
-
-              {/* Feature 5 - Program Structure */}
-              <div className="p-6" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-                <div
-                  className="w-12 h-12 flex items-center justify-center mb-5"
-                  style={{ background: 'rgba(249, 115, 22, 0.1)', border: '1px solid rgba(249, 115, 22, 0.2)' }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-jump)" strokeWidth="1.5">
-                    <circle cx="5" cy="12" r="3" />
-                    <circle cx="19" cy="6" r="3" />
-                    <circle cx="19" cy="18" r="3" />
-                    <path d="M8 12h4l3-6M12 12l3 6" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  Program Structure View
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                  Navigate tasks, programs, and routines in a hierarchical tree. See how your code is organized.
-                </p>
-              </div>
-
-              {/* Feature 6 - No License Required */}
-              <div className="p-6" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-                <div
-                  className="w-12 h-12 flex items-center justify-center mb-5"
-                  style={{ background: 'var(--accent-emerald-muted)', border: '1px solid rgba(16, 185, 129, 0.3)' }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="1.5">
-                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                    <path d="M22 4L12 14.01l-3-3" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  No PLC Software Required
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                  View and analyze PLC programs without expensive software licenses. Works with L5X, ACD, and RSS files.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
         {/* ==================== SUPPORTED INSTRUCTIONS ==================== */}
-        <section className="py-24" style={{ background: 'var(--surface-1)' }}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-12">
-              <span className="text-sm font-semibold uppercase tracking-wider mb-4 block" style={{ color: 'var(--accent-blue)' }}>
+        <section className="py-fluid-20" style={{ background: 'var(--surface-1)', paddingBlock: 'var(--space-24)' }}>
+          <div className="container-default">
+            <div className="text-center" style={{ marginBlockEnd: 'var(--space-12)' }}>
+              <span
+                className="text-fluid-sm font-semibold uppercase tracking-wider block"
+                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+              >
                 Comprehensive Coverage
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+              <h2
+                className="text-fluid-4xl font-bold"
+                style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
+              >
                 215+ Instructions Supported
               </h2>
-              <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                From basic bit logic to advanced motion control, we've got you covered.
+              <p
+                className="text-fluid-lg"
+                style={{
+                  color: 'var(--text-secondary)',
+                  maxWidth: '42rem',
+                  marginInline: 'auto'
+                }}
+              >
+                From basic bit logic to advanced motion control, we have got you covered.
               </p>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="flex flex-wrap justify-center" style={{ gap: 'var(--space-3)' }}>
               {[
                 { name: 'Bit Logic', examples: 'XIC, XIO, OTE, OTL, OTU, ONS', color: 'var(--inst-input)' },
                 { name: 'Timers', examples: 'TON, TOF, RTO, TONR', color: 'var(--inst-timer)' },
@@ -473,13 +654,16 @@ export default function Home() {
               ].map((category) => (
                 <div
                   key={category.name}
-                  className="px-4 py-3 "
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
+                  className="surface-card"
+                  style={{
+                    paddingInline: 'var(--space-4)',
+                    paddingBlock: 'var(--space-3)'
+                  }}
                 >
-                  <div className="text-sm font-semibold mb-1" style={{ color: category.color }}>
+                  <div className="text-fluid-sm font-semibold" style={{ color: category.color, marginBlockEnd: 'var(--space-1)' }}>
                     {category.name}
                   </div>
-                  <div className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+                  <div className="text-fluid-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
                     {category.examples}
                   </div>
                 </div>
@@ -489,83 +673,97 @@ export default function Home() {
         </section>
 
         {/* ==================== WHO IT'S FOR ==================== */}
-        <section className="py-24" style={{ background: 'var(--surface-0)' }}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <span className="text-sm font-semibold uppercase tracking-wider mb-4 block" style={{ color: 'var(--accent-blue)' }}>
+        <section className="py-fluid-20" style={{ background: 'var(--surface-0)', paddingBlock: 'var(--space-24)' }}>
+          <div className="container-default">
+            <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
+              <span
+                className="text-fluid-sm font-semibold uppercase tracking-wider block"
+                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+              >
                 Use Cases
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              <h2 className="text-fluid-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
                 Built for people who work with PLCs
               </h2>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div
-                  className="w-16 h-16 flex items-center justify-center mx-auto mb-5"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
-                >
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
-                    <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
-                  </svg>
+            <div
+              className="grid-auto-fit container-inline"
+              style={{ gap: 'var(--space-8)' }}
+            >
+              {[
+                {
+                  icon: (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
+                      <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+                    </svg>
+                  ),
+                  title: 'Maintenance Technicians',
+                  desc: 'Quickly understand unfamiliar machine code during troubleshooting. Get context without needing Studio 5000.'
+                },
+                {
+                  icon: (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
+                      <rect x="2" y="3" width="20" height="14" rx="2" />
+                      <path d="M8 21h8M12 17v4" />
+                    </svg>
+                  ),
+                  title: 'Controls Engineers',
+                  desc: 'Review programs from integrators or legacy systems. Document code with AI-generated explanations.'
+                },
+                {
+                  icon: (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="1.5">
+                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+                    </svg>
+                  ),
+                  title: 'Training and Onboarding',
+                  desc: 'Help new team members understand existing code. The friendly explanation mode breaks down complex logic.'
+                }
+              ].map((item, idx) => (
+                <div key={idx} className="text-center">
+                  <div
+                    className="flex items-center justify-center"
+                    style={{
+                      width: 'clamp(56px, 8vw, 64px)',
+                      height: 'clamp(56px, 8vw, 64px)',
+                      marginInline: 'auto',
+                      marginBlockEnd: 'var(--space-5)',
+                      background: 'var(--surface-2)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)'
+                    }}
+                  >
+                    {item.icon}
+                  </div>
+                  <h3
+                    className="text-fluid-xl font-semibold"
+                    style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-3)' }}
+                  >
+                    {item.title}
+                  </h3>
+                  <p className="text-fluid-base" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                    {item.desc}
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                  Maintenance Technicians
-                </h3>
-                <p style={{ color: 'var(--text-secondary)' }}>
-                  Quickly understand unfamiliar machine code during troubleshooting. Get context without needing Studio 5000.
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div
-                  className="w-16 h-16 flex items-center justify-center mx-auto mb-5"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
-                >
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
-                    <rect x="2" y="3" width="20" height="14" rx="2" />
-                    <path d="M8 21h8M12 17v4" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                  Controls Engineers
-                </h3>
-                <p style={{ color: 'var(--text-secondary)' }}>
-                  Review programs from integrators or legacy systems. Document code with AI-generated explanations.
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div
-                  className="w-16 h-16 flex items-center justify-center mx-auto mb-5"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
-                >
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="1.5">
-                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                  Training & Onboarding
-                </h3>
-                <p style={{ color: 'var(--text-secondary)' }}>
-                  Help new team members understand existing code. The friendly explanation mode breaks down complex logic.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
         {/* ==================== UPLOAD CTA ==================== */}
-        <section id="upload" className="py-24" style={{ background: 'var(--surface-1)' }}>
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+        <section id="upload" className="py-fluid-20" style={{ background: 'var(--surface-1)', paddingBlock: 'var(--space-24)' }}>
+          <div className="container-narrow">
+            <div className="text-center" style={{ marginBlockEnd: 'var(--space-12)' }}>
+              <h2
+                className="text-fluid-4xl font-bold"
+                style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
+              >
                 Ready to get started?
               </h2>
-              <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-fluid-lg" style={{ color: 'var(--text-secondary)' }}>
                 Upload your L5X, ACD, or RSS file and start exploring your PLC program.
               </p>
             </div>
@@ -575,12 +773,12 @@ export default function Home() {
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              className={`relative p-10  transition-all duration-200 ${
-                isUploading ? 'pointer-events-none' : ''
-              }`}
+              className={`relative transition-all duration-200 ${isUploading ? 'pointer-events-none' : ''}`}
               style={{
+                padding: 'var(--space-10)',
                 background: isDragging ? 'var(--accent-blue-muted)' : 'var(--surface-2)',
                 border: `2px dashed ${isDragging ? 'var(--accent-blue)' : 'var(--border-default)'}`,
+                borderRadius: 'var(--radius-md)'
               }}
             >
               <input
@@ -589,37 +787,56 @@ export default function Home() {
                 onChange={handleInputChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={isUploading}
+                style={{ minHeight: 'var(--touch-target-min)' }}
               />
 
               {isUploading ? (
-                <div className="text-center py-4">
-                  <div className="mb-4">
-                    <svg className="w-12 h-12 mx-auto animate-pulse-subtle" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
+                <div className="text-center" style={{ paddingBlock: 'var(--space-4)' }}>
+                  <div style={{ marginBlockEnd: 'var(--space-4)' }}>
+                    <svg className="animate-pulse-subtle" style={{ width: '48px', height: '48px', marginInline: 'auto' }} viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
                       <path d="M12 3v12M12 3l4 4M12 3L8 7" />
                       <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
                     </svg>
                   </div>
-                  <p className="text-base font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+                  <p
+                    className="text-fluid-base font-medium"
+                    style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
+                  >
                     Processing file...
                   </p>
-                  <div className="w-72 h-1.5 mx-auto overflow-hidden" style={{ background: 'var(--surface-4)' }}>
+                  <div
+                    className="overflow-hidden"
+                    style={{
+                      width: 'clamp(200px, 50vw, 288px)',
+                      height: '6px',
+                      marginInline: 'auto',
+                      background: 'var(--surface-4)',
+                      borderRadius: 'var(--radius-sm)'
+                    }}
+                  >
                     <div
-                      className="h-full transition-all duration-200"
+                      className="transition-all duration-200"
                       style={{
+                        height: '100%',
                         background: 'var(--accent-blue)',
-                        width: `${uploadProgress}%`
+                        width: `${uploadProgress}%`,
+                        borderRadius: 'var(--radius-sm)'
                       }}
                     />
                   </div>
-                  <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
+                  <p
+                    className="text-fluid-sm"
+                    style={{ color: 'var(--text-muted)', marginBlockStart: 'var(--space-3)' }}
+                  >
                     Parsing program structure...
                   </p>
                 </div>
               ) : (
-                <div className="text-center py-4">
-                  <div className="mb-5">
+                <div className="text-center" style={{ paddingBlock: 'var(--space-4)' }}>
+                  <div style={{ marginBlockEnd: 'var(--space-5)' }}>
                     <svg
-                      className="w-14 h-14 mx-auto transition-colors"
+                      className="transition-colors"
+                      style={{ width: 'clamp(48px, 8vw, 56px)', height: 'clamp(48px, 8vw, 56px)', marginInline: 'auto' }}
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke={isDragging ? 'var(--accent-blue)' : 'var(--text-muted)'}
@@ -628,13 +845,19 @@ export default function Home() {
                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                     </svg>
                   </div>
-                  <p className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                  <p
+                    className="text-fluid-lg font-medium"
+                    style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-2)' }}
+                  >
                     {isDragging ? 'Drop to upload' : 'Drop your file here'}
                   </p>
-                  <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+                  <p
+                    className="text-fluid-sm"
+                    style={{ color: 'var(--text-muted)', marginBlockEnd: 'var(--space-4)' }}
+                  >
                     or <span style={{ color: 'var(--accent-blue)' }} className="cursor-pointer font-medium">browse</span> to select a file
                   </p>
-                  <div className="flex items-center justify-center gap-4">
+                  <div className="flex items-center justify-center" style={{ gap: 'var(--space-4)' }}>
                     <span className="tech-badge">.L5X</span>
                     <span className="tech-badge">.ACD</span>
                     <span className="tech-badge">.RSS</span>
@@ -646,27 +869,48 @@ export default function Home() {
             {/* Error message */}
             {error && (
               <div
-                className="mt-4 px-4 py-3 flex items-center gap-3"
-                style={{ background: 'var(--accent-red-muted)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                className="flex items-center"
+                style={{
+                  marginBlockStart: 'var(--space-4)',
+                  paddingInline: 'var(--space-4)',
+                  paddingBlock: 'var(--space-3)',
+                  gap: 'var(--space-3)',
+                  background: 'var(--accent-red-muted)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--radius-sm)'
+                }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M15 9l-6 6M9 9l6 6" />
                 </svg>
-                <span className="text-sm" style={{ color: 'var(--accent-red)' }}>{error}</span>
+                <span className="text-fluid-sm" style={{ color: 'var(--accent-red)' }}>{error}</span>
               </div>
             )}
           </div>
         </section>
 
         {/* ==================== FOOTER ==================== */}
-        <footer className="py-12 border-t" style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-0)' }}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-3">
+        <footer
+          className="safe-area-bottom"
+          style={{
+            borderBlockStart: '1px solid var(--border-subtle)',
+            background: 'var(--surface-0)',
+            paddingBlock: 'var(--space-12)'
+          }}
+        >
+          <div className="container-default">
+            <div className="stack-to-row justify-between" style={{ gap: 'var(--space-6)' }}>
+              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
                 <div
-                  className="w-8 h-8 flex items-center justify-center"
-                  style={{ background: 'var(--accent-blue-muted)', border: '1px solid var(--accent-blue)' }}
+                  className="flex items-center justify-center"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    background: 'var(--accent-blue-muted)',
+                    border: '1px solid var(--accent-blue)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2.5">
                     <path d="M4 6h16M4 12h16M4 18h16" />
@@ -675,12 +919,12 @@ export default function Home() {
                     <circle cx="12" cy="18" r="1" fill="currentColor" />
                   </svg>
                 </div>
-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <span className="text-fluid-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                   PLC Viewer
                 </span>
               </div>
 
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-fluid-sm" style={{ color: 'var(--text-muted)' }}>
                 Compatible with Allen-Bradley ControlLogix, CompactLogix, GuardLogix, SLC 500, and MicroLogix
               </p>
             </div>

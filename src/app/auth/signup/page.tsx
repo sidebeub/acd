@@ -76,25 +76,52 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--surface-0)' }}>
-      <div className="w-full max-w-md">
+    <div style={{
+      minHeight: '100dvh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--surface-0)',
+      paddingTop: 'env(safe-area-inset-top)',
+      paddingBottom: 'env(safe-area-inset-bottom)',
+      paddingLeft: 'env(safe-area-inset-left)',
+      paddingRight: 'env(safe-area-inset-right)'
+    }}>
+      <div className="container-narrow">
         {/* Logo/Brand */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+        <div style={{
+          textAlign: 'center',
+          marginBottom: 'var(--space-8)'
+        }}>
+          <h1 style={{
+            fontSize: 'var(--text-2xl)',
+            fontWeight: 700,
+            color: 'var(--text-primary)'
+          }}>
             PLC Viewer
           </h1>
-          <p className="mt-2" style={{ color: 'var(--text-secondary)' }}>
+          <p style={{
+            marginTop: 'var(--space-2)',
+            fontSize: 'var(--text-base)',
+            color: 'var(--text-secondary)'
+          }}>
             Create your account
           </p>
         </div>
 
         {/* Signup Form */}
-        <div className="rounded-lg p-8" style={{
+        <div style={{
           background: 'var(--surface-1)',
-          border: '1px solid var(--border-default)'
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-8)'
         }}>
           {errorMessage && (
-            <div className="mb-4 p-3 rounded-lg text-sm" style={{
+            <div style={{
+              marginBottom: 'var(--space-4)',
+              padding: 'var(--space-3)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 'var(--text-sm)',
               background: 'var(--accent-red-muted)',
               color: 'var(--accent-red)',
               border: '1px solid var(--accent-red)'
@@ -103,9 +130,18 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              <label
+                htmlFor="name"
+                style={{
+                  display: 'block',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 500,
+                  marginBottom: 'var(--space-1)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
                 Name
               </label>
               <input
@@ -113,18 +149,33 @@ export default function SignupPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
                 style={{
+                  width: '100%',
+                  minHeight: '44px',
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--text-base)',
                   background: 'var(--surface-2)',
                   border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
                 placeholder="Your name (optional)"
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              <label
+                htmlFor="email"
+                style={{
+                  display: 'block',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 500,
+                  marginBottom: 'var(--space-1)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
                 Email
               </label>
               <input
@@ -133,18 +184,33 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
                 style={{
+                  width: '100%',
+                  minHeight: '44px',
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--text-base)',
                   background: 'var(--surface-2)',
                   border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              <label
+                htmlFor="password"
+                style={{
+                  display: 'block',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 500,
+                  marginBottom: 'var(--space-1)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
                 Password
               </label>
               <input
@@ -153,18 +219,33 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
                 style={{
+                  width: '100%',
+                  minHeight: '44px',
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--text-base)',
                   background: 'var(--surface-2)',
                   border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
                 placeholder="At least 8 characters"
               />
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              <label
+                htmlFor="confirmPassword"
+                style={{
+                  display: 'block',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 500,
+                  marginBottom: 'var(--space-1)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
                 Confirm Password
               </label>
               <input
@@ -173,11 +254,17 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
                 style={{
+                  width: '100%',
+                  minHeight: '44px',
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--text-base)',
                   background: 'var(--surface-2)',
                   border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
                 placeholder="Confirm your password"
               />
@@ -186,10 +273,19 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 px-4 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
               style={{
+                width: '100%',
+                minHeight: '44px',
+                padding: 'var(--space-3) var(--space-4)',
+                borderRadius: 'var(--radius-sm)',
+                fontWeight: 500,
+                fontSize: 'var(--text-base)',
                 background: 'var(--accent-blue)',
-                color: 'white'
+                color: 'white',
+                border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.5 : 1,
+                transition: 'opacity 0.2s ease'
               }}
             >
               {loading ? 'Creating account...' : 'Create account'}
@@ -197,24 +293,40 @@ export default function SignupPage() {
           </form>
 
           {/* Divider */}
-          <div className="flex items-center my-6">
-            <div className="flex-1 h-px" style={{ background: 'var(--border-default)' }}></div>
-            <span className="px-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>or</span>
-            <div className="flex-1 h-px" style={{ background: 'var(--border-default)' }}></div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            margin: 'var(--space-6) 0'
+          }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
+            <span style={{ padding: '0 var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' }}>or</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
           </div>
 
           {/* Google Sign In */}
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full py-2 px-4 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             style={{
+              width: '100%',
+              minHeight: '44px',
+              padding: 'var(--space-3) var(--space-4)',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 500,
+              fontSize: 'var(--text-base)',
               background: 'var(--surface-3)',
               border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)'
+              color: 'var(--text-primary)',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'var(--space-2)',
+              transition: 'opacity 0.2s ease'
             }}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 24 24">
               <path
                 fill="currentColor"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -236,9 +348,21 @@ export default function SignupPage() {
           </button>
 
           {/* Login link */}
-          <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p style={{
+            marginTop: 'var(--space-6)',
+            textAlign: 'center',
+            fontSize: 'var(--text-sm)',
+            color: 'var(--text-secondary)'
+          }}>
             Already have an account?{' '}
-            <Link href="/auth/login" className="font-medium hover:underline" style={{ color: 'var(--accent-blue)' }}>
+            <Link
+              href="/auth/login"
+              style={{
+                fontWeight: 500,
+                color: 'var(--accent-blue)',
+                textDecoration: 'none'
+              }}
+            >
               Sign in
             </Link>
           </p>

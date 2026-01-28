@@ -150,40 +150,71 @@ export function TagXRefPopup({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0, 0, 0, 0.7)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{
+        background: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(4px)',
+        padding: 'env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0)'
+      }}
       onClick={onClose}
     >
+      {/* Modal - Full screen on mobile, centered on desktop */}
       <div
         ref={popupRef}
-        className="tag-xref-popup relative max-w-2xl w-full max-h-[80vh] overflow-hidden rounded-lg shadow-2xl animate-fade-in"
-        style={{ background: 'var(--surface-2)' }}
+        className="tag-xref-popup relative w-full h-full sm:h-auto overflow-hidden animate-fade-in flex flex-col"
+        style={{
+          background: 'var(--surface-2)',
+          boxShadow: 'var(--shadow-xl)',
+          maxWidth: '640px',
+          maxHeight: '100dvh',
+          borderRadius: 'var(--radius-none)'
+        }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
+        <style jsx>{`
+          @media (min-width: 640px) {
+            .tag-xref-popup {
+              max-height: 80vh !important;
+              border-radius: var(--radius-md) !important;
+              margin: var(--space-4) !important;
+            }
+          }
+        `}</style>
+        {/* Header - Touch optimized */}
         <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-3)' }}
+          className="flex items-center justify-between border-b flex-shrink-0 safe-area-top"
+          style={{
+            borderColor: 'var(--border-subtle)',
+            background: 'var(--surface-3)',
+            padding: 'var(--space-3) var(--space-4)',
+            minHeight: 'var(--touch-target-min)'
+          }}
         >
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+          <div className="flex items-center flex-wrap" style={{ gap: 'var(--space-2)' }}>
+            <h2 className="font-bold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-lg)' }}>
               Cross Reference
             </h2>
             <code
-              className="px-2 py-1 rounded text-sm font-mono"
+              className="font-mono"
               style={{
                 background: 'var(--accent-blue-muted)',
-                color: 'var(--accent-blue)'
+                color: 'var(--accent-blue)',
+                padding: 'var(--space-1) var(--space-2)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--text-sm)'
               }}
             >
               {data.tag}
             </code>
             {data.isAoi && (
               <span
-                className="px-2 py-0.5 rounded text-xs font-medium"
+                className="font-medium"
                 style={{
                   background: 'var(--accent-purple-muted)',
-                  color: 'var(--accent-purple)'
+                  color: 'var(--accent-purple)',
+                  padding: 'var(--space-1) var(--space-2)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--text-xs)'
                 }}
               >
                 AOI
@@ -192,24 +223,33 @@ export function TagXRefPopup({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded hover:bg-white/10 transition-colors"
-            style={{ color: 'var(--text-muted)' }}
+            className="flex items-center justify-center transition-colors"
+            style={{
+              color: 'var(--text-muted)',
+              minWidth: 'var(--touch-target-min)',
+              minHeight: 'var(--touch-target-min)',
+              borderRadius: 'var(--radius-md)'
+            }}
             title="Close (Esc)"
           >
             <IconClose />
           </button>
         </div>
 
-        {/* Search and Filter Bar */}
+        {/* Search and Filter Bar - Touch optimized */}
         <div
-          className="px-4 py-3 border-b flex items-center gap-3 flex-wrap"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          className="flex flex-col sm:flex-row items-stretch sm:items-center border-b flex-shrink-0"
+          style={{
+            borderColor: 'var(--border-subtle)',
+            padding: 'var(--space-3) var(--space-4)',
+            gap: 'var(--space-3)'
+          }}
         >
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1" style={{ minWidth: '180px' }}>
             <span
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-              style={{ color: 'var(--text-muted)' }}
+              className="absolute top-1/2 -translate-y-1/2"
+              style={{ color: 'var(--text-muted)', left: 'var(--space-3)' }}
             >
               <IconSearch />
             </span>
@@ -219,35 +259,49 @@ export function TagXRefPopup({
               placeholder="Filter by routine, program..."
               value={searchFilter}
               onChange={e => setSearchFilter(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded text-sm outline-none transition-colors"
+              className="w-full outline-none transition-colors"
               style={{
                 background: 'var(--surface-1)',
                 border: '1px solid var(--border-subtle)',
-                color: 'var(--text-primary)'
+                color: 'var(--text-primary)',
+                paddingLeft: 'calc(var(--space-3) + 20px)',
+                paddingRight: 'var(--space-3)',
+                minHeight: 'var(--touch-target-min)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--text-sm)'
               }}
             />
           </div>
 
-          {/* Filter Buttons */}
-          <div className="flex items-center gap-1">
+          {/* Filter Buttons - Scrollable on mobile */}
+          <div className="flex items-center overflow-x-auto" style={{ gap: 'var(--space-2)' }}>
             <button
               onClick={() => setUsageFilter('all')}
-              className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+              className="font-medium transition-colors whitespace-nowrap"
               style={{
                 background: usageFilter === 'all' ? 'var(--accent-blue-muted)' : 'var(--surface-3)',
                 color: usageFilter === 'all' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                border: `1px solid ${usageFilter === 'all' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`
+                border: `1px solid ${usageFilter === 'all' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
+                padding: 'var(--space-2) var(--space-3)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--text-xs)',
+                minHeight: '36px'
               }}
             >
               All ({data.usages.length})
             </button>
             <button
               onClick={() => setUsageFilter('read')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
+              className="flex items-center font-medium transition-colors whitespace-nowrap"
               style={{
                 background: usageFilter === 'read' ? 'var(--accent-emerald-muted)' : 'var(--surface-3)',
                 color: usageFilter === 'read' ? 'var(--accent-emerald)' : 'var(--text-secondary)',
-                border: `1px solid ${usageFilter === 'read' ? 'var(--accent-emerald)' : 'var(--border-subtle)'}`
+                border: `1px solid ${usageFilter === 'read' ? 'var(--accent-emerald)' : 'var(--border-subtle)'}`,
+                padding: 'var(--space-2) var(--space-3)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--text-xs)',
+                minHeight: '36px',
+                gap: 'var(--space-1)'
               }}
             >
               <IconRead />
@@ -255,11 +309,16 @@ export function TagXRefPopup({
             </button>
             <button
               onClick={() => setUsageFilter('write')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
+              className="flex items-center font-medium transition-colors whitespace-nowrap"
               style={{
                 background: usageFilter === 'write' ? 'var(--accent-amber-muted)' : 'var(--surface-3)',
                 color: usageFilter === 'write' ? 'var(--accent-amber)' : 'var(--text-secondary)',
-                border: `1px solid ${usageFilter === 'write' ? 'var(--accent-amber)' : 'var(--border-subtle)'}`
+                border: `1px solid ${usageFilter === 'write' ? 'var(--accent-amber)' : 'var(--border-subtle)'}`,
+                padding: 'var(--space-2) var(--space-3)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--text-xs)',
+                minHeight: '36px',
+                gap: 'var(--space-1)'
               }}
             >
               <IconWrite />
@@ -289,39 +348,58 @@ export function TagXRefPopup({
           </div>
         )}
 
-        {/* Results List */}
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 180px)' }}>
+        {/* Results List - Scrollable with proper mobile handling */}
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           {Object.keys(groupedUsages).length > 0 ? (
-            <div className="p-2">
+            <div style={{ padding: 'var(--space-2)' }}>
               {Object.entries(groupedUsages).map(([routinePath, usages]) => (
-                <div key={routinePath} className="mb-3">
+                <div key={routinePath} style={{ marginBottom: 'var(--space-3)' }}>
                   {/* Routine Header */}
                   <div
-                    className="px-3 py-1.5 rounded-t text-xs font-semibold uppercase tracking-wider"
-                    style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}
+                    className="font-semibold uppercase tracking-wider"
+                    style={{
+                      background: 'var(--surface-3)',
+                      color: 'var(--text-muted)',
+                      padding: 'var(--space-2) var(--space-3)',
+                      borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
+                      fontSize: 'var(--text-xs)'
+                    }}
                   >
                     {routinePath}
                   </div>
 
                   {/* Usages in this routine */}
                   <div
-                    className="rounded-b overflow-hidden"
-                    style={{ border: '1px solid var(--border-subtle)' }}
+                    className="overflow-hidden"
+                    style={{
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '0 0 var(--radius-sm) var(--radius-sm)'
+                    }}
                   >
                     {usages.map((usage, idx) => (
                       <button
                         key={`${usage.rungId}-${idx}`}
                         onClick={() => handleJump(usage)}
-                        className="tag-xref-item w-full flex items-center justify-between px-3 py-2 text-left transition-colors hover:bg-white/5 border-b last:border-b-0"
-                        style={{ borderColor: 'var(--border-subtle)' }}
+                        className="tag-xref-item w-full flex items-center justify-between text-left transition-colors hover:bg-white/5"
+                        style={{
+                          borderBottom: idx < usages.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                          padding: 'var(--space-3)',
+                          minHeight: 'var(--touch-target-min)'
+                        }}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
                           {/* Usage Type Icon */}
                           <span
-                            className="flex items-center justify-center w-6 h-6 rounded"
+                            className="flex items-center justify-center flex-shrink-0"
                             style={{
+                              width: '28px',
+                              height: '28px',
                               background: usage.usage === 'read' ? 'var(--accent-emerald-muted)' : 'var(--accent-amber-muted)',
-                              color: usage.usage === 'read' ? 'var(--accent-emerald)' : 'var(--accent-amber)'
+                              color: usage.usage === 'read' ? 'var(--accent-emerald)' : 'var(--accent-amber)',
+                              borderRadius: 'var(--radius-sm)'
                             }}
                             title={usage.usage === 'read' ? 'Read' : 'Write'}
                           >
@@ -330,19 +408,22 @@ export function TagXRefPopup({
 
                           {/* Rung Number */}
                           <span
-                            className="font-mono text-sm font-semibold px-2 py-0.5 rounded"
+                            className="font-mono font-semibold"
                             style={{
                               background: 'var(--surface-4)',
-                              color: 'var(--text-secondary)'
+                              color: 'var(--text-secondary)',
+                              padding: 'var(--space-1) var(--space-2)',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: 'var(--text-sm)'
                             }}
                           >
                             Rung {usage.rungNumber}
                           </span>
 
-                          {/* Instruction */}
+                          {/* Instruction - Hidden on small screens */}
                           <code
-                            className="text-xs font-mono"
-                            style={{ color: 'var(--text-tertiary)' }}
+                            className="font-mono hidden sm:inline"
+                            style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)' }}
                           >
                             {usage.instruction}
                           </code>
@@ -350,10 +431,10 @@ export function TagXRefPopup({
 
                         {/* Jump Indicator */}
                         <span
-                          className="text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          style={{ color: 'var(--text-muted)' }}
+                          className="flex items-center flex-shrink-0"
+                          style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', gap: 'var(--space-1)' }}
                         >
-                          Jump <IconExternalLink />
+                          <IconExternalLink />
                         </span>
                       </button>
                     ))}
@@ -362,36 +443,38 @@ export function TagXRefPopup({
               ))}
             </div>
           ) : (
-            <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) var(--space-4)' }}>
               {searchFilter || usageFilter !== 'all' ? (
                 <>
                   <IconSearch />
-                  <p className="mt-2">No matching references found</p>
-                  <p className="text-xs mt-1">Try adjusting your filter</p>
+                  <p style={{ marginTop: 'var(--space-2)' }}>No matching references found</p>
+                  <p style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)' }}>Try adjusting your filter</p>
                 </>
               ) : (
                 <>
                   <p>No cross references found for this tag</p>
-                  <p className="text-xs mt-1">This tag may only be used in this location</p>
+                  <p style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)' }}>This tag may only be used in this location</p>
                 </>
               )}
             </div>
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer - With safe area */}
         <div
-          className="px-4 py-2 border-t text-xs flex items-center justify-between"
+          className="flex items-center justify-between border-t flex-shrink-0 safe-area-bottom"
           style={{
             borderColor: 'var(--border-subtle)',
             background: 'var(--surface-1)',
-            color: 'var(--text-muted)'
+            color: 'var(--text-muted)',
+            padding: 'var(--space-3) var(--space-4)',
+            fontSize: 'var(--text-xs)'
           }}
         >
           <span>
             Showing {filteredUsages.length} of {data.usages.length} references
           </span>
-          <span>
+          <span className="hidden sm:inline">
             Click a rung to jump to it
           </span>
         </div>

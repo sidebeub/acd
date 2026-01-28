@@ -139,30 +139,60 @@ export function PDFExportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0, 0, 0, 0.7)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{
+        background: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(4px)',
+        padding: 'env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0)'
+      }}
       onClick={onClose}
     >
+      {/* Modal container - Full screen on mobile, centered dialog on desktop */}
       <div
-        className="relative w-full max-w-lg max-h-[90vh] overflow-hidden rounded-xl shadow-2xl"
-        style={{ background: 'var(--surface-2)' }}
+        className="relative w-full h-full sm:h-auto overflow-hidden flex flex-col"
+        style={{
+          background: 'var(--surface-2)',
+          boxShadow: 'var(--shadow-xl)',
+          maxWidth: '480px',
+          maxHeight: '100dvh',
+          borderRadius: 'var(--radius-none)'
+        }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
+        <style jsx>{`
+          @media (min-width: 640px) {
+            div {
+              max-height: 90vh !important;
+              border-radius: var(--radius-md) !important;
+              margin: var(--space-4) !important;
+            }
+          }
+        `}</style>
+        {/* Header - Touch optimized */}
         <div
-          className="flex items-center justify-between px-6 py-4 border-b"
-          style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-3)' }}
+          className="flex items-center justify-between border-b flex-shrink-0 safe-area-top"
+          style={{
+            borderColor: 'var(--border-subtle)',
+            background: 'var(--surface-3)',
+            padding: 'var(--space-4) var(--space-5)',
+            minHeight: 'var(--touch-target-min)'
+          }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
             <IconPrint />
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="font-semibold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-lg)' }}>
               Export / Print
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg transition-colors"
-            style={{ color: 'var(--text-muted)' }}
+            className="flex items-center justify-center transition-colors"
+            style={{
+              color: 'var(--text-muted)',
+              minWidth: 'var(--touch-target-min)',
+              minHeight: 'var(--touch-target-min)',
+              borderRadius: 'var(--radius-md)'
+            }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
@@ -170,108 +200,105 @@ export function PDFExportModal({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+        {/* Content - Scrollable area */}
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain"
+          style={{
+            padding: 'var(--space-5)',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
           {/* Export Mode Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+          <div style={{ marginBottom: 'var(--space-6)' }}>
+            <label className="block font-medium" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-3)' }}>
               Export Mode
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2" style={{ gap: 'var(--space-3)' }}>
               <button
                 onClick={() => setExportMode('clean')}
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                  exportMode === 'clean' ? 'ring-2 ring-offset-2' : ''
-                }`}
+                className="flex flex-col items-center transition-all"
                 style={{
                   background: exportMode === 'clean' ? 'var(--accent-blue-muted)' : 'var(--surface-3)',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
                   borderColor: exportMode === 'clean' ? 'var(--accent-blue)' : 'var(--border-subtle)',
-                  color: exportMode === 'clean' ? 'var(--accent-blue)' : 'var(--text-secondary)'
+                  color: exportMode === 'clean' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-4)',
+                  gap: 'var(--space-2)',
+                  minHeight: '80px'
                 }}
               >
                 <IconDocument />
-                <span className="text-sm font-medium">Export Clean</span>
-                <span className="text-xs opacity-70">Static ladder logic</span>
+                <span className="font-medium" style={{ fontSize: 'var(--text-sm)' }}>Export Clean</span>
+                <span className="opacity-70" style={{ fontSize: 'var(--text-xs)' }}>Static ladder logic</span>
               </button>
 
               <button
                 onClick={() => setExportMode('simulation')}
                 disabled={!simulationEnabled}
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                  exportMode === 'simulation' ? 'ring-2 ring-offset-2' : ''
-                } ${!simulationEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className="flex flex-col items-center transition-all"
                 style={{
                   background: exportMode === 'simulation' ? 'var(--accent-emerald-muted)' : 'var(--surface-3)',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
                   borderColor: exportMode === 'simulation' ? 'var(--accent-emerald)' : 'var(--border-subtle)',
-                  color: exportMode === 'simulation' ? 'var(--accent-emerald)' : 'var(--text-secondary)'
+                  color: exportMode === 'simulation' ? 'var(--accent-emerald)' : 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-4)',
+                  gap: 'var(--space-2)',
+                  minHeight: '80px',
+                  opacity: !simulationEnabled ? 0.5 : 1,
+                  cursor: !simulationEnabled ? 'not-allowed' : 'pointer'
                 }}
               >
                 <IconSimulation />
-                <span className="text-sm font-medium">Export Current State</span>
-                <span className="text-xs opacity-70">
+                <span className="font-medium" style={{ fontSize: 'var(--text-sm)' }}>Export Current State</span>
+                <span className="opacity-70" style={{ fontSize: 'var(--text-xs)' }}>
                   {simulationEnabled ? 'With simulation values' : 'Start simulation first'}
                 </span>
               </button>
             </div>
           </div>
 
-          {/* Content Options */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+          {/* Content Options - Touch optimized checkboxes */}
+          <div style={{ marginBottom: 'var(--space-6)' }}>
+            <label className="block font-medium" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-3)' }}>
               Content Options
             </label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeComments}
-                  onChange={e => setIncludeComments(e.target.checked)}
-                  className="w-4 h-4 rounded"
-                  style={{ accentColor: 'var(--accent-blue)' }}
-                />
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Include rung comments
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeRawText}
-                  onChange={e => setIncludeRawText(e.target.checked)}
-                  className="w-4 h-4 rounded"
-                  style={{ accentColor: 'var(--accent-blue)' }}
-                />
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Include raw instruction text
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeLegend}
-                  onChange={e => setIncludeLegend(e.target.checked)}
-                  className="w-4 h-4 rounded"
-                  style={{ accentColor: 'var(--accent-blue)' }}
-                />
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Include legend / key
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includePageNumbers}
-                  onChange={e => setIncludePageNumbers(e.target.checked)}
-                  className="w-4 h-4 rounded"
-                  style={{ accentColor: 'var(--accent-blue)' }}
-                />
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Include page numbers
-                </span>
-              </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+              {[
+                { checked: includeComments, onChange: setIncludeComments, label: 'Include rung comments' },
+                { checked: includeRawText, onChange: setIncludeRawText, label: 'Include raw instruction text' },
+                { checked: includeLegend, onChange: setIncludeLegend, label: 'Include legend / key' },
+                { checked: includePageNumbers, onChange: setIncludePageNumbers, label: 'Include page numbers' }
+              ].map((option, i) => (
+                <label
+                  key={i}
+                  className="flex items-center cursor-pointer"
+                  style={{
+                    gap: 'var(--space-3)',
+                    minHeight: 'var(--touch-target-min)',
+                    padding: 'var(--space-2) 0'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={option.checked}
+                    onChange={e => option.onChange(e.target.checked)}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      accentColor: 'var(--accent-blue)',
+                      borderRadius: 'var(--radius-sm)',
+                      flexShrink: 0
+                    }}
+                  />
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>
+                    {option.label}
+                  </span>
+                </label>
+              ))}
             </div>
           </div>
 
@@ -437,37 +464,45 @@ export function PDFExportModal({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer - Touch optimized buttons with safe area */}
         <div
-          className="flex items-center justify-end gap-3 px-6 py-4 border-t"
-          style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-3)' }}
+          className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end border-t flex-shrink-0 safe-area-bottom"
+          style={{
+            borderColor: 'var(--border-subtle)',
+            background: 'var(--surface-3)',
+            padding: 'var(--space-4) var(--space-5)',
+            gap: 'var(--space-3)'
+          }}
         >
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="font-medium transition-colors order-3 sm:order-1"
             style={{
               background: 'var(--surface-4)',
-              color: 'var(--text-secondary)'
+              color: 'var(--text-secondary)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--text-sm)',
+              minHeight: 'var(--touch-target-min)'
             }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'var(--surface-4)'
-              e.currentTarget.style.color = 'var(--text-primary)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'var(--surface-4)'
-              e.currentTarget.style.color = 'var(--text-secondary)'
-            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
             Cancel
           </button>
 
           <button
             onClick={handleDownload}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center justify-center font-medium transition-colors order-2"
             style={{
               background: 'var(--surface-4)',
               color: 'var(--text-primary)',
-              border: '1px solid var(--border-default)'
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--text-sm)',
+              minHeight: 'var(--touch-target-min)',
+              gap: 'var(--space-2)'
             }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
             onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-4)'}
@@ -478,10 +513,15 @@ export function PDFExportModal({
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center justify-center font-medium transition-colors order-1 sm:order-3"
             style={{
               background: 'var(--accent-blue)',
-              color: 'white'
+              color: 'white',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--text-sm)',
+              minHeight: 'var(--touch-target-min)',
+              gap: 'var(--space-2)'
             }}
             onMouseEnter={e => e.currentTarget.style.background = '#2563eb'}
             onMouseLeave={e => e.currentTarget.style.background = 'var(--accent-blue)'}

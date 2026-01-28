@@ -85,28 +85,48 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
 
   return (
     <div
-      className="mt-2 rounded-lg overflow-hidden"
-      style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
+      className="overflow-hidden"
+      style={{
+        background: 'var(--surface-0)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-md)',
+        marginTop: 'var(--space-2)'
+      }}
     >
       <div
-        className="flex items-center justify-between px-3 py-1.5"
-        style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border-subtle)' }}
+        className="flex items-center justify-between"
+        style={{
+          background: 'var(--surface-2)',
+          borderBottom: '1px solid var(--border-subtle)',
+          padding: 'var(--space-2) var(--space-3)'
+        }}
       >
-        <span className="text-[10px] font-mono uppercase" style={{ color: 'var(--text-muted)' }}>
+        <span className="font-mono uppercase" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
           {language}
         </span>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] transition-colors"
-          style={{ color: copied ? 'var(--accent-emerald)' : 'var(--text-muted)' }}
+          className="flex items-center transition-colors"
+          style={{
+            color: copied ? 'var(--accent-emerald)' : 'var(--text-muted)',
+            gap: 'var(--space-1)',
+            padding: 'var(--space-1) var(--space-2)',
+            fontSize: 'var(--text-xs)',
+            minHeight: '32px',
+            borderRadius: 'var(--radius-sm)'
+          }}
         >
           {copied ? <IconCheck /> : <IconCopy />}
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
       <pre
-        className="p-3 text-xs font-mono overflow-x-auto"
-        style={{ color: 'var(--text-secondary)' }}
+        className="font-mono overflow-x-auto"
+        style={{
+          color: 'var(--text-secondary)',
+          padding: 'var(--space-3)',
+          fontSize: 'var(--text-xs)'
+        }}
       >
         {code}
       </pre>
@@ -160,16 +180,22 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[85%] rounded-lg px-3 py-2 ${isUser ? 'rounded-br-sm' : 'rounded-bl-sm'}`}
         style={{
+          maxWidth: '85%',
           background: isUser ? 'var(--accent-blue)' : 'var(--surface-2)',
-          color: isUser ? 'white' : 'var(--text-secondary)'
+          color: isUser ? 'white' : 'var(--text-secondary)',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-2) var(--space-3)'
         }}
       >
         <MessageContent content={message.content} />
         <div
-          className="text-[10px] mt-1 opacity-60"
-          style={{ textAlign: isUser ? 'right' : 'left' }}
+          className="opacity-60"
+          style={{
+            textAlign: isUser ? 'right' : 'left',
+            fontSize: 'var(--text-xs)',
+            marginTop: 'var(--space-1)'
+          }}
         >
           {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
@@ -399,54 +425,103 @@ export function ChatPanel({ projectId, isOpen, onClose }: ChatPanelProps) {
     <div className="no-print">
       {/* Mobile backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        className="fixed inset-0 z-40 lg:hidden"
+        style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
         onClick={onClose}
       />
 
-      {/* Chat panel */}
+      {/* Chat panel - Full screen on mobile, sidebar on desktop */}
       <aside
-        className="fixed lg:relative inset-y-0 right-0 top-12 lg:top-0 z-50 flex flex-col border-l"
+        className="fixed lg:relative z-50 flex flex-col border-l container-panel"
         style={{
-          width: '360px',
+          inset: '0',
+          top: 'env(safe-area-inset-top, 0)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0)',
+          width: '100%',
           maxWidth: '100vw',
+          height: '100dvh',
           background: 'var(--surface-1)',
-          borderColor: 'var(--border-subtle)'
+          borderColor: 'var(--border-subtle)',
+          borderRadius: 'var(--radius-none)'
         }}
       >
-        {/* Header */}
+        {/* Desktop-specific sizing */}
+        <style jsx>{`
+          @media (min-width: 1024px) {
+            aside {
+              inset: unset !important;
+              top: 0 !important;
+              right: 0 !important;
+              width: 360px !important;
+              max-width: 360px !important;
+              height: 100% !important;
+              border-radius: var(--radius-none) !important;
+            }
+          }
+          @container panel (max-width: 400px) {
+            .chat-header-actions {
+              gap: var(--space-1);
+            }
+          }
+        `}</style>
+        {/* Header - Touch optimized */}
         <div
-          className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          className="flex-shrink-0 flex items-center justify-between border-b safe-area-top"
+          style={{
+            borderColor: 'var(--border-subtle)',
+            padding: 'var(--space-3) var(--space-4)',
+            minHeight: 'var(--touch-target-min)',
+            background: 'var(--surface-2)'
+          }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-fluid-2">
             <IconChat />
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+            <h3
+              className="font-semibold"
+              style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
+            >
               AI Assistant
             </h3>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center chat-header-actions" style={{ gap: 'var(--space-2)' }}>
             <button
               onClick={() => setShowSessions(!showSessions)}
-              className="p-1.5 rounded transition-colors"
-              style={{ color: 'var(--text-muted)' }}
+              className="flex items-center justify-center transition-colors"
+              style={{
+                color: 'var(--text-muted)',
+                minWidth: 'var(--touch-target-min)',
+                minHeight: 'var(--touch-target-min)',
+                borderRadius: 'var(--radius-md)'
+              }}
               title="Chat history"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
             <button
               onClick={startNewChat}
-              className="p-1.5 rounded transition-colors"
-              style={{ color: 'var(--text-muted)' }}
+              className="flex items-center justify-center transition-colors"
+              style={{
+                color: 'var(--text-muted)',
+                minWidth: 'var(--touch-target-min)',
+                minHeight: 'var(--touch-target-min)',
+                borderRadius: 'var(--radius-md)'
+              }}
               title="New chat"
             >
               <IconPlus />
             </button>
             <button
               onClick={() => exportChat()}
-              className="p-1.5 rounded transition-colors"
-              style={{ color: messages.length > 0 ? 'var(--text-muted)' : 'var(--text-muted)', opacity: messages.length > 0 ? 1 : 0.5 }}
+              className="flex items-center justify-center transition-colors"
+              style={{
+                color: 'var(--text-muted)',
+                opacity: messages.length > 0 ? 1 : 0.5,
+                minWidth: 'var(--touch-target-min)',
+                minHeight: 'var(--touch-target-min)',
+                borderRadius: 'var(--radius-md)'
+              }}
               title="Export chat"
               disabled={messages.length === 0}
             >
@@ -454,8 +529,13 @@ export function ChatPanel({ projectId, isOpen, onClose }: ChatPanelProps) {
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded transition-colors lg:hidden"
-              style={{ color: 'var(--text-muted)' }}
+              className="flex items-center justify-center transition-colors"
+              style={{
+                color: 'var(--text-muted)',
+                minWidth: 'var(--touch-target-min)',
+                minHeight: 'var(--touch-target-min)',
+                borderRadius: 'var(--radius-md)'
+              }}
             >
               <IconClose />
             </button>
@@ -575,23 +655,36 @@ export function ChatPanel({ projectId, isOpen, onClose }: ChatPanelProps) {
           </div>
         )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Messages - Scrollable area with proper mobile handling */}
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain"
+          style={{
+            padding: 'var(--space-4)',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
+          <div className="space-y-3">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center px-4">
+            <div className="h-full flex flex-col items-center justify-center text-center" style={{ padding: 'var(--space-4)', minHeight: '300px' }}>
               <div
-                className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
-                style={{ background: 'var(--accent-blue-muted)' }}
+                className="flex items-center justify-center"
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  background: 'var(--accent-blue-muted)',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: 'var(--space-3)'
+                }}
               >
                 <IconChat />
               </div>
-              <h4 className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+              <h4 className="font-medium" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-base)', marginBottom: 'var(--space-1)' }}>
                 PLC Assistant
               </h4>
-              <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginBottom: 'var(--space-4)' }}>
                 I can help you review, explain, and generate ladder logic code for this project.
               </p>
-              <div className="space-y-2 w-full max-w-xs">
+              <div className="w-full" style={{ maxWidth: '320px' }}>
                 {[
                   'Explain the MainProgram routine',
                   'Find all uses of Motor_Start tag',
@@ -600,11 +693,16 @@ export function ChatPanel({ projectId, isOpen, onClose }: ChatPanelProps) {
                   <button
                     key={i}
                     onClick={() => setInput(suggestion)}
-                    className="w-full px-3 py-2 rounded text-xs text-left transition-colors"
+                    className="w-full text-left transition-colors"
                     style={{
                       background: 'var(--surface-2)',
                       color: 'var(--text-secondary)',
-                      border: '1px solid var(--border-subtle)'
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 'var(--space-3)',
+                      fontSize: 'var(--text-sm)',
+                      marginBottom: 'var(--space-2)',
+                      minHeight: 'var(--touch-target-min)'
                     }}
                   >
                     {suggestion}
@@ -643,32 +741,50 @@ export function ChatPanel({ projectId, isOpen, onClose }: ChatPanelProps) {
               <div ref={messagesEndRef} />
             </>
           )}
+          </div>
         </div>
 
-        {/* Input */}
+        {/* Input - Fixed at bottom with safe area */}
         <form
           onSubmit={sendMessage}
-          className="flex-shrink-0 p-3 border-t"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          className="flex-shrink-0 border-t safe-area-bottom"
+          style={{
+            borderColor: 'var(--border-subtle)',
+            padding: 'var(--space-3) var(--space-4)',
+            background: 'var(--surface-2)'
+          }}
         >
-          <div className="flex gap-2">
+          <div className="flex" style={{ gap: 'var(--space-2)' }}>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about your project..."
               disabled={isLoading}
-              className="input-field flex-1 text-sm"
-              style={{ minHeight: '40px' }}
+              className="flex-1"
+              style={{
+                minHeight: 'var(--touch-target-min)',
+                padding: 'var(--space-2) var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                background: 'var(--surface-3)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                outline: 'none'
+              }}
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="px-3 rounded-lg transition-colors flex items-center justify-center"
+              className="flex items-center justify-center transition-colors"
               style={{
                 background: input.trim() ? 'var(--accent-blue)' : 'var(--surface-3)',
                 color: input.trim() ? 'white' : 'var(--text-muted)',
-                opacity: isLoading ? 0.5 : 1
+                opacity: isLoading ? 0.5 : 1,
+                minWidth: 'var(--touch-target-min)',
+                minHeight: 'var(--touch-target-min)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0 var(--space-3)'
               }}
             >
               <IconSend />

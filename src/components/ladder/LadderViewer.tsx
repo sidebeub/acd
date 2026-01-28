@@ -445,31 +445,29 @@ export function LadderViewer({
         />
       )}
 
-      <div
-        ref={containerRef}
-        className={`ladder-viewer space-y-3 outline-none ${isTouchDevice ? 'touch-scroll-only' : ''}`}
-        tabIndex={0}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onTouchStart={swipeHandlers.onTouchStart as unknown as React.TouchEventHandler}
-        onTouchMove={swipeHandlers.onTouchMove as unknown as React.TouchEventHandler}
-        onTouchEnd={swipeHandlers.onTouchEnd as unknown as React.TouchEventHandler}
-        role="listbox"
-        aria-label="Ladder logic rungs"
-        aria-activedescendant={selectedRungIndex !== null ? `rung-${filteredRungs[selectedRungIndex]?.id}` : undefined}
-        style={{
-          transform: isTouchDevice && scale !== 1 ? `scale(${scale})` : undefined,
-          transformOrigin: 'top left',
-          transition: 'transform 0.1s ease'
-        }}
-      >
+      {/* Container for ladder viewer with container queries */}
+      <div className="ladder-container">
+        <div
+          ref={containerRef}
+          className={`ladder-viewer ladder-scroll-container space-y-3 outline-none ${isTouchDevice ? 'touch-scroll-only' : ''}`}
+          tabIndex={0}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onTouchStart={swipeHandlers.onTouchStart as unknown as React.TouchEventHandler}
+          onTouchMove={swipeHandlers.onTouchMove as unknown as React.TouchEventHandler}
+          onTouchEnd={swipeHandlers.onTouchEnd as unknown as React.TouchEventHandler}
+          role="listbox"
+          aria-label="Ladder logic rungs"
+          aria-activedescendant={selectedRungIndex !== null ? `rung-${filteredRungs[selectedRungIndex]?.id}` : undefined}
+        >
         {/* Keyboard hint - only show on non-touch devices */}
         {isFocused && !isTouchDevice && (
           <div
-            className="sticky top-0 z-10 px-3 py-2 rounded-lg text-xs flex items-center gap-4 flex-wrap keyboard-hint"
+            className="sticky top-0 z-10 px-fluid-3 py-2 text-fluid-xs flex items-center gap-fluid-4 flex-wrap keyboard-hint"
             style={{
               background: 'var(--surface-3)',
               border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
               color: 'var(--text-muted)'
             }}
           >
@@ -485,10 +483,11 @@ export function LadderViewer({
         {/* Touch gesture hint - only show on touch devices when first loaded */}
         {isTouchDevice && selectedRungIndex === null && filteredRungs.length > 0 && (
           <div
-            className="sticky top-0 z-10 px-3 py-2 rounded-lg text-xs text-center"
+            className="sticky top-0 z-10 px-3 py-2 text-fluid-xs text-center"
             style={{
               background: 'var(--surface-3)',
               border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
               color: 'var(--text-muted)'
             }}
           >
@@ -496,7 +495,15 @@ export function LadderViewer({
           </div>
         )}
 
-      {filteredRungs.map((rung, index) => {
+        {/* Pinch-to-zoom container for smooth scaling */}
+        <div
+          className="ladder-zoom-container"
+          style={{
+            transform: isTouchDevice && scale !== 1 ? `scale(${scale})` : undefined,
+            width: isTouchDevice && scale !== 1 ? `${100 / scale}%` : undefined
+          }}
+        >
+          {filteredRungs.map((rung, index) => {
           // Long press timer for mobile context menu
           let longPressTimer: NodeJS.Timeout | null = null
 
@@ -528,7 +535,7 @@ export function LadderViewer({
           key={rung.id}
           data-rung-index={index}
           id={`rung-${rung.id}`}
-          className={`animate-fade-in touch-ripple ${highlightedRungId === rung.id ? 'rung-highlight-target' : ''}`}
+          className={`ladder-rung-container animate-fade-in touch-ripple ${highlightedRungId === rung.id ? 'rung-highlight-target' : ''}`}
           style={{ animationDelay: `${index * 30}ms` }}
           onClick={() => handleRungClick(index)}
           onTouchStart={handleTouchStartRung}
@@ -566,16 +573,18 @@ export function LadderViewer({
           )
         })}
 
-      {/* Cross-Reference Popup */}
-      {xrefData && (
-        <TagXRefPopup
-          data={xrefData}
-          onClose={() => setXrefData(null)}
-          onJumpToRung={handleJumpToRung}
-          onGoToAoiDefinition={onExpandAoi ? handleGoToAoiDefinition : undefined}
-        />
-      )}
-    </div>
+          {/* Cross-Reference Popup */}
+          {xrefData && (
+            <TagXRefPopup
+              data={xrefData}
+              onClose={() => setXrefData(null)}
+              onJumpToRung={handleJumpToRung}
+              onGoToAoiDefinition={onExpandAoi ? handleGoToAoiDefinition : undefined}
+            />
+          )}
+        </div>{/* End ladder-zoom-container */}
+      </div>{/* End ladder-viewer */}
+    </div>{/* End ladder-container */}
 
       {/* Mobile Navigation Dots */}
       {isTouchDevice && filteredRungs.length > 1 && selectedRungIndex !== null && (

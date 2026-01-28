@@ -875,19 +875,28 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
   )
 
   return (
-    <div className="h-screen flex flex-col" style={{ background: 'var(--surface-0)' }}>
-      {/* Header bar */}
+    <div className="flex flex-col" style={{ background: 'var(--surface-0)', height: '100dvh' }}>
+      {/* Header bar - responsive with container queries */}
       <header
-        className="flex-shrink-0 h-12 flex items-center justify-between px-2 sm:px-4 border-b no-print"
-        style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
+        className="flex-shrink-0 flex items-center justify-between border-b no-print"
+        style={{
+          background: 'var(--surface-1)',
+          borderColor: 'var(--border-subtle)',
+          height: 'var(--header-height)',
+          padding: '0 var(--space-3)',
+        }}
       >
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
           {/* Hamburger menu for mobile - only show on ladder tab */}
           {activeTab === 'ladder' && (
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="flex items-center justify-center w-8 h-8 rounded transition-colors lg:hidden"
-              style={{ color: 'var(--text-secondary)' }}
+              className="flex items-center justify-center transition-colors lg:hidden"
+              style={{
+                color: 'var(--text-secondary)',
+                minWidth: 'var(--touch-target-min)',
+                minHeight: 'var(--touch-target-min)',
+              }}
               onMouseEnter={e => {
                 e.currentTarget.style.color = 'var(--text-primary)'
                 e.currentTarget.style.background = 'var(--surface-3)'
@@ -896,6 +905,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                 e.currentTarget.style.color = 'var(--text-secondary)'
                 e.currentTarget.style.background = 'transparent'
               }}
+              aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
             >
               {sidebarOpen ? <IconClose /> : <IconMenu />}
             </button>
@@ -904,8 +914,14 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
           {/* Back home link */}
           <a
             href="/"
-            className="flex items-center gap-2 px-2 py-1 rounded transition-colors"
-            style={{ color: 'var(--text-tertiary)' }}
+            className="flex items-center transition-colors"
+            style={{
+              color: 'var(--text-tertiary)',
+              padding: 'var(--space-2)',
+              minWidth: 'var(--touch-target-min)',
+              minHeight: 'var(--touch-target-min)',
+              justifyContent: 'center',
+            }}
             onMouseEnter={e => {
               e.currentTarget.style.color = 'var(--text-primary)'
               e.currentTarget.style.background = 'var(--surface-3)'
@@ -914,53 +930,67 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
               e.currentTarget.style.color = 'var(--text-tertiary)'
               e.currentTarget.style.background = 'transparent'
             }}
+            aria-label="Back to home"
           >
             <IconHome />
           </a>
 
-          {/* Divider */}
-          <div className="w-px h-5 hidden sm:block" style={{ background: 'var(--border-default)' }} />
+          {/* Divider - hidden on small screens */}
+          <div className="hidden md:block" style={{ width: '1px', height: '20px', background: 'var(--border-default)' }} />
 
           {/* Project info */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <h1 className="font-semibold text-xs sm:text-sm truncate max-w-32 sm:max-w-none" style={{ color: 'var(--text-primary)' }}>
+          <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
+            <h1
+              className="font-semibold truncate"
+              style={{
+                color: 'var(--text-primary)',
+                fontSize: 'var(--text-sm)',
+                maxWidth: 'clamp(80px, 20vw, 200px)',
+              }}
+            >
               {project.name}
             </h1>
             {project.processorType && (
-              <span className="tech-badge hidden sm:inline">{project.processorType}</span>
+              <span className="tech-badge hidden md:inline">{project.processorType}</span>
             )}
           </div>
         </div>
 
         {/* Stats and tabs */}
-        <div className="flex items-center gap-4">
-          {/* Quick stats */}
-          <div className="hidden sm:flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+          {/* Quick stats - only on larger screens */}
+          <div className="hidden lg:flex items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
             <span>{project.programs.length} programs</span>
             <span>{totalRoutines} routines</span>
             <span>{totalRungs} rungs</span>
             <span>{project.tags.length} tags</span>
           </div>
 
-          {/* Tab switcher - Grouped */}
-          <div className="tab-nav">
-            {/* Primary tabs */}
+          {/* Tab switcher - Touch optimized with proper targets */}
+          <nav className="tab-nav" role="tablist" aria-label="Project views">
+            {/* Primary tabs - icons only on mobile */}
             <button
               onClick={() => setActiveTab('ladder')}
               className={`tab-item ${activeTab === 'ladder' ? 'tab-item-active' : ''}`}
+              role="tab"
+              aria-selected={activeTab === 'ladder'}
+              style={{ minWidth: 'var(--touch-target-min)', minHeight: 'var(--touch-target-min)' }}
             >
-              <span className="flex items-center gap-1">
+              <span className="flex items-center justify-center" style={{ gap: 'var(--space-1)' }}>
                 <IconLadder />
-                <span className="hidden sm:inline">Ladder</span>
+                <span className="hidden md:inline">Ladder</span>
               </span>
             </button>
             <button
               onClick={() => setActiveTab('tags')}
               className={`tab-item ${activeTab === 'tags' ? 'tab-item-active' : ''}`}
+              role="tab"
+              aria-selected={activeTab === 'tags'}
+              style={{ minWidth: 'var(--touch-target-min)', minHeight: 'var(--touch-target-min)' }}
             >
-              <span className="flex items-center gap-1">
+              <span className="flex items-center justify-center" style={{ gap: 'var(--space-1)' }}>
                 <IconTag />
-                <span className="hidden sm:inline">Tags</span>
+                <span className="hidden md:inline">Tags</span>
               </span>
             </button>
 
@@ -969,31 +999,40 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
               <button
                 onClick={() => setOpenNavDropdown(openNavDropdown === 'analysis' ? null : 'analysis')}
                 className={`tab-item ${['xref', 'calltree', 'timers', 'sequences', 'safety'].includes(activeTab) ? 'tab-item-active' : ''}`}
+                aria-expanded={openNavDropdown === 'analysis'}
+                aria-haspopup="menu"
+                style={{ minWidth: 'var(--touch-target-min)', minHeight: 'var(--touch-target-min)' }}
               >
-                <span className="flex items-center gap-1">
+                <span className="flex items-center justify-center" style={{ gap: 'var(--space-1)' }}>
                   <IconXRef />
-                  <span className="hidden sm:inline">Analysis</span>
+                  <span className="hidden md:inline">Analysis</span>
                   <IconChevronDown open={openNavDropdown === 'analysis'} />
                 </span>
               </button>
               {openNavDropdown === 'analysis' && (
                 <div
-                  className="absolute top-full left-0 mt-1 z-50 min-w-[140px] rounded-lg shadow-xl overflow-hidden"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
+                  className="absolute top-full right-0 md:left-0 md:right-auto z-50 shadow-xl overflow-hidden"
+                  style={{
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border-subtle)',
+                    marginTop: 'var(--space-1)',
+                    minWidth: '160px',
+                  }}
+                  role="menu"
                 >
-                  <button onClick={() => { setActiveTab('xref'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'xref' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('xref'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'xref' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconXRef /> Cross Reference
                   </button>
-                  <button onClick={() => { setActiveTab('calltree'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'calltree' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('calltree'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'calltree' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconTree /> Call Tree
                   </button>
-                  <button onClick={() => { setActiveTab('timers'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'timers' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('timers'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'timers' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconTimer /> Timers
                   </button>
-                  <button onClick={() => { setActiveTab('sequences'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'sequences' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('sequences'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'sequences' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconSequence /> Sequences
                   </button>
-                  <button onClick={() => { setActiveTab('safety'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'safety' ? 'bg-white/10' : ''}`} style={{ color: 'var(--accent-red)' }}>
+                  <button onClick={() => { setActiveTab('safety'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'safety' ? 'bg-white/10' : ''}`} style={{ color: 'var(--accent-red)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconSafety /> Safety Scan
                   </button>
                 </div>
@@ -1005,112 +1044,147 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
               <button
                 onClick={() => setOpenNavDropdown(openNavDropdown === 'hardware' ? null : 'hardware')}
                 className={`tab-item ${['io', 'modules', 'alarms'].includes(activeTab) ? 'tab-item-active' : ''}`}
+                aria-expanded={openNavDropdown === 'hardware'}
+                aria-haspopup="menu"
+                style={{ minWidth: 'var(--touch-target-min)', minHeight: 'var(--touch-target-min)' }}
               >
-                <span className="flex items-center gap-1">
+                <span className="flex items-center justify-center" style={{ gap: 'var(--space-1)' }}>
                   <IconIO />
-                  <span className="hidden sm:inline">Hardware</span>
+                  <span className="hidden md:inline">Hardware</span>
                   <IconChevronDown open={openNavDropdown === 'hardware'} />
                 </span>
               </button>
               {openNavDropdown === 'hardware' && (
                 <div
-                  className="absolute top-full left-0 mt-1 z-50 min-w-[140px] rounded-lg shadow-xl overflow-hidden"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
+                  className="absolute top-full right-0 md:left-0 md:right-auto z-50 shadow-xl overflow-hidden"
+                  style={{
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border-subtle)',
+                    marginTop: 'var(--space-1)',
+                    minWidth: '140px',
+                  }}
+                  role="menu"
                 >
-                  <button onClick={() => { setActiveTab('io'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'io' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('io'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'io' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconIO /> I/O Points
                   </button>
-                  <button onClick={() => { setActiveTab('modules'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'modules' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('modules'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'modules' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconModule /> Modules
                   </button>
-                  <button onClick={() => { setActiveTab('alarms'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'alarms' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('alarms'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'alarms' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconAlarm /> Alarms
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Structure dropdown */}
-            <div className="relative">
+            {/* Structure dropdown - hidden on smallest screens */}
+            <div className="relative hidden sm:block">
               <button
                 onClick={() => setOpenNavDropdown(openNavDropdown === 'structure' ? null : 'structure')}
                 className={`tab-item ${['aoi', 'udt', 'tasks', 'produced'].includes(activeTab) ? 'tab-item-active' : ''}`}
+                aria-expanded={openNavDropdown === 'structure'}
+                aria-haspopup="menu"
+                style={{ minWidth: 'var(--touch-target-min)', minHeight: 'var(--touch-target-min)' }}
               >
-                <span className="flex items-center gap-1">
+                <span className="flex items-center justify-center" style={{ gap: 'var(--space-1)' }}>
                   <IconAOI />
-                  <span className="hidden sm:inline">Structure</span>
+                  <span className="hidden md:inline">Structure</span>
                   <IconChevronDown open={openNavDropdown === 'structure'} />
                 </span>
               </button>
               {openNavDropdown === 'structure' && (
                 <div
-                  className="absolute top-full left-0 mt-1 z-50 min-w-[160px] rounded-lg shadow-xl overflow-hidden"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
+                  className="absolute top-full right-0 md:left-0 md:right-auto z-50 shadow-xl overflow-hidden"
+                  style={{
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border-subtle)',
+                    marginTop: 'var(--space-1)',
+                    minWidth: '180px',
+                  }}
+                  role="menu"
                 >
-                  <button onClick={() => { setActiveTab('aoi'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'aoi' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('aoi'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'aoi' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconAOI /> Add-On Instructions
                   </button>
-                  <button onClick={() => { setActiveTab('udt'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'udt' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('udt'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'udt' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconUDT /> User Data Types
                   </button>
-                  <button onClick={() => { setActiveTab('tasks'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'tasks' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('tasks'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'tasks' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconTasks /> Tasks
                   </button>
-                  <button onClick={() => { setActiveTab('produced'); setOpenNavDropdown(null) }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5 ${activeTab === 'produced' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+                  <button onClick={() => { setActiveTab('produced'); setOpenNavDropdown(null) }} className={`w-full flex items-center px-3 transition-colors hover:bg-white/5 ${activeTab === 'produced' ? 'bg-white/10' : ''}`} style={{ color: 'var(--text-secondary)', gap: 'var(--space-2)', minHeight: 'var(--touch-target-min)', fontSize: 'var(--text-xs)' }} role="menuitem">
                     <IconProduced /> Produced/Consumed
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Report tab */}
+            {/* Report tab - hidden on mobile */}
             <button
               onClick={() => setActiveTab('report')}
-              className={`tab-item ${activeTab === 'report' ? 'tab-item-active' : ''}`}
+              className={`tab-item hidden sm:flex ${activeTab === 'report' ? 'tab-item-active' : ''}`}
+              role="tab"
+              aria-selected={activeTab === 'report'}
+              style={{ minWidth: 'var(--touch-target-min)', minHeight: 'var(--touch-target-min)' }}
             >
-              <span className="flex items-center gap-1">
+              <span className="flex items-center justify-center" style={{ gap: 'var(--space-1)' }}>
                 <IconReport />
-                <span className="hidden sm:inline">Report</span>
+                <span className="hidden md:inline">Report</span>
               </span>
             </button>
 
-            {/* Diff tab */}
+            {/* Diff tab - hidden on mobile */}
             <button
               onClick={() => setActiveTab('diff')}
-              className={`tab-item ${activeTab === 'diff' ? 'tab-item-active' : ''}`}
+              className={`tab-item hidden sm:flex ${activeTab === 'diff' ? 'tab-item-active' : ''}`}
               title="Compare two versions of your PLC program"
+              role="tab"
+              aria-selected={activeTab === 'diff'}
+              style={{ minWidth: 'var(--touch-target-min)', minHeight: 'var(--touch-target-min)' }}
             >
-              <span className="flex items-center gap-1">
+              <span className="flex items-center justify-center" style={{ gap: 'var(--space-1)' }}>
                 <IconDiff />
-                <span className="hidden sm:inline">Diff</span>
+                <span className="hidden md:inline">Diff</span>
               </span>
             </button>
-          </div>
+          </nav>
 
-          {/* Search button */}
+          {/* Search button - touch optimized */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            className="flex items-center justify-center font-medium transition-colors"
             style={{
               background: 'var(--surface-3)',
-              color: 'var(--text-secondary)'
+              color: 'var(--text-secondary)',
+              minWidth: 'var(--touch-target-min)',
+              minHeight: 'var(--touch-target-min)',
+              padding: '0 var(--space-3)',
+              fontSize: 'var(--text-xs)',
+              gap: 'var(--space-2)',
             }}
             title="Search (Cmd+K)"
+            aria-label="Search"
           >
             <IconSearch />
-            <span className="hidden sm:inline">Search</span>
-            <kbd className="hidden md:inline ml-1 px-1.5 py-0.5 rounded text-[10px]" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)' }}>
-              ⌘K
+            <span className="hidden md:inline">Search</span>
+            <kbd className="hidden lg:inline px-1.5 py-0.5" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)', fontSize: '10px' }}>
+              Cmd+K
             </kbd>
           </button>
 
-          {/* Print / Export PDF button */}
+          {/* Print / Export PDF button - hidden on smallest screens */}
           <button
             onClick={() => setPdfExportModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors no-print"
+            className="hidden sm:flex items-center justify-center font-medium transition-colors no-print"
             style={{
               background: 'var(--surface-3)',
-              color: 'var(--text-secondary)'
+              color: 'var(--text-secondary)',
+              minWidth: 'var(--touch-target-min)',
+              minHeight: 'var(--touch-target-min)',
+              padding: '0 var(--space-3)',
+              fontSize: 'var(--text-xs)',
+              gap: 'var(--space-2)',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.background = 'var(--surface-4)'
@@ -1121,25 +1195,34 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
               e.currentTarget.style.color = 'var(--text-secondary)'
             }}
             title="Export / Print PDF with options"
+            aria-label="Export"
           >
             <IconPrint />
-            <span className="hidden sm:inline">Export</span>
+            <span className="hidden md:inline">Export</span>
           </button>
 
-          {/* Chat button */}
+          {/* Chat button - touch optimized */}
           <button
             onClick={() => setChatPanelOpen(!chatPanelOpen)}
-            className={`ml-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors no-print ${
-              chatPanelOpen ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent' : ''
+            className={`flex items-center justify-center font-medium transition-colors no-print ${
+              chatPanelOpen ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''
             }`}
             style={{
               background: chatPanelOpen ? 'var(--accent-blue)' : 'var(--accent-blue-muted)',
-              color: chatPanelOpen ? 'white' : 'var(--accent-blue)'
+              color: chatPanelOpen ? 'white' : 'var(--accent-blue)',
+              minWidth: 'var(--touch-target-min)',
+              minHeight: 'var(--touch-target-min)',
+              padding: '0 var(--space-3)',
+              fontSize: 'var(--text-xs)',
+              gap: 'var(--space-2)',
+              marginLeft: 'var(--space-2)',
             }}
             title="AI Assistant"
+            aria-label="AI Assistant"
+            aria-pressed={chatPanelOpen}
           >
             <IconChat />
-            <span className="hidden sm:inline">Chat</span>
+            <span className="hidden md:inline">Chat</span>
           </button>
         </div>
       </header>
@@ -1160,68 +1243,92 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
       <div className="flex-1 flex overflow-hidden relative">
         {activeTab === 'ladder' ? (
           <>
-            {/* Mobile overlay backdrop */}
-            {sidebarOpen && (
-              <div
-                className="fixed inset-0 bg-black/50 z-40 lg:hidden no-print"
-                onClick={() => setSidebarOpen(false)}
-              />
-            )}
+            {/* Mobile overlay backdrop with fade animation */}
+            <div
+              className={`
+                fixed inset-0 z-40 lg:hidden no-print
+                transition-opacity duration-300
+                ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+              `}
+              style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+              onClick={() => setSidebarOpen(false)}
+              aria-hidden="true"
+            />
 
-            {/* Sidebar */}
+            {/* Sidebar / Mobile Drawer */}
             <aside
               className={`
-                flex-shrink-0 overflow-y-auto border-r z-50 no-print
-                fixed lg:relative inset-y-0 left-0 top-12
-                transform transition-transform duration-200 ease-in-out
+                flex-shrink-0 overflow-y-auto overflow-x-hidden border-r z-50 no-print
+                fixed lg:relative inset-y-0 left-0
+                transition-transform
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
               `}
               style={{
-                width: sidebarWidth,
+                width: 'clamp(280px, 85vw, 320px)',
+                maxWidth: '85vw',
                 background: 'var(--surface-1)',
-                borderColor: 'var(--border-subtle)'
+                borderColor: 'var(--border-subtle)',
+                top: 'var(--header-height)',
+                height: 'calc(100dvh - var(--header-height))',
+                transitionDuration: 'var(--transition-drawer)',
+                paddingBottom: 'env(safe-area-inset-bottom, 0)',
               }}
+              role="navigation"
+              aria-label="Program navigation"
             >
-              {/* Sidebar header */}
+              {/* Sidebar header with safe area */}
               <div
-                className="sticky top-0 z-10 p-3 border-b"
-                style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
+                className="sticky top-0 z-10 border-b"
+                style={{
+                  background: 'var(--surface-1)',
+                  borderColor: 'var(--border-subtle)',
+                  padding: 'var(--space-3)',
+                  paddingTop: 'max(var(--space-3), env(safe-area-inset-top, 0))',
+                }}
               >
                 <div className="flex items-center justify-between">
                   <h2
-                    className="text-[10px] font-semibold uppercase tracking-wider"
-                    style={{ color: 'var(--text-muted)' }}
+                    className="font-semibold uppercase tracking-wider"
+                    style={{ color: 'var(--text-muted)', fontSize: '10px' }}
                   >
                     Programs & Routines
                   </h2>
-                  {/* Close button for mobile */}
+                  {/* Close button for mobile - touch optimized */}
                   <button
                     onClick={() => setSidebarOpen(false)}
-                    className="lg:hidden p-1 rounded transition-colors"
-                    style={{ color: 'var(--text-muted)' }}
+                    className="lg:hidden flex items-center justify-center transition-colors"
+                    style={{
+                      color: 'var(--text-muted)',
+                      minWidth: 'var(--touch-target-min)',
+                      minHeight: 'var(--touch-target-min)',
+                    }}
+                    aria-label="Close navigation"
                   >
                     <IconClose />
                   </button>
                 </div>
               </div>
 
-              {/* Program tree */}
-              <div className="p-2">
+              {/* Program tree - touch optimized */}
+              <div style={{ padding: 'var(--space-2)' }}>
                 {project.programs.map(program => {
                   const isExpanded = expandedPrograms.has(program.id)
                   const isSelected = selectedProgram === program.id
 
                   return (
-                    <div key={program.id} className="mb-1">
-                      {/* Program header */}
+                    <div key={program.id} style={{ marginBottom: 'var(--space-1)' }}>
+                      {/* Program header - touch target optimized */}
                       <button
                         onClick={() => handleProgramClick(program.id)}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+                        className={`w-full flex items-center text-left transition-colors ${
                           program.disabled ? 'opacity-50' : ''
                         }`}
                         style={{
                           background: isSelected ? 'var(--accent-blue-muted)' : 'transparent',
-                          color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)'
+                          color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                          gap: 'var(--space-2)',
+                          padding: 'var(--space-2)',
+                          minHeight: 'var(--touch-target-min)',
                         }}
                         onMouseEnter={e => {
                           if (!isSelected) {
@@ -1233,30 +1340,34 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                             e.currentTarget.style.background = 'transparent'
                           }
                         }}
+                        aria-expanded={isExpanded}
                       >
                         <IconChevron expanded={isExpanded} />
                         <IconProgram />
-                        <span className="flex-1 text-[13px] font-medium truncate">{program.name}</span>
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        <span className="flex-1 font-medium truncate" style={{ fontSize: '13px' }}>{program.name}</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                           {program.routines.length}
                         </span>
                       </button>
 
                       {/* Routines list */}
                       {isExpanded && (
-                        <div className="ml-5 mt-1 space-y-0.5">
+                        <div style={{ marginLeft: '20px', marginTop: 'var(--space-1)' }}>
                           {program.routines.map(routine => (
                             <button
                               key={routine.id}
                               onClick={() => {
-                                setSelectedProgram(program.id) // Ensure correct program is selected
+                                setSelectedProgram(program.id)
                                 setSelectedRoutine(routine.id)
-                                setSidebarOpen(false) // Close sidebar on mobile after selection
+                                setSidebarOpen(false)
                               }}
-                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors"
+                              className="w-full flex items-center text-left transition-colors"
                               style={{
                                 background: selectedRoutine === routine.id ? 'var(--accent-emerald-muted)' : 'transparent',
-                                color: selectedRoutine === routine.id ? 'var(--accent-emerald)' : 'var(--text-tertiary)'
+                                color: selectedRoutine === routine.id ? 'var(--accent-emerald)' : 'var(--text-tertiary)',
+                                gap: 'var(--space-2)',
+                                padding: 'var(--space-2)',
+                                minHeight: 'var(--touch-target-min)',
                               }}
                               onMouseEnter={e => {
                                 if (selectedRoutine !== routine.id) {
@@ -1272,8 +1383,8 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                               }}
                             >
                               <IconRoutine />
-                              <span className="flex-1 text-[12px] truncate">{routine.name}</span>
-                              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              <span className="flex-1 truncate" style={{ fontSize: '12px' }}>{routine.name}</span>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                                 {routine.rungs.length}
                               </span>
                             </button>
@@ -1286,8 +1397,15 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
               </div>
             </aside>
 
-            {/* Main content area */}
-            <main ref={ladderScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden" style={{ background: 'var(--surface-0)' }}>
+            {/* Main content area - container query enabled */}
+            <main
+              ref={ladderScrollRef}
+              className="flex-1 overflow-y-auto overflow-x-hidden"
+              style={{
+                background: 'var(--surface-0)',
+                containerType: 'inline-size',
+              }}
+            >
               {currentRoutine ? (
                 // Check if this is a Structured Text routine
                 currentRoutine.type.toLowerCase().includes('st') ||
@@ -1299,31 +1417,33 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                     description={currentRoutine.description}
                   />
                 ) : (
-                <div className="p-3 sm:p-6">
-                  {/* Routine header */}
-                  <div className="mb-4 sm:mb-6">
-                    <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
-                      <h2 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <div style={{ padding: 'var(--space-4)' }}>
+                  {/* Routine header - responsive with fluid spacing */}
+                  <div style={{ marginBottom: 'var(--space-6)' }}>
+                    <div className="flex items-center flex-wrap" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+                      <h2 className="font-semibold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-xl)' }}>
                         {currentRoutine.name}
                       </h2>
                       <span
-                        className="px-2 py-0.5 rounded text-[11px] font-medium"
+                        className="font-medium"
                         style={{
                           background: 'var(--surface-3)',
                           color: 'var(--text-tertiary)',
-                          border: '1px solid var(--border-subtle)'
+                          border: '1px solid var(--border-subtle)',
+                          padding: '2px 8px',
+                          fontSize: '11px',
                         }}
                       >
                         {currentRoutine.type}
                       </span>
                     </div>
                     {currentRoutine.description && (
-                      <p className="text-sm mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                      <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>
                         {currentRoutine.description}
                       </p>
                     )}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-                      <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ gap: 'var(--space-3)' }}>
+                      <div className="flex items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                         <span>{currentRoutine.rungs.length} rungs</span>
                         <span className="hidden sm:inline">in {currentProgram?.name}</span>
                         {bookmarkedRungs.size > 0 && (
@@ -1332,18 +1452,23 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 self-start sm:self-auto">
-                        {/* Bookmarks filter */}
+                      <div className="flex items-center self-start sm:self-auto" style={{ gap: 'var(--space-2)' }}>
+                        {/* Bookmarks filter - touch optimized */}
                         {bookmarkedRungs.size > 0 && (
                           <button
                             onClick={() => setShowOnlyBookmarked(!showOnlyBookmarked)}
-                            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs rounded-md transition-colors"
+                            className="flex items-center transition-colors"
                             style={{
                               background: showOnlyBookmarked ? 'var(--accent-amber-muted)' : 'var(--surface-2)',
                               color: showOnlyBookmarked ? 'var(--accent-amber)' : 'var(--text-secondary)',
-                              border: '1px solid var(--border-subtle)'
+                              border: '1px solid var(--border-subtle)',
+                              gap: 'var(--space-2)',
+                              padding: 'var(--space-2) var(--space-3)',
+                              fontSize: 'var(--text-xs)',
+                              minHeight: 'var(--touch-target-min)',
                             }}
                             title={showOnlyBookmarked ? 'Show all rungs' : 'Show only bookmarked'}
+                            aria-pressed={showOnlyBookmarked}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill={showOnlyBookmarked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
                               <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
@@ -1351,32 +1476,44 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                             <span className="hidden xs:inline">{showOnlyBookmarked ? 'All' : 'Bookmarks'}</span>
                           </button>
                         )}
-                        {/* View mode toggle */}
+                        {/* View mode toggle - touch optimized */}
                         <div
-                          className="flex rounded-md overflow-hidden"
+                          className="flex overflow-hidden"
                           style={{ border: '1px solid var(--border-subtle)' }}
+                          role="group"
+                          aria-label="View mode"
                         >
                           <button
                             onClick={() => setLadderViewMode('graphic')}
-                            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs transition-colors"
+                            className="flex items-center transition-colors"
                             style={{
                               background: ladderViewMode === 'graphic' ? 'var(--accent-blue)' : 'var(--surface-2)',
-                              color: ladderViewMode === 'graphic' ? 'white' : 'var(--text-secondary)'
+                              color: ladderViewMode === 'graphic' ? 'white' : 'var(--text-secondary)',
+                              gap: 'var(--space-2)',
+                              padding: 'var(--space-2) var(--space-3)',
+                              fontSize: 'var(--text-xs)',
+                              minHeight: 'var(--touch-target-min)',
                             }}
                             title="Graphic view"
+                            aria-pressed={ladderViewMode === 'graphic'}
                           >
                             <IconGraphic />
                             <span className="hidden xs:inline">Graphic</span>
                           </button>
                           <button
                             onClick={() => setLadderViewMode('simple')}
-                            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs transition-colors"
+                            className="flex items-center transition-colors"
                             style={{
                               background: ladderViewMode === 'simple' ? 'var(--accent-blue)' : 'var(--surface-2)',
                               color: ladderViewMode === 'simple' ? 'white' : 'var(--text-secondary)',
-                              borderLeft: '1px solid var(--border-subtle)'
+                              borderLeft: '1px solid var(--border-subtle)',
+                              gap: 'var(--space-2)',
+                              padding: 'var(--space-2) var(--space-3)',
+                              fontSize: 'var(--text-xs)',
+                              minHeight: 'var(--touch-target-min)',
                             }}
                             title="Simple text view"
+                            aria-pressed={ladderViewMode === 'simple'}
                           >
                             <IconText />
                             <span className="hidden xs:inline">Simple</span>
@@ -1386,8 +1523,8 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                     </div>
                   </div>
 
-                  {/* Rungs list */}
-                  <div className="space-y-3">
+                  {/* Rungs list - fluid spacing */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                     {currentRoutine.rungs
                       .filter(rung => !showOnlyBookmarked || bookmarkedRungs.has(rung.id))
                       .map((rung, index) => (
@@ -1422,33 +1559,42 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                             searchMatchStartIndex={getRungSearchStartIndex(rung.id)}
                           />
                         ) : (
-                          /* Simple text view */
+                          /* Simple text view - square corners */
                           <div
-                            className="rounded-lg overflow-hidden"
+                            className="overflow-hidden"
                             style={{
                               background: 'var(--surface-2)',
-                              border: '1px solid var(--border-subtle)'
+                              border: '1px solid var(--border-subtle)',
                             }}
                           >
-                            {/* Header */}
+                            {/* Header - touch optimized */}
                             <div
-                              className="flex items-center justify-between px-4 py-2 border-b"
-                              style={{ borderColor: 'var(--border-subtle)' }}
+                              className="flex items-center justify-between border-b"
+                              style={{
+                                borderColor: 'var(--border-subtle)',
+                                padding: 'var(--space-2) var(--space-4)',
+                              }}
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
                                 <span
-                                  className="font-mono text-xs font-semibold px-2 py-0.5 rounded"
+                                  className="font-mono font-semibold"
                                   style={{
                                     background: 'var(--surface-4)',
-                                    color: 'var(--text-secondary)'
+                                    color: 'var(--text-secondary)',
+                                    padding: '2px 8px',
+                                    fontSize: 'var(--text-xs)',
                                   }}
                                 >
                                   {rung.number}
                                 </span>
                                 {rung.comment && (
                                   <span
-                                    className="text-xs italic truncate max-w-md"
-                                    style={{ color: 'var(--text-tertiary)' }}
+                                    className="italic truncate"
+                                    style={{
+                                      color: 'var(--text-tertiary)',
+                                      fontSize: 'var(--text-xs)',
+                                      maxWidth: 'clamp(100px, 40vw, 400px)',
+                                    }}
                                   >
                                     {rung.comment}
                                   </span>
@@ -1456,23 +1602,26 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                               </div>
                               <button
                                 onClick={() => handleExplain(rung.id)}
-                                className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors"
+                                className="flex items-center transition-colors"
                                 style={{
                                   background: 'var(--accent-blue-muted)',
-                                  color: 'var(--accent-blue)'
+                                  color: 'var(--accent-blue)',
+                                  gap: 'var(--space-2)',
+                                  padding: 'var(--space-2)',
+                                  fontSize: 'var(--text-xs)',
+                                  minWidth: 'var(--touch-target-min)',
+                                  minHeight: 'var(--touch-target-min)',
+                                  justifyContent: 'center',
                                 }}
                               >
                                 Explain
                               </button>
                             </div>
                             {/* Raw text */}
-                            <div
-                              className="px-4 py-3"
-                              style={{ background: 'var(--surface-1)' }}
-                            >
+                            <div style={{ background: 'var(--surface-1)', padding: 'var(--space-3) var(--space-4)' }}>
                               <pre
-                                className="text-[12px] font-mono whitespace-pre-wrap break-all leading-relaxed"
-                                style={{ color: 'var(--text-secondary)' }}
+                                className="font-mono whitespace-pre-wrap break-all leading-relaxed"
+                                style={{ color: 'var(--text-secondary)', fontSize: '12px' }}
                               >
                                 {rung.rawText}
                               </pre>
@@ -1480,15 +1629,16 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                             {/* Explanation if available */}
                             {(rungExplanations[rung.id]?.text || rung.explanation) && (
                               <div
-                                className="px-4 py-3 border-t"
+                                className="border-t"
                                 style={{
                                   background: 'var(--accent-emerald-muted)',
-                                  borderColor: 'rgba(16, 185, 129, 0.2)'
+                                  borderColor: 'rgba(16, 185, 129, 0.2)',
+                                  padding: 'var(--space-3) var(--space-4)',
                                 }}
                               >
                                 <p
-                                  className="text-sm leading-relaxed"
-                                  style={{ color: 'var(--text-secondary)' }}
+                                  className="leading-relaxed"
+                                  style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}
                                 >
                                   {rungExplanations[rung.id]?.text || rung.explanation}
                                 </p>
@@ -1513,30 +1663,33 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                 )
               ) : (
                 <div
-                  className="flex items-center justify-center h-full"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="flex items-center justify-center"
+                  style={{ color: 'var(--text-muted)', height: '100%' }}
                 >
-                  <div className="text-center">
+                  <div className="text-center" style={{ padding: 'var(--space-8)' }}>
                     <IconLadder />
-                    <p className="mt-2 text-sm">Select a routine to view ladder logic</p>
+                    <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>Select a routine to view ladder logic</p>
                   </div>
                 </div>
               )}
             </main>
           </>
         ) : (
-          /* Tags View */
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            {/* Search header with Export CSV button */}
+          /* Tags View - container query enabled */
+          <main
+            className="flex-1 overflow-hidden flex flex-col"
+            style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}
+          >
+            {/* Search header with Export CSV button - responsive */}
             <div
-              className="flex-shrink-0 p-4 border-b"
-              style={{ borderColor: 'var(--border-subtle)' }}
+              className="flex-shrink-0 border-b"
+              style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}
             >
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-md">
+              <div className="flex flex-col sm:flex-row sm:items-center" style={{ gap: 'var(--space-3)' }}>
+                <div className="relative flex-1" style={{ maxWidth: '400px' }}>
                   <div
-                    className="absolute left-3 top-1/2 -translate-y-1/2"
-                    style={{ color: 'var(--text-muted)' }}
+                    className="absolute top-1/2 -translate-y-1/2"
+                    style={{ color: 'var(--text-muted)', left: 'var(--space-3)' }}
                   >
                     <IconSearch />
                   </div>
@@ -1545,16 +1698,21 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                     placeholder="Search tags by name or description..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="input-field w-full pl-9"
+                    className="input-field w-full"
+                    style={{ paddingLeft: 'calc(var(--space-3) + 20px)' }}
                   />
                 </div>
                 <button
                   onClick={handleExportCSV}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+                  className="flex items-center font-medium transition-colors self-start sm:self-auto"
                   style={{
                     background: 'var(--accent-emerald-muted)',
                     color: 'var(--accent-emerald)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    gap: 'var(--space-2)',
+                    padding: 'var(--space-2) var(--space-3)',
+                    fontSize: 'var(--text-xs)',
+                    minHeight: 'var(--touch-target-min)',
                   }}
                   title="Export all tags to CSV file"
                 >
@@ -1562,66 +1720,70 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                   <span className="hidden sm:inline">Export CSV</span>
                 </button>
               </div>
-              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)' }}>
                 {filteredTags.length} of {project.tags.length} tags
               </p>
             </div>
 
-            {/* Tags table */}
-            <div className="flex-1 overflow-auto p-4">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '30%' }}>Name</th>
-                    <th style={{ width: '15%' }}>Data Type</th>
-                    <th style={{ width: '15%' }}>Scope</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTags.map((tag, index) => (
-                    <tr
-                      key={tag.id}
-                      className="animate-fade-in"
-                      style={{ animationDelay: `${Math.min(index, 20) * 20}ms` }}
-                    >
-                      <td>
-                        <code
-                          className="text-[13px] font-mono"
-                          style={{ color: 'var(--accent-emerald)' }}
-                        >
-                          {tag.name}
-                        </code>
-                      </td>
-                      <td>
-                        <span
-                          className="px-2 py-0.5 rounded text-xs font-mono"
-                          style={{
-                            background: 'var(--accent-blue-muted)',
-                            color: 'var(--accent-blue)'
-                          }}
-                        >
-                          {tag.dataType}
-                        </span>
-                      </td>
-                      <td style={{ color: 'var(--text-tertiary)' }}>
-                        {tag.scope}
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)' }}>
-                        {tag.description || <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                      </td>
+            {/* Tags table - responsive with horizontal scroll on mobile */}
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
+              <div style={{ minWidth: '600px' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '30%' }}>Name</th>
+                      <th style={{ width: '15%' }}>Data Type</th>
+                      <th style={{ width: '15%' }}>Scope</th>
+                      <th>Description</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredTags.map((tag, index) => (
+                      <tr
+                        key={tag.id}
+                        className="animate-fade-in"
+                        style={{ animationDelay: `${Math.min(index, 20) * 20}ms` }}
+                      >
+                        <td>
+                          <code
+                            className="font-mono"
+                            style={{ color: 'var(--accent-emerald)', fontSize: '13px' }}
+                          >
+                            {tag.name}
+                          </code>
+                        </td>
+                        <td>
+                          <span
+                            className="font-mono"
+                            style={{
+                              background: 'var(--accent-blue-muted)',
+                              color: 'var(--accent-blue)',
+                              padding: '2px 8px',
+                              fontSize: 'var(--text-xs)',
+                            }}
+                          >
+                            {tag.dataType}
+                          </span>
+                        </td>
+                        <td style={{ color: 'var(--text-tertiary)' }}>
+                          {tag.scope}
+                        </td>
+                        <td style={{ color: 'var(--text-secondary)' }}>
+                          {tag.description || <span style={{ color: 'var(--text-muted)' }}>-</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {filteredTags.length === 0 && (
                 <div
-                  className="text-center py-12"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="text-center"
+                  style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}
                 >
                   <IconTag />
-                  <p className="mt-2 text-sm">No tags found matching "{searchQuery}"</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No tags found matching "{searchQuery}"</p>
                 </div>
               )}
             </div>
@@ -1630,11 +1792,11 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Cross-Reference View */}
         {activeTab === 'xref' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-              <div className="flex items-center gap-4">
-                <div className="relative max-w-md flex-1">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
+              <div className="flex flex-col sm:flex-row sm:items-center" style={{ gap: 'var(--space-3)' }}>
+                <div className="relative flex-1" style={{ maxWidth: '400px' }}>
+                  <div className="absolute top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)', left: 'var(--space-3)' }}>
                     <IconSearch />
                   </div>
                   <input
@@ -1642,63 +1804,66 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                     placeholder="Filter tags..."
                     value={xrefFilter}
                     onChange={(e) => setXrefFilter(e.target.value)}
-                    className="input-field w-full pl-9"
+                    className="input-field w-full"
+                    style={{ paddingLeft: 'calc(var(--space-3) + 20px)' }}
                   />
                 </div>
                 {xrefData && (
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
                     {xrefData.totalReferences} references across {xrefData.tags.length} tags
                   </span>
                 )}
               </div>
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'xref' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Loading cross-reference data...</span>
                 </div>
               ) : xrefData ? (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '25%' }}>Tag</th>
-                      <th style={{ width: '10%' }}>Reads</th>
-                      <th style={{ width: '10%' }}>Writes</th>
-                      <th style={{ width: '10%' }}>Total</th>
-                      <th>Locations</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {xrefData.tags
-                      .filter(t => !xrefFilter || t.tag.toLowerCase().includes(xrefFilter.toLowerCase()))
-                      .slice(0, 200)
-                      .map((tag, index) => (
-                        <tr key={tag.tag} className="animate-fade-in" style={{ animationDelay: `${Math.min(index, 20) * 10}ms` }}>
-                          <td>
-                            <code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>
-                              {tag.tag}
-                            </code>
-                          </td>
-                          <td style={{ color: 'var(--accent-blue)' }}>{tag.reads}</td>
-                          <td style={{ color: 'var(--accent-amber)' }}>{tag.writes}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{tag.total}</td>
-                          <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
-                            {tag.locations.slice(0, 3).map((loc, i) => (
-                              <span key={i}>
-                                {loc.programName}/{loc.routineName}:{loc.rungNumber}
-                                {i < Math.min(tag.locations.length, 3) - 1 && ', '}
-                              </span>
-                            ))}
-                            {tag.locations.length > 3 && ` +${tag.locations.length - 3} more`}
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+                <div style={{ minWidth: '600px' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '25%' }}>Tag</th>
+                        <th style={{ width: '10%' }}>Reads</th>
+                        <th style={{ width: '10%' }}>Writes</th>
+                        <th style={{ width: '10%' }}>Total</th>
+                        <th>Locations</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {xrefData.tags
+                        .filter(t => !xrefFilter || t.tag.toLowerCase().includes(xrefFilter.toLowerCase()))
+                        .slice(0, 200)
+                        .map((tag, index) => (
+                          <tr key={tag.tag} className="animate-fade-in" style={{ animationDelay: `${Math.min(index, 20) * 10}ms` }}>
+                            <td>
+                              <code className="font-mono" style={{ color: 'var(--accent-emerald)', fontSize: '13px' }}>
+                                {tag.tag}
+                              </code>
+                            </td>
+                            <td style={{ color: 'var(--accent-blue)' }}>{tag.reads}</td>
+                            <td style={{ color: 'var(--accent-amber)' }}>{tag.writes}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{tag.total}</td>
+                            <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
+                              {tag.locations.slice(0, 3).map((loc, i) => (
+                                <span key={i}>
+                                  {loc.programName}/{loc.routineName}:{loc.rungNumber}
+                                  {i < Math.min(tag.locations.length, 3) - 1 && ', '}
+                                </span>
+                              ))}
+                              {tag.locations.length > 3 && ` +${tag.locations.length - 3} more`}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconXRef />
-                  <p className="mt-2 text-sm">No cross-reference data</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No cross-reference data</p>
                 </div>
               )}
             </div>
@@ -1707,34 +1872,34 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Call Tree View */}
         {activeTab === 'calltree' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {callTreeData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   <span>{callTreeData.roots.length} entry points</span>
                   <span>{callTreeData.orphans.length} orphan routines</span>
                   <span>{callTreeData.circular.length} circular references</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'calltree' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Analyzing call tree...</span>
                 </div>
               ) : callTreeData ? (
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   {callTreeData.trees.map((tree, i) => (
                     <CallTreeView key={i} node={tree} depth={0} />
                   ))}
                   {callTreeData.orphans.length > 0 && (
-                    <div className="mt-6 p-4 rounded" style={{ background: 'var(--surface-2)' }}>
-                      <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
+                    <div style={{ background: 'var(--surface-2)', padding: 'var(--space-4)', marginTop: 'var(--space-6)' }}>
+                      <h3 className="font-semibold" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>
                         Orphan Routines (not called by anyone)
                       </h3>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap" style={{ gap: 'var(--space-2)' }}>
                         {callTreeData.orphans.map(orphan => (
-                          <span key={orphan} className="px-2 py-1 rounded text-xs" style={{ background: 'var(--surface-3)', color: 'var(--text-tertiary)' }}>
+                          <span key={orphan} style={{ background: 'var(--surface-3)', color: 'var(--text-tertiary)', padding: '4px 8px', fontSize: 'var(--text-xs)' }}>
                             {orphan}
                           </span>
                         ))}
@@ -1742,22 +1907,22 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                     </div>
                   )}
                   {callTreeData.circular.length > 0 && (
-                    <div className="mt-4 p-4 rounded" style={{ background: 'var(--accent-amber-muted)' }}>
-                      <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--accent-amber)' }}>
+                    <div style={{ background: 'var(--accent-amber-muted)', padding: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+                      <h3 className="font-semibold" style={{ color: 'var(--accent-amber)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>
                         Circular References Detected
                       </h3>
                       {callTreeData.circular.map((cycle, i) => (
-                        <div key={i} className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                          {cycle.join(' → ')}
+                        <div key={i} style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
+                          {cycle.join(' -> ')}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconTree />
-                  <p className="mt-2 text-sm">No call tree data</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No call tree data</p>
                 </div>
               )}
             </div>
@@ -1766,87 +1931,91 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Timers/Counters View */}
         {activeTab === 'timers' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {timerData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   <span>{timerData.timers.length} timers</span>
                   <span>{timerData.counters.length} counters</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'timers' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Analyzing timers and counters...</span>
                 </div>
               ) : timerData ? (
-                <div className="space-y-6">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
                   <div>
-                    <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Timers</h3>
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Tag</th>
-                          <th>Type</th>
-                          <th>Preset</th>
-                          <th>Used In</th>
-                          <th>Resets</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {timerData.timers.map((timer, i) => (
-                          <tr key={timer.tagName} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
-                            <td><code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>{timer.tagName}</code></td>
-                            <td><span className="px-2 py-0.5 rounded text-xs" style={{ background: 'var(--accent-blue-muted)', color: 'var(--accent-blue)' }}>{timer.type}</span></td>
-                            <td style={{ color: 'var(--text-secondary)' }}>{timer.presetDisplay || timer.preset || '?'}</td>
-                            <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
-                              {timer.locations.slice(0, 2).map((l, j) => (
-                                <span key={j}>{l.routine}:{l.rungNumber}{j < Math.min(timer.locations.length, 2) - 1 && ', '}</span>
-                              ))}
-                              {timer.locations.length > 2 && ` +${timer.locations.length - 2}`}
-                            </td>
-                            <td style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{timer.resets.length || '—'}</td>
+                    <h3 className="font-semibold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-3)' }}>Timers</h3>
+                    <div style={{ minWidth: '500px', overflowX: 'auto' }}>
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Tag</th>
+                            <th>Type</th>
+                            <th>Preset</th>
+                            <th>Used In</th>
+                            <th>Resets</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {timerData.timers.map((timer, i) => (
+                            <tr key={timer.tagName} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
+                              <td><code className="font-mono" style={{ color: 'var(--accent-emerald)', fontSize: '13px' }}>{timer.tagName}</code></td>
+                              <td><span style={{ background: 'var(--accent-blue-muted)', color: 'var(--accent-blue)', padding: '2px 8px', fontSize: 'var(--text-xs)' }}>{timer.type}</span></td>
+                              <td style={{ color: 'var(--text-secondary)' }}>{timer.presetDisplay || timer.preset || '?'}</td>
+                              <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
+                                {timer.locations.slice(0, 2).map((l, j) => (
+                                  <span key={j}>{l.routine}:{l.rungNumber}{j < Math.min(timer.locations.length, 2) - 1 && ', '}</span>
+                                ))}
+                                {timer.locations.length > 2 && ` +${timer.locations.length - 2}`}
+                              </td>
+                              <td style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{timer.resets.length || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Counters</h3>
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Tag</th>
-                          <th>Type</th>
-                          <th>Preset</th>
-                          <th>Used In</th>
-                          <th>Resets</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {timerData.counters.map((counter, i) => (
-                          <tr key={counter.tagName} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
-                            <td><code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>{counter.tagName}</code></td>
-                            <td><span className="px-2 py-0.5 rounded text-xs" style={{ background: 'var(--accent-amber-muted)', color: 'var(--accent-amber)' }}>{counter.type}</span></td>
-                            <td style={{ color: 'var(--text-secondary)' }}>{counter.presetDisplay || counter.preset || '?'}</td>
-                            <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
-                              {counter.locations.slice(0, 2).map((l, j) => (
-                                <span key={j}>{l.routine}:{l.rungNumber}{j < Math.min(counter.locations.length, 2) - 1 && ', '}</span>
-                              ))}
-                              {counter.locations.length > 2 && ` +${counter.locations.length - 2}`}
-                            </td>
-                            <td style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{counter.resets.length || '—'}</td>
+                    <h3 className="font-semibold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-3)' }}>Counters</h3>
+                    <div style={{ minWidth: '500px', overflowX: 'auto' }}>
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Tag</th>
+                            <th>Type</th>
+                            <th>Preset</th>
+                            <th>Used In</th>
+                            <th>Resets</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {timerData.counters.map((counter, i) => (
+                            <tr key={counter.tagName} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
+                              <td><code className="font-mono" style={{ color: 'var(--accent-emerald)', fontSize: '13px' }}>{counter.tagName}</code></td>
+                              <td><span style={{ background: 'var(--accent-amber-muted)', color: 'var(--accent-amber)', padding: '2px 8px', fontSize: 'var(--text-xs)' }}>{counter.type}</span></td>
+                              <td style={{ color: 'var(--text-secondary)' }}>{counter.presetDisplay || counter.preset || '?'}</td>
+                              <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
+                                {counter.locations.slice(0, 2).map((l, j) => (
+                                  <span key={j}>{l.routine}:{l.rungNumber}{j < Math.min(counter.locations.length, 2) - 1 && ', '}</span>
+                                ))}
+                                {counter.locations.length > 2 && ` +${counter.locations.length - 2}`}
+                              </td>
+                              <td style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{counter.resets.length || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconTimer />
-                  <p className="mt-2 text-sm">No timer/counter data</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No timer/counter data</p>
                 </div>
               )}
             </div>
@@ -1855,9 +2024,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* I/O View */}
         {activeTab === 'io' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
             {analysisLoading === 'io' ? (
-              <div className="flex items-center justify-center h-32">
+              <div className="flex items-center justify-center" style={{ height: '128px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Analyzing I/O points...</span>
               </div>
             ) : ioData ? (
@@ -1867,9 +2036,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                 hardwareModules={ioData.hardwareModules}
               />
             ) : (
-              <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                 <IconIO />
-                <p className="mt-2 text-sm">No I/O data</p>
+                <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No I/O data</p>
               </div>
             )}
           </main>
@@ -1877,49 +2046,51 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Alarms View */}
         {activeTab === 'alarms' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {alarmData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   <span>{alarmData.alarms.length} alarms/faults detected</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'alarms' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Analyzing alarms...</span>
                 </div>
               ) : alarmData ? (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Alarm Tag</th>
-                      <th>Type</th>
-                      <th>Message</th>
-                      <th>Locations</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alarmData.alarms.map((alarm, i) => (
-                      <tr key={alarm.tagName} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
-                        <td><code className="text-[13px] font-mono" style={{ color: 'var(--accent-rose)' }}>{alarm.tagName}</code></td>
-                        <td><span className="px-2 py-0.5 rounded text-xs" style={{ background: 'var(--surface-3)', color: 'var(--text-tertiary)' }}>{alarm.type}</span></td>
-                        <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{alarm.message || '—'}</td>
-                        <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
-                          {alarm.locations.slice(0, 2).map((l, j) => (
-                            <span key={j}>{l.routine}:{l.rungNumber}{j < Math.min(alarm.locations.length, 2) - 1 && ', '}</span>
-                          ))}
-                          {alarm.locations.length > 2 && ` +${alarm.locations.length - 2}`}
-                        </td>
+                <div style={{ minWidth: '500px', overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Alarm Tag</th>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Locations</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {alarmData.alarms.map((alarm, i) => (
+                        <tr key={alarm.tagName} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
+                          <td><code className="font-mono" style={{ color: 'var(--accent-red)', fontSize: '13px' }}>{alarm.tagName}</code></td>
+                          <td><span style={{ background: 'var(--surface-3)', color: 'var(--text-tertiary)', padding: '2px 8px', fontSize: 'var(--text-xs)' }}>{alarm.type}</span></td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{alarm.message || '-'}</td>
+                          <td style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
+                            {alarm.locations.slice(0, 2).map((l, j) => (
+                              <span key={j}>{l.routine}:{l.rungNumber}{j < Math.min(alarm.locations.length, 2) - 1 && ', '}</span>
+                            ))}
+                            {alarm.locations.length > 2 && ` +${alarm.locations.length - 2}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconAlarm />
-                  <p className="mt-2 text-sm">No alarm data</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No alarm data</p>
                 </div>
               )}
             </div>
@@ -1928,57 +2099,57 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* AOI View */}
         {activeTab === 'aoi' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {aoiData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   <span>{aoiData.aois.length} Add-On Instructions</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'aoi' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Loading Add-On Instructions...</span>
                 </div>
               ) : aoiData && aoiData.aois.length > 0 ? (
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   {aoiData.aois.map((aoi, i) => {
                     const params = aoi.parameters ? JSON.parse(aoi.parameters) : []
                     const localTags = aoi.localTags ? JSON.parse(aoi.localTags) : []
                     return (
-                      <div key={aoi.name} className="rounded-lg overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
-                        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-                          <div className="flex items-center gap-3">
-                            <code className="text-[14px] font-mono font-semibold" style={{ color: 'var(--accent-blue)' }}>{aoi.name}</code>
-                            <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--accent-blue-muted)', color: 'var(--accent-blue)' }}>AOI</span>
+                      <div key={aoi.name} className="overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                        <div className="border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-3) var(--space-4)' }}>
+                          <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+                            <code className="font-mono font-semibold" style={{ color: 'var(--accent-blue)', fontSize: '14px' }}>{aoi.name}</code>
+                            <span style={{ background: 'var(--accent-blue-muted)', color: 'var(--accent-blue)', padding: '2px 8px', fontSize: 'var(--text-xs)' }}>AOI</span>
                           </div>
-                          {aoi.description && <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{aoi.description}</p>}
+                          {aoi.description && <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>{aoi.description}</p>}
                         </div>
-                        <div className="px-4 py-3">
+                        <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
                           {params.length > 0 && (
-                            <div className="mb-3">
-                              <h4 className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Parameters ({params.length})</h4>
-                              <div className="flex flex-wrap gap-2">
+                            <div style={{ marginBottom: 'var(--space-3)' }}>
+                              <h4 className="uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: 'var(--space-2)' }}>Parameters ({params.length})</h4>
+                              <div className="flex flex-wrap" style={{ gap: 'var(--space-2)' }}>
                                 {params.slice(0, 10).map((p: { name: string; dataType?: string; usage?: string }, j: number) => (
-                                  <span key={j} className="text-xs px-2 py-1 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-secondary)' }}>
+                                  <span key={j} style={{ background: 'var(--surface-3)', color: 'var(--text-secondary)', padding: '4px 8px', fontSize: 'var(--text-xs)' }}>
                                     {p.name}: {p.dataType || '?'} {p.usage && <span style={{ color: 'var(--text-muted)' }}>({p.usage})</span>}
                                   </span>
                                 ))}
-                                {params.length > 10 && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>+{params.length - 10} more</span>}
+                                {params.length > 10 && <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>+{params.length - 10} more</span>}
                               </div>
                             </div>
                           )}
                           {localTags.length > 0 && (
                             <div>
-                              <h4 className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Local Tags ({localTags.length})</h4>
-                              <div className="flex flex-wrap gap-2">
+                              <h4 className="uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: 'var(--space-2)' }}>Local Tags ({localTags.length})</h4>
+                              <div className="flex flex-wrap" style={{ gap: 'var(--space-2)' }}>
                                 {localTags.slice(0, 8).map((t: { name: string; dataType?: string }, j: number) => (
-                                  <span key={j} className="text-xs px-2 py-1 rounded font-mono" style={{ background: 'var(--surface-3)', color: 'var(--accent-emerald)' }}>
+                                  <span key={j} className="font-mono" style={{ background: 'var(--surface-3)', color: 'var(--accent-emerald)', padding: '4px 8px', fontSize: 'var(--text-xs)' }}>
                                     {t.name}
                                   </span>
                                 ))}
-                                {localTags.length > 8 && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>+{localTags.length - 8} more</span>}
+                                {localTags.length > 8 && <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>+{localTags.length - 8} more</span>}
                               </div>
                             </div>
                           )}
@@ -1988,9 +2159,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconAOI />
-                  <p className="mt-2 text-sm">No Add-On Instructions found</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No Add-On Instructions found</p>
                 </div>
               )}
             </div>
@@ -1999,55 +2170,57 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* UDT View */}
         {activeTab === 'udt' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {udtData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   <span>{udtData.udts.length} User-Defined Types</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'udt' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Loading User-Defined Types...</span>
                 </div>
               ) : udtData && udtData.udts.length > 0 ? (
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   {udtData.udts.map((udt, i) => {
                     const members = udt.members ? JSON.parse(udt.members) : []
                     return (
-                      <div key={udt.name} className="rounded-lg overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
-                        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-                          <div className="flex items-center gap-3">
-                            <code className="text-[14px] font-mono font-semibold" style={{ color: 'var(--accent-amber)' }}>{udt.name}</code>
-                            <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--accent-amber-muted)', color: 'var(--accent-amber)' }}>UDT</span>
+                      <div key={udt.name} className="overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                        <div className="border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-3) var(--space-4)' }}>
+                          <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+                            <code className="font-mono font-semibold" style={{ color: 'var(--accent-amber)', fontSize: '14px' }}>{udt.name}</code>
+                            <span style={{ background: 'var(--accent-amber-muted)', color: 'var(--accent-amber)', padding: '2px 8px', fontSize: 'var(--text-xs)' }}>UDT</span>
                           </div>
-                          {udt.description && <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{udt.description}</p>}
+                          {udt.description && <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>{udt.description}</p>}
                         </div>
-                        <div className="px-4 py-3">
+                        <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
                           {members.length > 0 && (
                             <div>
-                              <h4 className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Members ({members.length})</h4>
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr style={{ color: 'var(--text-muted)' }}>
-                                    <th className="text-left py-1">Name</th>
-                                    <th className="text-left py-1">Type</th>
-                                    <th className="text-left py-1">Description</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {members.slice(0, 15).map((m: { name: string; dataType?: string; description?: string }, j: number) => (
-                                    <tr key={j}>
-                                      <td className="py-1 font-mono" style={{ color: 'var(--accent-emerald)' }}>{m.name}</td>
-                                      <td className="py-1" style={{ color: 'var(--text-secondary)' }}>{m.dataType || '?'}</td>
-                                      <td className="py-1" style={{ color: 'var(--text-tertiary)' }}>{m.description || '—'}</td>
+                              <h4 className="uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: 'var(--space-2)' }}>Members ({members.length})</h4>
+                              <div style={{ overflowX: 'auto' }}>
+                                <table className="w-full" style={{ fontSize: 'var(--text-xs)' }}>
+                                  <thead>
+                                    <tr style={{ color: 'var(--text-muted)' }}>
+                                      <th className="text-left" style={{ padding: 'var(--space-1) 0' }}>Name</th>
+                                      <th className="text-left" style={{ padding: 'var(--space-1) 0' }}>Type</th>
+                                      <th className="text-left" style={{ padding: 'var(--space-1) 0' }}>Description</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                              {members.length > 15 && <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>+{members.length - 15} more members</p>}
+                                  </thead>
+                                  <tbody>
+                                    {members.slice(0, 15).map((m: { name: string; dataType?: string; description?: string }, j: number) => (
+                                      <tr key={j}>
+                                        <td className="font-mono" style={{ color: 'var(--accent-emerald)', padding: 'var(--space-1) 0' }}>{m.name}</td>
+                                        <td style={{ color: 'var(--text-secondary)', padding: 'var(--space-1) 0' }}>{m.dataType || '?'}</td>
+                                        <td style={{ color: 'var(--text-tertiary)', padding: 'var(--space-1) 0' }}>{m.description || '-'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {members.length > 15 && <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)' }}>+{members.length - 15} more members</p>}
                             </div>
                           )}
                         </div>
@@ -2056,9 +2229,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconUDT />
-                  <p className="mt-2 text-sm">No User-Defined Types found</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No User-Defined Types found</p>
                 </div>
               )}
             </div>
@@ -2067,42 +2240,44 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Tasks View */}
         {activeTab === 'tasks' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {taskData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   <span>{taskData.tasks.length} Tasks</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'tasks' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Loading Tasks...</span>
                 </div>
               ) : taskData && taskData.tasks.length > 0 ? (
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   {taskData.tasks.map((task, i) => (
-                    <div key={task.name} className="rounded-lg overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
-                      <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-                        <div className="flex items-center gap-3">
-                          <code className="text-[14px] font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>{task.name}</code>
-                          <span className="text-xs px-2 py-0.5 rounded" style={{
+                    <div key={task.name} className="overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-3) var(--space-4)', gap: 'var(--space-2)' }}>
+                        <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+                          <code className="font-mono font-semibold" style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{task.name}</code>
+                          <span style={{
                             background: task.type === 'CONTINUOUS' ? 'var(--accent-emerald-muted)' : task.type === 'PERIODIC' ? 'var(--accent-blue-muted)' : 'var(--accent-amber-muted)',
-                            color: task.type === 'CONTINUOUS' ? 'var(--accent-emerald)' : task.type === 'PERIODIC' ? 'var(--accent-blue)' : 'var(--accent-amber)'
+                            color: task.type === 'CONTINUOUS' ? 'var(--accent-emerald)' : task.type === 'PERIODIC' ? 'var(--accent-blue)' : 'var(--accent-amber)',
+                            padding: '2px 8px',
+                            fontSize: 'var(--text-xs)',
                           }}>{task.type}</span>
                         </div>
-                        <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                        <div className="flex items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                           {task.period && <span>Period: {task.period}</span>}
                           {task.priority !== null && <span>Priority: {task.priority}</span>}
                         </div>
                       </div>
                       {task.programs.length > 0 && (
-                        <div className="px-4 py-3">
-                          <h4 className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Programs ({task.programs.length})</h4>
-                          <div className="flex flex-wrap gap-2">
+                        <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
+                          <h4 className="uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: 'var(--space-2)' }}>Programs ({task.programs.length})</h4>
+                          <div className="flex flex-wrap" style={{ gap: 'var(--space-2)' }}>
                             {task.programs.map((prog, j) => (
-                              <span key={j} className="text-xs px-2 py-1 rounded font-mono" style={{ background: 'var(--surface-3)', color: 'var(--accent-blue)' }}>
+                              <span key={j} className="font-mono" style={{ background: 'var(--surface-3)', color: 'var(--accent-blue)', padding: '4px 8px', fontSize: 'var(--text-xs)' }}>
                                 {prog}
                               </span>
                             ))}
@@ -2113,9 +2288,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconTasks />
-                  <p className="mt-2 text-sm">No Tasks found</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No Tasks found</p>
                 </div>
               )}
             </div>
@@ -2124,48 +2299,50 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Modules View */}
         {activeTab === 'modules' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {moduleData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   <span>{moduleData.modules.length} I/O Modules</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'modules' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Loading Modules...</span>
                 </div>
               ) : moduleData && moduleData.modules.length > 0 ? (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Catalog Number</th>
-                      <th>Vendor</th>
-                      <th>Type</th>
-                      <th>Slot</th>
-                      <th>IP Address</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {moduleData.modules.map((mod, i) => (
-                      <tr key={mod.name} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
-                        <td><code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>{mod.name}</code></td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{mod.catalogNumber || '—'}</td>
-                        <td style={{ color: 'var(--text-tertiary)' }}>{mod.vendor || '—'}</td>
-                        <td style={{ color: 'var(--text-tertiary)' }}>{mod.productType || '—'}</td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{mod.slot !== null ? mod.slot : '—'}</td>
-                        <td style={{ color: 'var(--text-tertiary)' }}>{mod.ipAddress || '—'}</td>
+                <div style={{ minWidth: '700px', overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Catalog Number</th>
+                        <th>Vendor</th>
+                        <th>Type</th>
+                        <th>Slot</th>
+                        <th>IP Address</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {moduleData.modules.map((mod, i) => (
+                        <tr key={mod.name} className="animate-fade-in" style={{ animationDelay: `${i * 10}ms` }}>
+                          <td><code className="font-mono" style={{ color: 'var(--accent-emerald)', fontSize: '13px' }}>{mod.name}</code></td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{mod.catalogNumber || '-'}</td>
+                          <td style={{ color: 'var(--text-tertiary)' }}>{mod.vendor || '-'}</td>
+                          <td style={{ color: 'var(--text-tertiary)' }}>{mod.productType || '-'}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{mod.slot !== null ? mod.slot : '-'}</td>
+                          <td style={{ color: 'var(--text-tertiary)' }}>{mod.ipAddress || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconModule />
-                  <p className="mt-2 text-sm">No I/O Modules found</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No I/O Modules found</p>
                 </div>
               )}
             </div>
@@ -2174,70 +2351,61 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Sequences View */}
         {activeTab === 'sequences' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {sequenceData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)' }}>
                   <span style={{ color: 'var(--accent-blue)' }}>{sequenceData.stats.totalSequencers} Sequencers</span>
                   <span style={{ color: 'var(--accent-amber)' }}>{sequenceData.stats.totalStatePatterns} State Patterns</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'sequences' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Analyzing Sequences...</span>
                 </div>
               ) : sequenceData ? (
-                <div className="space-y-6">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
                   {/* Sequencer Instructions */}
                   {sequenceData.sequences.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--accent-blue)' }}>
+                      <h3 className="font-semibold flex items-center" style={{ color: 'var(--accent-blue)', fontSize: 'var(--text-sm)', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
                         <IconSequence />
                         Sequencer Instructions (SQO/SQI/SQL)
                       </h3>
-                      <div className="space-y-3">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                         {sequenceData.sequences.map((seq, i) => (
                           <div
                             key={seq.tagName}
-                            className="rounded-lg overflow-hidden animate-fade-in"
+                            className="overflow-hidden animate-fade-in"
                             style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)', animationDelay: `${i * 30}ms` }}
                           >
-                            <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-                              <div className="flex items-center gap-3">
-                                <code className="text-[14px] font-mono font-semibold" style={{ color: 'var(--accent-blue)' }}>{seq.tagName}</code>
-                                <span className="text-xs px-2 py-0.5 rounded" style={{
-                                  background: 'var(--accent-blue-muted)',
-                                  color: 'var(--accent-blue)'
-                                }}>{seq.type}</span>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-3) var(--space-4)', gap: 'var(--space-2)' }}>
+                              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+                                <code className="font-mono font-semibold" style={{ color: 'var(--accent-blue)', fontSize: '14px' }}>{seq.tagName}</code>
+                                <span style={{ background: 'var(--accent-blue-muted)', color: 'var(--accent-blue)', padding: '2px 8px', fontSize: 'var(--text-xs)' }}>{seq.type}</span>
                                 {seq.arrayLength && (
-                                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    {seq.arrayLength} steps
-                                  </span>
+                                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>{seq.arrayLength} steps</span>
                                 )}
                               </div>
                               {seq.mask && (
-                                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                  Mask: {seq.mask}
-                                </span>
+                                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>Mask: {seq.mask}</span>
                               )}
                             </div>
-                            <div className="px-4 py-3">
-                              <h4 className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
+                            <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
+                              <h4 className="uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: 'var(--space-2)' }}>
                                 Locations ({seq.locations.length})
                               </h4>
-                              <div className="space-y-1">
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                                 {seq.locations.slice(0, 5).map((loc, j) => (
-                                  <div key={j} className="flex items-center gap-2 text-xs">
+                                  <div key={j} className="flex items-center" style={{ gap: 'var(--space-2)', fontSize: 'var(--text-xs)' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>{loc.program}/{loc.routine}</span>
                                     <span style={{ color: 'var(--text-muted)' }}>Rung {loc.rungNumber}</span>
                                   </div>
                                 ))}
                                 {seq.locations.length > 5 && (
-                                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    +{seq.locations.length - 5} more...
-                                  </span>
+                                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>+{seq.locations.length - 5} more...</span>
                                 )}
                               </div>
                             </div>
@@ -2250,43 +2418,43 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                   {/* State Patterns */}
                   {sequenceData.statePatterns.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--accent-amber)' }}>
+                      <h3 className="font-semibold flex items-center" style={{ color: 'var(--accent-amber)', fontSize: 'var(--text-sm)', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
                         <IconSequence />
                         State Machine Patterns
                       </h3>
-                      <div className="space-y-3">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                         {sequenceData.statePatterns.map((pattern, i) => (
                           <div
                             key={pattern.tagName}
-                            className="rounded-lg overflow-hidden animate-fade-in"
+                            className="overflow-hidden animate-fade-in"
                             style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)', animationDelay: `${i * 30}ms` }}
                           >
-                            <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-                              <div className="flex items-center gap-3">
-                                <code className="text-[14px] font-mono font-semibold" style={{ color: 'var(--accent-amber)' }}>{pattern.tagName}</code>
-                                <span className="text-xs px-2 py-0.5 rounded" style={{
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-3) var(--space-4)', gap: 'var(--space-2)' }}>
+                              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+                                <code className="font-mono font-semibold" style={{ color: 'var(--accent-amber)', fontSize: '14px' }}>{pattern.tagName}</code>
+                                <span style={{
                                   background: pattern.pattern === 'phase' ? 'var(--accent-emerald-muted)' : pattern.pattern === 'state_machine' ? 'var(--accent-amber-muted)' : 'var(--accent-blue-muted)',
-                                  color: pattern.pattern === 'phase' ? 'var(--accent-emerald)' : pattern.pattern === 'state_machine' ? 'var(--accent-amber)' : 'var(--accent-blue)'
+                                  color: pattern.pattern === 'phase' ? 'var(--accent-emerald)' : pattern.pattern === 'state_machine' ? 'var(--accent-amber)' : 'var(--accent-blue)',
+                                  padding: '2px 8px',
+                                  fontSize: 'var(--text-xs)',
                                 }}>
                                   {pattern.pattern.replace('_', ' ')}
                                 </span>
                               </div>
-                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                {pattern.stateValues.length} states detected
-                              </span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>{pattern.stateValues.length} states detected</span>
                             </div>
-                            <div className="px-4 py-3">
-                              <div className="flex flex-wrap gap-2">
+                            <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
+                              <div className="flex flex-wrap" style={{ gap: 'var(--space-2)' }}>
                                 {pattern.stateValues.map((state, j) => (
                                   <div
                                     key={j}
-                                    className="px-3 py-2 rounded text-center"
-                                    style={{ background: 'var(--surface-3)', minWidth: '60px' }}
+                                    className="text-center"
+                                    style={{ background: 'var(--surface-3)', padding: 'var(--space-2) var(--space-3)', minWidth: '60px' }}
                                   >
-                                    <div className="text-lg font-mono font-bold" style={{ color: 'var(--accent-amber)' }}>
+                                    <div className="font-mono font-bold" style={{ color: 'var(--accent-amber)', fontSize: 'var(--text-lg)' }}>
                                       {state.value}
                                     </div>
-                                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                                       {state.locations.length} ref{state.locations.length !== 1 ? 's' : ''}
                                     </div>
                                   </div>
@@ -2300,17 +2468,17 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                   )}
 
                   {sequenceData.sequences.length === 0 && sequenceData.statePatterns.length === 0 && (
-                    <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                    <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                       <IconSequence />
-                      <p className="mt-2 text-sm">No sequences or state patterns detected</p>
-                      <p className="text-xs mt-1">Tip: Look for SQO/SQI instructions or tags with Step/State/Phase in the name</p>
+                      <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No sequences or state patterns detected</p>
+                      <p style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)' }}>Tip: Look for SQO/SQI instructions or tags with Step/State/Phase in the name</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconSequence />
-                  <p className="mt-2 text-sm">Loading sequence data...</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>Loading sequence data...</p>
                 </div>
               )}
             </div>
@@ -2319,78 +2487,78 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Safety View */}
         {activeTab === 'safety' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {safetyData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-3)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   <span>{safetyData.summary.total} Safety Items</span>
                   {safetyData.summary.critical > 0 && (
-                    <span className="px-2 py-0.5 rounded font-semibold" style={{ background: 'rgba(239,68,68,0.2)', color: 'rgb(239,68,68)' }}>
+                    <span className="font-semibold" style={{ background: 'rgba(239,68,68,0.2)', color: 'rgb(239,68,68)', padding: '2px 8px' }}>
                       {safetyData.summary.critical} Critical
                     </span>
                   )}
                   {safetyData.summary.high > 0 && (
-                    <span className="px-2 py-0.5 rounded" style={{ background: 'rgba(251,146,60,0.2)', color: 'rgb(251,146,60)' }}>
+                    <span style={{ background: 'rgba(251,146,60,0.2)', color: 'rgb(251,146,60)', padding: '2px 8px' }}>
                       {safetyData.summary.high} High
                     </span>
                   )}
                   {safetyData.summary.medium > 0 && (
-                    <span className="px-2 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.2)', color: 'rgb(202,138,4)' }}>
+                    <span style={{ background: 'rgba(250,204,21,0.2)', color: 'rgb(202,138,4)', padding: '2px 8px' }}>
                       {safetyData.summary.medium} Medium
                     </span>
                   )}
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'safety' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Scanning for safety-related logic...</span>
                 </div>
               ) : safetyData && safetyData.safetyItems.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Category summary */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  {/* Category summary - responsive grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
                     {safetyData.summary.byCategory.estop > 0 && (
-                      <div className="p-3 rounded-lg text-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
-                        <div className="text-2xl font-bold" style={{ color: 'rgb(239,68,68)' }}>{safetyData.summary.byCategory.estop}</div>
-                        <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>E-Stops</div>
+                      <div className="text-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', padding: 'var(--space-3)' }}>
+                        <div className="font-bold" style={{ color: 'rgb(239,68,68)', fontSize: 'var(--text-2xl)' }}>{safetyData.summary.byCategory.estop}</div>
+                        <div className="uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>E-Stops</div>
                       </div>
                     )}
                     {safetyData.summary.byCategory.guard > 0 && (
-                      <div className="p-3 rounded-lg text-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
-                        <div className="text-2xl font-bold" style={{ color: 'rgb(239,68,68)' }}>{safetyData.summary.byCategory.guard}</div>
-                        <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Guards</div>
+                      <div className="text-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', padding: 'var(--space-3)' }}>
+                        <div className="font-bold" style={{ color: 'rgb(239,68,68)', fontSize: 'var(--text-2xl)' }}>{safetyData.summary.byCategory.guard}</div>
+                        <div className="uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Guards</div>
                       </div>
                     )}
                     {safetyData.summary.byCategory.lightcurtain > 0 && (
-                      <div className="p-3 rounded-lg text-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
-                        <div className="text-2xl font-bold" style={{ color: 'rgb(239,68,68)' }}>{safetyData.summary.byCategory.lightcurtain}</div>
-                        <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Light Curtains</div>
+                      <div className="text-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', padding: 'var(--space-3)' }}>
+                        <div className="font-bold" style={{ color: 'rgb(239,68,68)', fontSize: 'var(--text-2xl)' }}>{safetyData.summary.byCategory.lightcurtain}</div>
+                        <div className="uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Light Curtains</div>
                       </div>
                     )}
                     {safetyData.summary.byCategory.interlock > 0 && (
-                      <div className="p-3 rounded-lg text-center" style={{ background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.3)' }}>
-                        <div className="text-2xl font-bold" style={{ color: 'rgb(251,146,60)' }}>{safetyData.summary.byCategory.interlock}</div>
-                        <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Interlocks</div>
+                      <div className="text-center" style={{ background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.3)', padding: 'var(--space-3)' }}>
+                        <div className="font-bold" style={{ color: 'rgb(251,146,60)', fontSize: 'var(--text-2xl)' }}>{safetyData.summary.byCategory.interlock}</div>
+                        <div className="uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Interlocks</div>
                       </div>
                     )}
                     {safetyData.summary.byCategory.fault > 0 && (
-                      <div className="p-3 rounded-lg text-center" style={{ background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.3)' }}>
-                        <div className="text-2xl font-bold" style={{ color: 'rgb(251,146,60)' }}>{safetyData.summary.byCategory.fault}</div>
-                        <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Faults</div>
+                      <div className="text-center" style={{ background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.3)', padding: 'var(--space-3)' }}>
+                        <div className="font-bold" style={{ color: 'rgb(251,146,60)', fontSize: 'var(--text-2xl)' }}>{safetyData.summary.byCategory.fault}</div>
+                        <div className="uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Faults</div>
                       </div>
                     )}
                     {safetyData.summary.byCategory.alarm > 0 && (
-                      <div className="p-3 rounded-lg text-center" style={{ background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.3)' }}>
-                        <div className="text-2xl font-bold" style={{ color: 'rgb(202,138,4)' }}>{safetyData.summary.byCategory.alarm}</div>
-                        <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Alarms</div>
+                      <div className="text-center" style={{ background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.3)', padding: 'var(--space-3)' }}>
+                        <div className="font-bold" style={{ color: 'rgb(202,138,4)', fontSize: 'var(--text-2xl)' }}>{safetyData.summary.byCategory.alarm}</div>
+                        <div className="uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Alarms</div>
                       </div>
                     )}
                     {safetyData.summary.byCategory.reset > 0 && (
-                      <div className="p-3 rounded-lg text-center" style={{ background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.3)' }}>
-                        <div className="text-2xl font-bold" style={{ color: 'rgb(202,138,4)' }}>{safetyData.summary.byCategory.reset}</div>
-                        <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Resets</div>
+                      <div className="text-center" style={{ background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.3)', padding: 'var(--space-3)' }}>
+                        <div className="font-bold" style={{ color: 'rgb(202,138,4)', fontSize: 'var(--text-2xl)' }}>{safetyData.summary.byCategory.reset}</div>
+                        <div className="uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Resets</div>
                       </div>
                     )}
                   </div>
@@ -2399,7 +2567,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                   {safetyData.safetyItems.map((item, i) => (
                     <div
                       key={`${item.tagName}-${item.category}`}
-                      className="rounded-lg overflow-hidden animate-fade-in"
+                      className="overflow-hidden animate-fade-in"
                       style={{
                         background: 'var(--surface-1)',
                         border: `1px solid ${item.severity === 'critical' ? 'rgba(239,68,68,0.4)' : item.severity === 'high' ? 'rgba(251,146,60,0.4)' : 'var(--border-subtle)'}`,
@@ -2407,47 +2575,49 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                       }}
                     >
                       <div
-                        className="px-4 py-3 flex items-center justify-between"
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between"
                         style={{
-                          background: item.severity === 'critical' ? 'rgba(239,68,68,0.1)' : item.severity === 'high' ? 'rgba(251,146,60,0.1)' : 'var(--surface-3)'
+                          background: item.severity === 'critical' ? 'rgba(239,68,68,0.1)' : item.severity === 'high' ? 'rgba(251,146,60,0.1)' : 'var(--surface-3)',
+                          padding: 'var(--space-3) var(--space-4)',
+                          gap: 'var(--space-2)',
                         }}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-3)' }}>
                           <IconSafety />
                           <code
-                            className="text-[14px] font-mono font-semibold"
+                            className="font-mono font-semibold"
                             style={{
-                              color: item.severity === 'critical' ? 'rgb(239,68,68)' : item.severity === 'high' ? 'rgb(251,146,60)' : 'var(--accent-amber)'
+                              color: item.severity === 'critical' ? 'rgb(239,68,68)' : item.severity === 'high' ? 'rgb(251,146,60)' : 'var(--accent-amber)',
+                              fontSize: '14px',
                             }}
                           >
                             {item.tagName}
                           </code>
                           <span
-                            className="text-[10px] uppercase px-2 py-0.5 rounded font-semibold"
+                            className="uppercase font-semibold"
                             style={{
                               background: item.severity === 'critical' ? 'rgb(239,68,68)' : item.severity === 'high' ? 'rgb(251,146,60)' : 'rgb(202,138,4)',
-                              color: 'white'
+                              color: 'white',
+                              padding: '2px 8px',
+                              fontSize: '10px',
                             }}
                           >
                             {item.severity}
                           </span>
-                          <span
-                            className="text-xs px-2 py-0.5 rounded"
-                            style={{ background: 'var(--surface-4)', color: 'var(--text-secondary)' }}
-                          >
+                          <span style={{ background: 'var(--surface-4)', color: 'var(--text-secondary)', padding: '2px 8px', fontSize: 'var(--text-xs)' }}>
                             {item.category}
                           </span>
                         </div>
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
                           {item.locations.length} location{item.locations.length !== 1 ? 's' : ''}
                         </span>
                       </div>
-                      <div className="px-4 py-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                        <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>{item.description}</p>
+                      <div className="border-t" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-2) var(--space-4)' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>{item.description}</p>
                         {item.locations.length > 0 && (
-                          <div className="space-y-1">
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                             {item.locations.slice(0, 5).map((loc, j) => (
-                              <div key={j} className="flex items-start gap-2 text-xs p-2 rounded" style={{ background: 'var(--surface-0)' }}>
+                              <div key={j} className="flex flex-wrap items-start" style={{ background: 'var(--surface-0)', padding: 'var(--space-2)', gap: 'var(--space-2)', fontSize: 'var(--text-xs)' }}>
                                 <span className="font-mono" style={{ color: 'var(--text-muted)' }}>
                                   {loc.program}/{loc.routine}:{loc.rungNumber}
                                 </span>
@@ -2455,7 +2625,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                               </div>
                             ))}
                             {item.locations.length > 5 && (
-                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
                                 +{item.locations.length - 5} more locations...
                               </span>
                             )}
@@ -2466,10 +2636,10 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconSafety />
-                  <p className="mt-2 text-sm">No safety-related logic detected</p>
-                  <p className="text-xs mt-1">This scan looks for E-stops, guards, interlocks, alarms, and fault handling</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No safety-related logic detected</p>
+                  <p style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)' }}>This scan looks for E-stops, guards, interlocks, alarms, and fault handling</p>
                 </div>
               )}
             </div>
@@ -2478,49 +2648,45 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Produced/Consumed View */}
         {activeTab === 'produced' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-4)' }}>
               {producedConsumedData && (
-                <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex flex-wrap items-center" style={{ gap: 'var(--space-4)', fontSize: 'var(--text-xs)' }}>
                   <span style={{ color: 'var(--accent-emerald)' }}>{producedConsumedData.summary.producedCount} Produced Tags</span>
                   <span style={{ color: 'var(--accent-blue)' }}>{producedConsumedData.summary.consumedCount} Consumed Tags</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-4)' }}>
               {analysisLoading === 'produced' ? (
-                <div className="flex items-center justify-center h-32">
+                <div className="flex items-center justify-center" style={{ height: '128px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Analyzing Produced/Consumed tags...</span>
                 </div>
               ) : producedConsumedData ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 'var(--space-6)' }}>
                   {/* Produced Tags */}
                   <div>
-                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--accent-emerald)' }}>
-                      <span className="w-2 h-2 rounded-full bg-current"></span>
+                    <h3 className="font-semibold flex items-center" style={{ color: 'var(--accent-emerald)', fontSize: 'var(--text-sm)', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                      <span style={{ width: '8px', height: '8px', background: 'currentColor' }}></span>
                       Produced Tags (Outgoing)
                     </h3>
                     {producedConsumedData.produced.length > 0 ? (
-                      <div className="space-y-2">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                         {producedConsumedData.produced.map((tag, i) => (
                           <div
                             key={tag.name}
-                            className="p-3 rounded"
-                            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+                            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)', padding: 'var(--space-3)' }}
                           >
-                            <code className="text-[13px] font-mono" style={{ color: 'var(--accent-emerald)' }}>
+                            <code className="font-mono" style={{ color: 'var(--accent-emerald)', fontSize: '13px' }}>
                               {tag.name}
                             </code>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span
-                                className="text-[10px] px-1.5 py-0.5 rounded"
-                                style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}
-                              >
+                            <div className="flex items-center" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+                              <span style={{ background: 'var(--surface-3)', color: 'var(--text-muted)', padding: '2px 6px', fontSize: '10px' }}>
                                 {tag.dataType}
                               </span>
                             </div>
                             {tag.description && (
-                              <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                              <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
                                 {tag.description}
                               </p>
                             )}
@@ -2528,7 +2694,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-sm p-4 rounded" style={{ background: 'var(--surface-1)', color: 'var(--text-muted)' }}>
+                      <div style={{ background: 'var(--surface-1)', color: 'var(--text-muted)', padding: 'var(--space-4)', fontSize: 'var(--text-sm)' }}>
                         No produced tags detected
                       </div>
                     )}
@@ -2536,36 +2702,32 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
                   {/* Consumed Tags */}
                   <div>
-                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--accent-blue)' }}>
-                      <span className="w-2 h-2 rounded-full bg-current"></span>
+                    <h3 className="font-semibold flex items-center" style={{ color: 'var(--accent-blue)', fontSize: 'var(--text-sm)', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                      <span style={{ width: '8px', height: '8px', background: 'currentColor' }}></span>
                       Consumed Tags (Incoming)
                     </h3>
                     {producedConsumedData.consumed.length > 0 ? (
-                      <div className="space-y-2">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                         {producedConsumedData.consumed.map((tag, i) => (
                           <div
                             key={tag.name}
-                            className="p-3 rounded"
-                            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+                            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)', padding: 'var(--space-3)' }}
                           >
-                            <code className="text-[13px] font-mono" style={{ color: 'var(--accent-blue)' }}>
+                            <code className="font-mono" style={{ color: 'var(--accent-blue)', fontSize: '13px' }}>
                               {tag.name}
                             </code>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span
-                                className="text-[10px] px-1.5 py-0.5 rounded"
-                                style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}
-                              >
+                            <div className="flex items-center" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+                              <span style={{ background: 'var(--surface-3)', color: 'var(--text-muted)', padding: '2px 6px', fontSize: '10px' }}>
                                 {tag.dataType}
                               </span>
                               {tag.producer && (
-                                <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                                <span style={{ color: 'var(--text-tertiary)', fontSize: '10px' }}>
                                   from {tag.producer}
                                 </span>
                               )}
                             </div>
                             {tag.description && (
-                              <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                              <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
                                 {tag.description}
                               </p>
                             )}
@@ -2573,16 +2735,16 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-sm p-4 rounded" style={{ background: 'var(--surface-1)', color: 'var(--text-muted)' }}>
+                      <div style={{ background: 'var(--surface-1)', color: 'var(--text-muted)', padding: 'var(--space-4)', fontSize: 'var(--text-sm)' }}>
                         No consumed tags detected
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center" style={{ color: 'var(--text-muted)', padding: 'var(--space-12) 0' }}>
                   <IconProduced />
-                  <p className="mt-2 text-sm">No Produced/Consumed data</p>
+                  <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>No Produced/Consumed data</p>
                 </div>
               )}
             </div>
@@ -2591,83 +2753,83 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Report View */}
         {activeTab === 'report' && (
-          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)' }}>
-            <div className="flex-1 overflow-auto p-6">
-              <div className="max-w-2xl mx-auto">
-                <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>Generate Project Report</h2>
-                <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
+          <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
+            <div className="flex-1 overflow-auto" style={{ padding: 'var(--space-6)' }}>
+              <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+                <h2 className="font-semibold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-xl)', marginBottom: 'var(--space-6)' }}>Generate Project Report</h2>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-6)' }}>
                   Export a comprehensive report of the PLC project including programs, routines, tags, and analysis.
                 </p>
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   <a
                     href={`/api/projects/${project.id}/report?format=json`}
-                    className="flex items-center gap-3 p-4 rounded border transition-colors"
-                    style={{ background: 'var(--surface-1)', borderColor: 'var(--border-default)' }}
+                    className="flex items-center transition-colors"
+                    style={{ background: 'var(--surface-1)', borderColor: 'var(--border-default)', border: '1px solid var(--border-default)', padding: 'var(--space-4)', gap: 'var(--space-3)', minHeight: 'var(--touch-target-min)' }}
                     target="_blank"
                   >
                     <IconDownload />
                     <div>
                       <div className="font-medium" style={{ color: 'var(--text-primary)' }}>JSON Report</div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Raw data format for programmatic use</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>Raw data format for programmatic use</div>
                     </div>
                   </a>
                   <a
                     href={`/api/projects/${project.id}/report?format=markdown`}
-                    className="flex items-center gap-3 p-4 rounded border transition-colors"
-                    style={{ background: 'var(--surface-1)', borderColor: 'var(--border-default)' }}
+                    className="flex items-center transition-colors"
+                    style={{ background: 'var(--surface-1)', borderColor: 'var(--border-default)', border: '1px solid var(--border-default)', padding: 'var(--space-4)', gap: 'var(--space-3)', minHeight: 'var(--touch-target-min)' }}
                     target="_blank"
                   >
                     <IconDownload />
                     <div>
                       <div className="font-medium" style={{ color: 'var(--text-primary)' }}>Markdown Report</div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Human-readable documentation format</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>Human-readable documentation format</div>
                     </div>
                   </a>
                   <a
                     href={`/api/projects/${project.id}/report?format=html`}
-                    className="flex items-center gap-3 p-4 rounded border transition-colors"
-                    style={{ background: 'var(--surface-1)', borderColor: 'var(--border-default)' }}
+                    className="flex items-center transition-colors"
+                    style={{ background: 'var(--surface-1)', borderColor: 'var(--border-default)', border: '1px solid var(--border-default)', padding: 'var(--space-4)', gap: 'var(--space-3)', minHeight: 'var(--touch-target-min)' }}
                     target="_blank"
                   >
                     <IconDownload />
                     <div>
                       <div className="font-medium" style={{ color: 'var(--text-primary)' }}>HTML Report</div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Printable web page format</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>Printable web page format</div>
                     </div>
                   </a>
                   <button
                     onClick={handleExportCSV}
-                    className="w-full flex items-center gap-3 p-4 rounded border transition-colors text-left"
-                    style={{ background: 'var(--surface-1)', borderColor: 'var(--accent-emerald)' }}
+                    className="w-full flex items-center transition-colors text-left"
+                    style={{ background: 'var(--surface-1)', border: '1px solid var(--accent-emerald)', padding: 'var(--space-4)', gap: 'var(--space-3)', minHeight: 'var(--touch-target-min)' }}
                   >
                     <IconExportCSV />
                     <div>
                       <div className="font-medium" style={{ color: 'var(--text-primary)' }}>CSV Tag Export</div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>All tags with addresses, types, and usage data</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>All tags with addresses, types, and usage data</div>
                     </div>
                   </button>
                   <button
                     onClick={handleExportForDiff}
-                    className="w-full flex items-center gap-3 p-4 rounded border transition-colors text-left"
-                    style={{ background: 'var(--surface-1)', borderColor: 'var(--accent-blue)' }}
+                    className="w-full flex items-center transition-colors text-left"
+                    style={{ background: 'var(--surface-1)', border: '1px solid var(--accent-blue)', padding: 'var(--space-4)', gap: 'var(--space-3)', minHeight: 'var(--touch-target-min)' }}
                   >
                     <IconDiff />
                     <div>
                       <div className="font-medium" style={{ color: 'var(--text-primary)' }}>Export for Diff</div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>JSON snapshot for version comparison in the Diff tool</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>JSON snapshot for version comparison in the Diff tool</div>
                     </div>
                   </button>
                 </div>
 
-                <h3 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--text-primary)' }}>Operator Documentation</h3>
-                <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
+                <h3 className="font-semibold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-lg)', marginTop: 'var(--space-8)', marginBottom: 'var(--space-4)' }}>Operator Documentation</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
                   Generate human-readable documentation explaining the PLC logic in plain language for operators and maintenance personnel.
                 </p>
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   <a
                     href={`/api/projects/${project.id}/report?format=operator`}
-                    className="flex items-center gap-3 p-4 rounded border transition-colors"
-                    style={{ background: 'var(--surface-1)', borderColor: 'var(--accent-emerald)' }}
+                    className="flex items-center transition-colors"
+                    style={{ background: 'var(--surface-1)', border: '1px solid var(--accent-emerald)', padding: 'var(--space-4)', gap: 'var(--space-3)', minHeight: 'var(--touch-target-min)' }}
                     target="_blank"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor" style={{ color: 'var(--accent-emerald)' }}>
@@ -2675,7 +2837,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                     </svg>
                     <div>
                       <div className="font-medium" style={{ color: 'var(--text-primary)' }}>Operator Guide</div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Plain language explanations of ladder logic for operators</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>Plain language explanations of ladder logic for operators</div>
                     </div>
                   </a>
                 </div>
@@ -2686,7 +2848,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
         {/* Diff View */}
         {activeTab === 'diff' && (
-          <main className="flex-1 overflow-hidden" style={{ background: 'var(--surface-0)' }}>
+          <main className="flex-1 overflow-hidden" style={{ background: 'var(--surface-0)', containerType: 'inline-size' }}>
             <ProgramDiff
               currentProject={{
                 name: project.name,
@@ -2797,7 +2959,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
   )
 }
 
-// Call tree visualization component
+// Call tree visualization component - touch optimized
 function CallTreeView({ node, depth }: { node: CallTreeNode; depth: number }) {
   const [expanded, setExpanded] = useState(depth < 2)
 
@@ -2807,31 +2969,38 @@ function CallTreeView({ node, depth }: { node: CallTreeNode; depth: number }) {
 
   return (
     <div style={{ marginLeft: depth * 20 }}>
-      <div
-        className="flex items-center gap-2 py-1 px-2 rounded cursor-pointer transition-colors"
-        style={{ background: depth === 0 ? 'var(--surface-2)' : 'transparent' }}
+      <button
+        className="flex items-center w-full text-left cursor-pointer transition-colors"
+        style={{
+          background: depth === 0 ? 'var(--surface-2)' : 'transparent',
+          gap: 'var(--space-2)',
+          padding: 'var(--space-2)',
+          minHeight: 'var(--touch-target-min)',
+        }}
         onClick={() => hasChildren && setExpanded(!expanded)}
+        disabled={!hasChildren}
+        aria-expanded={hasChildren ? expanded : undefined}
       >
         {hasChildren ? (
           <IconChevron expanded={expanded} />
         ) : (
-          <span className="w-3" />
+          <span style={{ width: '12px' }} />
         )}
         <code
-          className="text-[13px] font-mono"
-          style={{ color: node.circular ? 'var(--accent-rose)' : 'var(--accent-emerald)' }}
+          className="font-mono"
+          style={{ color: node.circular ? 'var(--accent-red)' : 'var(--accent-emerald)', fontSize: '13px' }}
         >
           {node.name}
         </code>
         {node.circular && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-rose-muted)', color: 'var(--accent-rose)' }}>
+          <span style={{ background: 'var(--accent-red-muted)', color: 'var(--accent-red)', padding: '2px 6px', fontSize: '10px' }}>
             circular
           </span>
         )}
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
           {node.program}
         </span>
-      </div>
+      </button>
       {expanded && hasChildren && (
         <div>
           {node.children.map((child, i) => (

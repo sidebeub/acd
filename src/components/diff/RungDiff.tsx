@@ -260,8 +260,15 @@ function DiffBadge({ status, small }: DiffBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center font-medium ${small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs'}`}
-      style={{ background: bg, color, border: `1px solid ${border}`, borderRadius: '4px' }}
+      className="inline-flex items-center font-medium"
+      style={{
+        background: bg,
+        color,
+        border: `1px solid ${border}`,
+        borderRadius: 'var(--radius-sm)',
+        padding: small ? 'var(--space-1)' : 'var(--space-1) var(--space-2)',
+        fontSize: small ? 'var(--text-xs)' : 'var(--text-xs)'
+      }}
     >
       {label}
     </span>
@@ -336,17 +343,20 @@ function InstructionBlock({ instruction, status, showAsRemoved }: InstructionBlo
 
   return (
     <div
-      className="inline-flex flex-col items-center px-3 py-2 rounded text-xs font-mono"
+      className="inline-flex flex-col items-center font-mono"
       style={{
         background: diffBg || bg,
         border: `1px solid ${diffBorder || 'var(--border-subtle)'}`,
         opacity,
-        textDecoration: showAsRemoved ? 'line-through' : 'none'
+        textDecoration: showAsRemoved ? 'line-through' : 'none',
+        borderRadius: 'var(--radius-sm)',
+        padding: 'var(--space-2) var(--space-3)',
+        fontSize: 'var(--text-xs)'
       }}
     >
       <span className="font-bold" style={{ color }}>{instruction.type}</span>
       {instruction.operands.length > 0 && (
-        <span className="text-[10px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
           {instruction.operands.slice(0, 2).join(', ')}
           {instruction.operands.length > 2 && '...'}
         </span>
@@ -375,67 +385,107 @@ export function RungDiffView({ diff, viewMode, showDetails = true }: RungDiffVie
 
   return (
     <div
-      className="border rounded-lg overflow-hidden"
+      className="overflow-hidden"
       style={{
+        borderWidth: '1px',
+        borderStyle: 'solid',
         borderColor: diff.status === 'unchanged' ? 'var(--border-subtle)' :
                      diff.status === 'added' ? 'var(--diff-added-border)' :
                      diff.status === 'removed' ? 'var(--diff-removed-border)' :
                      'var(--diff-modified-border)',
-        background: 'var(--surface-2)'
+        background: 'var(--surface-2)',
+        borderRadius: 'var(--radius-md)'
       }}
     >
-      {/* Header */}
+      {/* Header - Touch optimized */}
       <div
-        className="flex items-center justify-between px-4 py-2 cursor-pointer"
-        style={{ background: 'var(--surface-3)' }}
+        className="flex items-center justify-between cursor-pointer"
+        style={{
+          background: 'var(--surface-3)',
+          padding: 'var(--space-3) var(--space-4)',
+          minHeight: 'var(--touch-target-min)'
+        }}
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
           <IconChevronDown open={expanded} />
-          <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+          <span className="font-mono font-bold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
             Rung {rungNumber}
           </span>
           <DiffBadge status={diff.status} small />
           {diff.matchConfidence !== undefined && diff.matchConfidence < 0.9 && diff.status === 'modified' && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-4)', color: 'var(--text-muted)' }}>
+            <span
+              style={{
+                background: 'var(--surface-4)',
+                color: 'var(--text-muted)',
+                padding: 'var(--space-1)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--text-xs)'
+              }}
+            >
               {Math.round(diff.matchConfidence * 100)}% match
             </span>
           )}
         </div>
-        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
           {diff.instructionDiffs.filter(d => d.status !== 'unchanged').length} changes
         </div>
       </div>
 
       {/* Content */}
       {expanded && (
-        <div className="p-4">
+        <div style={{ padding: 'var(--space-4)' }}>
           {/* Comment diff */}
           {commentChanged && (
-            <div className="mb-4 text-sm">
-              <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Comment</div>
+            <div style={{ marginBottom: 'var(--space-4)', fontSize: 'var(--text-sm)' }}>
+              <div className="font-medium" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginBottom: 'var(--space-2)' }}>Comment</div>
               {beforeComment && (
-                <div className="px-3 py-2 rounded mb-1" style={{ background: 'var(--diff-removed-bg)', color: 'var(--diff-removed-text)' }}>
+                <div
+                  style={{
+                    background: 'var(--diff-removed-bg)',
+                    color: 'var(--diff-removed-text)',
+                    padding: 'var(--space-2) var(--space-3)',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: 'var(--space-1)'
+                  }}
+                >
                   <span className="opacity-60">- </span>{beforeComment}
                 </div>
               )}
               {afterComment && (
-                <div className="px-3 py-2 rounded" style={{ background: 'var(--diff-added-bg)', color: 'var(--diff-added-text)' }}>
+                <div
+                  style={{
+                    background: 'var(--diff-added-bg)',
+                    color: 'var(--diff-added-text)',
+                    padding: 'var(--space-2) var(--space-3)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
+                >
                   <span className="opacity-60">+ </span>{afterComment}
                 </div>
               )}
             </div>
           )}
 
-          {/* Instruction diffs */}
+          {/* Instruction diffs - Stack on mobile, side-by-side on desktop */}
           {viewMode === 'side-by-side' ? (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 'var(--space-4)' }}>
               {/* Before column */}
               <div>
-                <div className="text-xs font-medium mb-2 px-2 py-1 rounded" style={{ background: 'var(--diff-removed-bg)', color: 'var(--diff-removed-text)' }}>
+                <div
+                  className="font-medium"
+                  style={{
+                    background: 'var(--diff-removed-bg)',
+                    color: 'var(--diff-removed-text)',
+                    padding: 'var(--space-1) var(--space-2)',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: 'var(--space-2)',
+                    fontSize: 'var(--text-xs)'
+                  }}
+                >
                   Before
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap" style={{ gap: 'var(--space-2)' }}>
                   {diff.instructionDiffs
                     .filter(d => d.before)
                     .map((d, i) => (
@@ -447,16 +497,26 @@ export function RungDiffView({ diff, viewMode, showDetails = true }: RungDiffVie
                       />
                     ))}
                   {diff.instructionDiffs.filter(d => d.before).length === 0 && (
-                    <span className="text-xs italic" style={{ color: 'var(--text-muted)' }}>(empty)</span>
+                    <span className="italic" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>(empty)</span>
                   )}
                 </div>
               </div>
               {/* After column */}
               <div>
-                <div className="text-xs font-medium mb-2 px-2 py-1 rounded" style={{ background: 'var(--diff-added-bg)', color: 'var(--diff-added-text)' }}>
+                <div
+                  className="font-medium"
+                  style={{
+                    background: 'var(--diff-added-bg)',
+                    color: 'var(--diff-added-text)',
+                    padding: 'var(--space-1) var(--space-2)',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: 'var(--space-2)',
+                    fontSize: 'var(--text-xs)'
+                  }}
+                >
                   After
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap" style={{ gap: 'var(--space-2)' }}>
                   {diff.instructionDiffs
                     .filter(d => d.after)
                     .map((d, i) => (
@@ -467,14 +527,14 @@ export function RungDiffView({ diff, viewMode, showDetails = true }: RungDiffVie
                       />
                     ))}
                   {diff.instructionDiffs.filter(d => d.after).length === 0 && (
-                    <span className="text-xs italic" style={{ color: 'var(--text-muted)' }}>(empty)</span>
+                    <span className="italic" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>(empty)</span>
                   )}
                 </div>
               </div>
             </div>
           ) : (
             /* Unified view */
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap" style={{ gap: 'var(--space-2)' }}>
               {diff.instructionDiffs.map((d, i) => {
                 if (d.status === 'removed') {
                   return (
@@ -497,7 +557,7 @@ export function RungDiffView({ diff, viewMode, showDetails = true }: RungDiffVie
                 }
                 if (d.status === 'modified') {
                   return (
-                    <div key={`unified-${i}`} className="flex items-center gap-1">
+                    <div key={`unified-${i}`} className="flex items-center" style={{ gap: 'var(--space-1)' }}>
                       <InstructionBlock instruction={d.before!} status="removed" showAsRemoved />
                       <span style={{ color: 'var(--text-muted)' }}>-&gt;</span>
                       <InstructionBlock instruction={d.after!} status="added" />
@@ -517,14 +577,21 @@ export function RungDiffView({ diff, viewMode, showDetails = true }: RungDiffVie
 
           {/* Change details */}
           {diff.instructionDiffs.some(d => d.changes && d.changes.length > 0) && (
-            <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-              <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Change Details</div>
-              <ul className="text-xs space-y-1" style={{ color: 'var(--text-secondary)' }}>
+            <div
+              className="border-t"
+              style={{
+                borderColor: 'var(--border-subtle)',
+                marginTop: 'var(--space-4)',
+                paddingTop: 'var(--space-4)'
+              }}
+            >
+              <div className="font-medium" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginBottom: 'var(--space-2)' }}>Change Details</div>
+              <ul style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
                 {diff.instructionDiffs
                   .filter(d => d.changes && d.changes.length > 0)
                   .flatMap((d, i) =>
                     d.changes!.map((change, j) => (
-                      <li key={`change-${i}-${j}`} className="font-mono">
+                      <li key={`change-${i}-${j}`} className="font-mono" style={{ marginBottom: 'var(--space-1)' }}>
                         <span style={{ color: 'var(--inst-timer)' }}>{d.before?.type || d.after?.type}</span>: {change}
                       </li>
                     ))

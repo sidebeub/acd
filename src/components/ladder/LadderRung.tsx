@@ -408,8 +408,8 @@ function AoiModal({
       onClick={onClose}
     >
       <div
-        className="relative max-w-4xl w-full max-h-[80vh] overflow-hidden rounded-lg shadow-2xl"
-        style={{ background: 'var(--surface-2)' }}
+        className="relative max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl"
+        style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -591,8 +591,8 @@ function TraceModal({
       onClick={onClose}
     >
       <div
-        className="relative max-w-3xl w-full max-h-[80vh] overflow-hidden rounded-lg shadow-2xl"
-        style={{ background: 'var(--surface-2)' }}
+        className="relative max-w-3xl w-full max-h-[80vh] overflow-hidden shadow-2xl"
+        style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -779,8 +779,8 @@ function SimilarModal({
       onClick={onClose}
     >
       <div
-        className="relative max-w-4xl w-full max-h-[80vh] overflow-hidden rounded-lg shadow-2xl"
-        style={{ background: 'var(--surface-2)' }}
+        className="relative max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl"
+        style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -1119,13 +1119,15 @@ function InstructionBox({
 
   return (
     <div
-      className={`relative flex-shrink-0 sm:flex-shrink-0 rounded cursor-default transition-all overflow-hidden ${isSearchMatch ? 'search-highlight' : ''}`}
+      className={`ladder-instruction relative flex-shrink-0 cursor-default transition-all overflow-hidden ${isSearchMatch ? 'search-highlight' : ''}`}
       style={{
         border: `2px solid ${config.border}`,
+        borderRadius: 'var(--radius-sm)',
         transform: isHovered ? 'translateY(-2px)' : 'none',
         boxShadow: isHovered ? '0 4px 12px rgba(0,0,0,0.3)' : 'none',
-        minWidth: hasParams ? '120px' : 'auto',
-        maxWidth: '180px',
+        minWidth: hasParams ? 'clamp(100px, 20vw, 120px)' : 'var(--touch-target-min)',
+        minHeight: 'var(--touch-target-min)',
+        maxWidth: 'clamp(140px, 25vw, 180px)',
         ...searchHighlightStyle
       }}
       onMouseEnter={() => onHover(true)}
@@ -1142,7 +1144,7 @@ function InstructionBox({
       )}
       {/* Header with instruction name */}
       <div
-        className="px-3 py-1.5 font-mono text-xs font-bold text-white flex justify-between items-center gap-1"
+        className="px-2 py-1.5 font-mono text-fluid-xs font-bold text-white flex justify-between items-center gap-1"
         style={{ background: isAoi ? 'rgb(236, 72, 153)' : headerColor }}
       >
         <span className="flex items-center gap-1">
@@ -1630,10 +1632,12 @@ function ContactCoilElement({
 
   return (
     <div
-      className={`relative flex flex-col items-center touch-ripple ${simEnabled && isContact ? 'touch-ripple-green' : ''} ${simEnabled && isContact ? 'cursor-pointer' : !simEnabled && onTagXRef ? 'cursor-pointer' : 'cursor-default'} ${isSearchMatch ? 'search-highlight' : ''} ${simClass} ${clickableClass} ${forcedClass} ${xrefClickableClass}`}
+      className={`${isContact ? 'ladder-contact' : 'ladder-coil'} relative flex flex-col items-center touch-ripple ${simEnabled && isContact ? 'touch-ripple-green' : ''} ${simEnabled && isContact ? 'cursor-pointer' : !simEnabled && onTagXRef ? 'cursor-pointer' : 'cursor-default'} ${isSearchMatch ? 'search-highlight' : ''} ${simClass} ${clickableClass} ${forcedClass} ${xrefClickableClass}`}
       style={{
         transform: isHovered ? 'translateY(-2px)' : 'none',
         transition: 'transform 0.15s ease',
+        minWidth: 'var(--touch-target-min)',
+        minHeight: 'var(--touch-target-min)',
         ...searchHighlightStyle
       }}
       onMouseEnter={() => onHover(true)}
@@ -1717,8 +1721,8 @@ function ContactCoilElement({
       {/* Tag description above (like Logix Designer) */}
       {description && (
         <div
-          className="text-[9px] mb-0.5 truncate max-w-28 text-center leading-tight"
-          style={{ color: 'var(--text-muted)' }}
+          className="text-fluid-xs mb-0.5 truncate max-w-28 text-center leading-tight ladder-instruction-operand"
+          style={{ color: 'var(--text-muted)', fontSize: 'clamp(8px, 1.5vw, 10px)' }}
           title={description}
         >
           {description}
@@ -1727,8 +1731,8 @@ function ContactCoilElement({
 
       {/* Tag name */}
       <div
-        className="font-mono text-[10px] mb-1 truncate max-w-28 text-center"
-        style={{ color: 'var(--text-secondary)' }}
+        className="font-mono text-fluid-xs mb-1 truncate max-w-28 text-center ladder-instruction-operand"
+        style={{ color: 'var(--text-secondary)', fontSize: 'clamp(9px, 1.8vw, 11px)' }}
         title={tagName}
       >
         {tagName}
@@ -1932,13 +1936,13 @@ function LadderVisualization({
 
   return (
     <div
-      className={`px-2 sm:px-4 pt-4 pb-8 overflow-x-auto ${simEnabled ? 'sim-mode-active' : ''}`}
+      className={`ladder-scroll-container px-fluid-3 pt-4 pb-8 ${simEnabled ? 'sim-mode-active' : ''}`}
       style={{ background: 'var(--surface-1)' }}
     >
       <div className="inline-flex min-w-full" style={{ minHeight: `${totalHeight}px` }}>
         {/* Left power rail */}
         <div
-          className={`power-rail flex-shrink-0 ${simEnabled ? 'power-rail-energized' : ''}`}
+          className={`ladder-power-rail flex-shrink-0 ${simEnabled ? 'power-rail-energized' : ''}`}
           style={{ height: `${totalHeight}px` }}
         />
 
@@ -2279,18 +2283,19 @@ export function LadderRung({
 
   return (
     <div
-      className="rounded-lg overflow-hidden"
+      className="ladder-rung overflow-hidden"
       style={{
         background: 'var(--surface-2)',
-        border: '1px solid var(--border-subtle)'
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-sm)'
       }}
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-2 sm:px-4 py-2 border-b gap-2"
+        className="ladder-rung-header flex items-center justify-between px-fluid-3 py-2 border-b gap-fluid-2"
         style={{ borderColor: 'var(--border-subtle)' }}
       >
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-fluid-2 min-w-0 flex-1">
           {/* Bookmark button */}
           {onToggleBookmark && (
             <button
@@ -2333,7 +2338,7 @@ export function LadderRung({
           )}
         </div>
 
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="ladder-rung-actions flex items-center gap-1 flex-shrink-0 flex-wrap">
           {/* Trace button with dropdown */}
           {projectId && outputTags.length > 0 && (
             <div className="relative">
@@ -2361,7 +2366,7 @@ export function LadderRung({
                 title="Trace tag dependencies"
               >
                 <IconTrace />
-                <span className="hidden sm:inline">{isTracing ? 'Tracing...' : 'Trace'}</span>
+                <span className="action-label hidden sm:inline">{isTracing ? 'Tracing...' : 'Trace'}</span>
               </button>
 
               {/* Dropdown menu */}
@@ -2436,7 +2441,7 @@ export function LadderRung({
               title="Find similar logic in project"
             >
               <IconSimilar />
-              <span className="hidden sm:inline">{isFindingSimilar ? 'Finding...' : 'Similar'}</span>
+              <span className="action-label hidden sm:inline">{isFindingSimilar ? 'Finding...' : 'Similar'}</span>
             </button>
           )}
 
@@ -2462,7 +2467,7 @@ export function LadderRung({
             title="Copy rung to clipboard"
           >
             {copied ? <IconCheck /> : <IconCopy />}
-            <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
+            <span className="action-label hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
           </button>
           <button
             onClick={() => setShowRaw(!showRaw)}
@@ -2485,7 +2490,7 @@ export function LadderRung({
             }}
           >
             <IconCode />
-            <span className="hidden sm:inline">Raw</span>
+            <span className="action-label hidden sm:inline">Raw</span>
           </button>
           <button
             onClick={handleExplain}
@@ -2506,7 +2511,7 @@ export function LadderRung({
             }}
           >
             <IconSparkles />
-            <span className="hidden sm:inline">{isExplaining ? 'Analyzing...' : 'Explain'}</span>
+            <span className="action-label hidden sm:inline">{isExplaining ? 'Analyzing...' : 'Explain'}</span>
           </button>
           <SimulationToggleButton />
           <TrendChartButton availableTags={availableTags} />
@@ -2574,7 +2579,7 @@ export function LadderRung({
       {/* Explanation */}
       {explanation && (
         <div
-          className="px-3 sm:px-4 py-3 border-t"
+          className="px-fluid-4 py-3 border-t"
           style={{
             background: explanationSource === 'ai' ? 'var(--accent-blue-muted)' : 'var(--accent-emerald-muted)',
             borderColor: explanationSource === 'ai' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'
@@ -2582,13 +2587,13 @@ export function LadderRung({
         >
           <div>
             <div
-              className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider mb-2"
+              className="text-fluid-xs font-semibold uppercase tracking-wider mb-2"
               style={{ color: explanationSource === 'ai' ? 'var(--accent-blue)' : 'var(--accent-emerald)' }}
             >
               {SOURCE_LABELS[explanationSource || 'library']?.label || 'Explanation'}
             </div>
             <div
-              className="text-[13px] sm:text-sm leading-relaxed break-words"
+              className="text-fluid-sm leading-relaxed break-words"
               style={{ color: 'var(--text-secondary)', wordBreak: 'break-word' }}
             >
               {formatExplanation(explanation || '')}

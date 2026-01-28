@@ -39,46 +39,46 @@ const TIME_RANGES = [
 // ================================================
 
 const IconClose = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 )
 
 const IconPlay = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
     <polygon points="5,3 19,12 5,21" />
   </svg>
 )
 
 const IconPause = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
     <rect x="6" y="4" width="4" height="16" />
     <rect x="14" y="4" width="4" height="16" />
   </svg>
 )
 
 const IconTrash = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
   </svg>
 )
 
 const IconPlus = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 )
 
 const IconMinus = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 )
 
 const IconChart = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M3 3v18h18" />
     <path d="M18 9l-5 5-4-4-6 6" />
   </svg>
@@ -94,24 +94,42 @@ export function TrendChart({ availableTags, onClose }: TrendChartProps) {
   const [selectedTimeRange, setSelectedTimeRange] = useState(1) // Default to 30s
   const [tagSearchQuery, setTagSearchQuery] = useState('')
   const [showTagSelector, setShowTagSelector] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const chartRef = useRef<SVGSVGElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [chartSize, setChartSize] = useState({ width: 600, height: 300 })
 
-  // Update chart size based on container
+  // Check for mobile viewport
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Update chart size based on container with ResizeObserver
   useEffect(() => {
     const updateSize = () => {
-      if (chartRef.current?.parentElement) {
-        const parent = chartRef.current.parentElement
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
         setChartSize({
-          width: parent.clientWidth - 40,
-          height: Math.max(200, parent.clientHeight - 20)
+          width: Math.max(280, rect.width - 32),
+          height: Math.max(200, isMobile ? 240 : Math.min(400, rect.height - 20))
         })
       }
     }
+
+    // Initial size
     updateSize()
-    window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
-  }, [])
+
+    // Use ResizeObserver for container queries
+    const observer = new ResizeObserver(updateSize)
+    if (containerRef.current) {
+      observer.observe(containerRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [isMobile])
 
   // Filter available tags based on search
   const filteredTags = useMemo(() => {
@@ -251,206 +269,144 @@ export function TrendChart({ availableTags, onClose }: TrendChartProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0, 0, 0, 0.75)' }}
+      className="trend-chart-overlay safe-area-inset"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="trend-chart-title"
     >
-      <div
-        className="relative flex flex-col w-full max-w-4xl max-h-[90vh] rounded-lg overflow-hidden"
-        style={{
-          background: 'var(--surface-1)',
-          border: '1px solid var(--border-default)',
-          boxShadow: 'var(--shadow-lg)'
-        }}
-      >
+      <div className="trend-chart-container container-inline">
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{
-            background: 'var(--surface-2)',
-            borderBottom: '1px solid var(--border-subtle)'
-          }}
-        >
-          <div className="flex items-center gap-2">
+        <div className="trend-chart-header">
+          <div className="trend-chart-title-group">
             <IconChart />
-            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <span id="trend-chart-title" className="trend-chart-title">
               Trend Chart
             </span>
             {trendRecording && (
-              <span
-                className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
-                style={{
-                  background: 'rgba(34, 197, 94, 0.15)',
-                  color: '#22c55e'
-                }}
-              >
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="trend-recording-badge">
+                <span className="trend-recording-dot" />
                 Recording
               </span>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className="trend-chart-close touch-target"
+            aria-label="Close trend chart"
           >
             <IconClose />
           </button>
         </div>
 
-        {/* Controls */}
-        <div
-          className="flex flex-wrap items-center gap-3 px-4 py-2"
-          style={{
-            background: 'var(--surface-2)',
-            borderBottom: '1px solid var(--border-subtle)'
-          }}
-        >
+        {/* Controls - responsive layout */}
+        <div className="trend-chart-controls">
           {/* Recording toggle */}
           <button
             onClick={() => setTrendRecording(!trendRecording)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors"
-            style={{
-              background: trendRecording ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-              color: trendRecording ? '#ef4444' : '#22c55e',
-              border: `1px solid ${trendRecording ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`
-            }}
+            className={`trend-control-btn touch-target ${trendRecording ? 'recording' : 'paused'}`}
+            aria-pressed={trendRecording}
           >
             {trendRecording ? <IconPause /> : <IconPlay />}
-            {trendRecording ? 'Pause' : 'Record'}
+            <span className="hide-mobile">{trendRecording ? 'Pause' : 'Record'}</span>
           </button>
 
           {/* Clear button */}
           <button
             onClick={clearTrendData}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm transition-colors"
-            style={{
-              background: 'var(--surface-3)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)'
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-3)'}
+            className="trend-control-btn trend-control-secondary touch-target"
+            aria-label="Clear trend data"
           >
             <IconTrash />
-            Clear
+            <span className="hide-mobile">Clear</span>
           </button>
 
           {/* Time range selector */}
-          <div className="flex items-center gap-1 ml-auto">
-            <span className="text-xs mr-2" style={{ color: 'var(--text-muted)' }}>Time Range:</span>
-            {TIME_RANGES.map((range, idx) => (
-              <button
-                key={range.label}
-                onClick={() => setSelectedTimeRange(idx)}
-                className="px-2 py-1 rounded text-xs font-medium transition-colors"
-                style={{
-                  background: selectedTimeRange === idx ? 'var(--accent-blue)' : 'var(--surface-3)',
-                  color: selectedTimeRange === idx ? 'white' : 'var(--text-secondary)',
-                  border: `1px solid ${selectedTimeRange === idx ? 'var(--accent-blue)' : 'var(--border-subtle)'}`
-                }}
-              >
-                {range.label}
-              </button>
-            ))}
+          <div className="trend-time-range">
+            <span className="trend-time-label hide-mobile">Range:</span>
+            <div className="trend-time-buttons">
+              {TIME_RANGES.map((range, idx) => (
+                <button
+                  key={range.label}
+                  onClick={() => setSelectedTimeRange(idx)}
+                  className={`trend-time-btn touch-target ${selectedTimeRange === idx ? 'active' : ''}`}
+                  aria-pressed={selectedTimeRange === idx}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Tag selector */}
-        <div
-          className="flex flex-wrap items-center gap-2 px-4 py-2"
-          style={{
-            background: 'var(--surface-1)',
-            borderBottom: '1px solid var(--border-subtle)'
-          }}
-        >
-          {/* Current tags */}
-          {trendTags.map((tagName, idx) => (
-            <span
-              key={tagName}
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono"
-              style={{
-                background: 'var(--surface-3)',
-                border: `2px solid ${CHART_COLORS[idx % CHART_COLORS.length]}`,
-                color: 'var(--text-primary)'
-              }}
-            >
+        {/* Tag selector - responsive */}
+        <div className="trend-tag-bar">
+          {/* Current tags - scrollable on mobile */}
+          <div className="trend-tag-list">
+            {trendTags.map((tagName, idx) => (
               <span
-                className="w-2 h-2 rounded-full"
-                style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }}
-              />
-              {tagName}
-              <button
-                onClick={() => handleRemoveTag(tagName)}
-                className="ml-1 hover:text-red-400 transition-colors"
-                style={{ color: 'var(--text-muted)' }}
+                key={tagName}
+                className="trend-tag-pill"
+                style={{
+                  borderColor: CHART_COLORS[idx % CHART_COLORS.length]
+                }}
               >
-                <IconMinus />
-              </button>
-            </span>
-          ))}
+                <span
+                  className="trend-tag-dot"
+                  style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }}
+                />
+                <span className="trend-tag-name">{tagName}</span>
+                <button
+                  onClick={() => handleRemoveTag(tagName)}
+                  className="trend-tag-remove touch-target"
+                  aria-label={`Remove ${tagName}`}
+                >
+                  <IconMinus />
+                </button>
+              </span>
+            ))}
+          </div>
 
           {/* Add tag button */}
-          <div className="relative">
+          <div className="trend-add-tag-container">
             <button
               onClick={() => setShowTagSelector(!showTagSelector)}
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors"
-              style={{
-                background: 'var(--surface-3)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-subtle)'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-3)'}
+              className="trend-add-tag-btn touch-target"
+              aria-expanded={showTagSelector}
+              aria-haspopup="listbox"
             >
               <IconPlus />
-              Add Tag
+              <span>Add Tag</span>
             </button>
 
             {/* Tag selector dropdown */}
             {showTagSelector && (
-              <div
-                className="absolute top-full left-0 mt-1 w-64 max-h-64 overflow-hidden rounded-lg z-10"
-                style={{
-                  background: 'var(--surface-2)',
-                  border: '1px solid var(--border-default)',
-                  boxShadow: 'var(--shadow-lg)'
-                }}
-              >
-                <div className="p-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+              <div className="trend-tag-dropdown" role="listbox">
+                <div className="trend-tag-search">
                   <input
                     type="text"
                     value={tagSearchQuery}
                     onChange={e => setTagSearchQuery(e.target.value)}
                     placeholder="Search tags..."
                     autoFocus
-                    className="w-full px-2 py-1.5 rounded text-sm"
-                    style={{
-                      background: 'var(--surface-1)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-primary)'
-                    }}
+                    className="trend-tag-search-input touch-target-height"
                   />
                 </div>
-                <div className="overflow-y-auto max-h-48">
+                <div className="trend-tag-options">
                   {filteredTags
                     .filter(tag => !trendTags.includes(tag))
                     .map(tag => (
                       <button
                         key={tag}
                         onClick={() => handleAddTag(tag)}
-                        className="w-full text-left px-3 py-2 text-xs font-mono transition-colors"
-                        style={{ color: 'var(--text-secondary)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        className="trend-tag-option touch-target-height"
+                        role="option"
                       >
                         {tag}
                       </button>
                     ))}
                   {filteredTags.filter(tag => !trendTags.includes(tag)).length === 0 && (
-                    <div className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <div className="trend-tag-empty">
                       No matching tags
                     </div>
                   )}
@@ -460,22 +416,21 @@ export function TrendChart({ availableTags, onClose }: TrendChartProps) {
           </div>
         </div>
 
-        {/* Chart area */}
-        <div className="flex-1 p-4 overflow-hidden" style={{ minHeight: 300 }}>
+        {/* Chart area - responsive */}
+        <div ref={containerRef} className="trend-chart-area">
           {trendTags.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center h-full gap-3"
-              style={{ color: 'var(--text-muted)' }}
-            >
+            <div className="trend-chart-empty">
               <IconChart />
-              <span className="text-sm">Add tags to start trending</span>
+              <span>Add tags to start trending</span>
             </div>
           ) : (
             <svg
               ref={chartRef}
               width={chartSize.width}
               height={chartSize.height}
-              style={{ display: 'block' }}
+              className="trend-chart-svg"
+              role="img"
+              aria-label="Trend chart visualization"
             >
               {/* Background */}
               <rect
@@ -505,7 +460,7 @@ export function TrendChart({ availableTags, onClose }: TrendChartProps) {
                     y={line.y}
                     textAnchor="end"
                     alignmentBaseline="middle"
-                    fontSize="10"
+                    fontSize={isMobile ? '9' : '10'}
                     fill="var(--text-muted)"
                     fontFamily="var(--font-mono)"
                   >
@@ -530,7 +485,7 @@ export function TrendChart({ availableTags, onClose }: TrendChartProps) {
                     x={line.x}
                     y={chartBounds.top + chartBounds.chartHeight + 16}
                     textAnchor="middle"
-                    fontSize="10"
+                    fontSize={isMobile ? '9' : '10'}
                     fill="var(--text-muted)"
                     fontFamily="var(--font-mono)"
                   >
@@ -546,62 +501,57 @@ export function TrendChart({ availableTags, onClose }: TrendChartProps) {
                   d={generatePath(series.data)}
                   fill="none"
                   stroke={series.color}
-                  strokeWidth="2"
+                  strokeWidth={isMobile ? 1.5 : 2}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               ))}
 
-              {/* Axis labels */}
-              <text
-                x={chartBounds.left + chartBounds.chartWidth / 2}
-                y={chartSize.height - 5}
-                textAnchor="middle"
-                fontSize="11"
-                fill="var(--text-secondary)"
-              >
-                Time (seconds)
-              </text>
-              <text
-                x={15}
-                y={chartBounds.top + chartBounds.chartHeight / 2}
-                textAnchor="middle"
-                fontSize="11"
-                fill="var(--text-secondary)"
-                transform={`rotate(-90, 15, ${chartBounds.top + chartBounds.chartHeight / 2})`}
-              >
-                Value
-              </text>
+              {/* Axis labels - hide on very small screens */}
+              {!isMobile && (
+                <>
+                  <text
+                    x={chartBounds.left + chartBounds.chartWidth / 2}
+                    y={chartSize.height - 5}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="var(--text-secondary)"
+                  >
+                    Time (seconds)
+                  </text>
+                  <text
+                    x={15}
+                    y={chartBounds.top + chartBounds.chartHeight / 2}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="var(--text-secondary)"
+                    transform={`rotate(-90, 15, ${chartBounds.top + chartBounds.chartHeight / 2})`}
+                  >
+                    Value
+                  </text>
+                </>
+              )}
             </svg>
           )}
         </div>
 
-        {/* Legend */}
+        {/* Legend - responsive */}
         {trendTags.length > 0 && (
-          <div
-            className="flex flex-wrap items-center gap-4 px-4 py-2"
-            style={{
-              background: 'var(--surface-2)',
-              borderTop: '1px solid var(--border-subtle)'
-            }}
-          >
+          <div className="trend-chart-legend">
             {processedData.series.map((series) => {
               const lastValue = series.data[series.data.length - 1]?.value
               return (
-                <div key={series.tagName} className="flex items-center gap-2">
+                <div key={series.tagName} className="trend-legend-item">
                   <span
-                    className="w-3 h-3 rounded-full"
+                    className="trend-legend-dot"
                     style={{ background: series.color }}
                   />
-                  <span
-                    className="text-xs font-mono"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
+                  <span className="trend-legend-name">
                     {series.tagName}
                   </span>
                   {lastValue !== undefined && (
                     <span
-                      className="text-xs font-mono font-semibold"
+                      className="trend-legend-value"
                       style={{ color: series.color }}
                     >
                       = {lastValue.toFixed(2)}
@@ -631,24 +581,12 @@ export function TrendChartButton({ availableTags }: { availableTags: string[] })
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors"
-        style={{
-          background: 'var(--surface-3)',
-          color: 'var(--text-secondary)',
-          border: '1px solid var(--border-subtle)'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'var(--surface-4)'
-          e.currentTarget.style.color = 'var(--text-primary)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'var(--surface-3)'
-          e.currentTarget.style.color = 'var(--text-secondary)'
-        }}
+        className="trend-chart-btn touch-target"
         title="Open Trend Chart"
+        aria-label="Open trend chart"
       >
         <IconChart />
-        <span>Trend</span>
+        <span className="hide-mobile">Trend</span>
       </button>
 
       {isOpen && (

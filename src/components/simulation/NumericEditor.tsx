@@ -29,6 +29,35 @@ interface NumericEditorProps {
   position?: 'above' | 'below' | 'inline'
 }
 
+// Icons
+const IconMinus = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+)
+
+const IconPlus = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+)
+
+const IconEdit = () => (
+  <svg
+    className="numeric-edit-icon"
+    width="10"
+    height="10"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+)
+
 export function NumericEditor({
   value,
   onConfirm,
@@ -158,35 +187,29 @@ export function NumericEditor({
   }
 
   const positionClasses = position === 'above'
-    ? 'bottom-full mb-2'
+    ? 'numeric-editor-above'
     : position === 'below'
-      ? 'top-full mt-2'
-      : ''
+      ? 'numeric-editor-below'
+      : 'numeric-editor-inline'
 
   return (
     <div
       ref={containerRef}
-      className={`numeric-editor ${position !== 'inline' ? 'absolute z-50 ' + positionClasses : ''}`}
-      style={{
-        background: 'var(--surface-3)',
-        border: '1px solid var(--border-strong)',
-        borderRadius: '8px',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-        padding: '12px',
-        minWidth: '180px'
-      }}
+      className={`numeric-editor ${positionClasses}`}
+      role="dialog"
+      aria-label={label ? `Edit ${label}` : 'Edit value'}
     >
       {/* Header with label and reset */}
       {(label || tagName || isEdited) && (
-        <div className="flex items-center justify-between mb-2">
-          <div>
+        <div className="numeric-editor-header">
+          <div className="numeric-editor-labels">
             {label && (
-              <div className="text-[10px] uppercase font-semibold" style={{ color: 'var(--text-muted)' }}>
+              <div className="numeric-editor-label">
                 {label}
               </div>
             )}
             {tagName && (
-              <div className="text-xs font-mono truncate max-w-32" style={{ color: 'var(--text-secondary)' }}>
+              <div className="numeric-editor-tagname">
                 {tagName}
               </div>
             )}
@@ -195,11 +218,7 @@ export function NumericEditor({
             <button
               type="button"
               onClick={onReset}
-              className="text-[10px] px-2 py-0.5 rounded transition-colors"
-              style={{
-                background: 'var(--accent-amber-muted)',
-                color: 'var(--accent-amber)'
-              }}
+              className="numeric-editor-reset touch-target"
               title="Reset to original value"
             >
               Reset
@@ -210,16 +229,15 @@ export function NumericEditor({
 
       <form onSubmit={handleSubmit}>
         {/* Input with increment/decrement buttons */}
-        <div className="flex items-center gap-1">
+        <div className="numeric-editor-controls">
           <button
             type="button"
             onClick={handleDecrement}
-            className="numeric-editor-btn"
+            className="numeric-editor-btn touch-target"
             title={`Decrease by ${step}`}
+            aria-label="Decrease value"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <IconMinus />
           </button>
 
           <input
@@ -228,44 +246,36 @@ export function NumericEditor({
             value={inputValue}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            className="numeric-editor-input"
-            style={{
-              borderColor: error ? 'var(--accent-red)' : 'var(--border-default)'
-            }}
+            className={`numeric-editor-input touch-target-height ${error ? 'has-error' : ''}`}
             inputMode={allowFloat ? 'decimal' : 'numeric'}
+            aria-invalid={!!error}
+            aria-describedby={error ? 'numeric-editor-error' : undefined}
           />
 
           <button
             type="button"
             onClick={handleIncrement}
-            className="numeric-editor-btn"
+            className="numeric-editor-btn touch-target"
             title={`Increase by ${step}`}
+            aria-label="Increase value"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <IconPlus />
           </button>
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="text-[10px] mt-1 px-1" style={{ color: 'var(--accent-red)' }}>
+          <div id="numeric-editor-error" className="numeric-editor-error" role="alert">
             {error}
           </div>
         )}
 
         {/* Action buttons */}
-        <div className="flex items-center justify-between mt-3 gap-2">
+        <div className="numeric-editor-actions">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 px-3 py-1.5 text-xs rounded transition-colors"
-            style={{
-              background: 'var(--surface-4)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)'
-            }}
+            className="numeric-editor-cancel touch-target"
           >
             Cancel
           </button>
@@ -273,19 +283,14 @@ export function NumericEditor({
             type="submit"
             onClick={handleConfirmClick}
             disabled={!!error}
-            className="flex-1 px-3 py-1.5 text-xs rounded transition-colors font-semibold"
-            style={{
-              background: error ? 'var(--surface-4)' : 'var(--accent-emerald)',
-              color: error ? 'var(--text-muted)' : 'white',
-              opacity: error ? 0.5 : 1
-            }}
+            className="numeric-editor-submit touch-target"
           >
             Apply
           </button>
         </div>
 
-        {/* Hint text */}
-        <div className="text-[9px] mt-2 text-center" style={{ color: 'var(--text-muted)' }}>
+        {/* Hint text - hide on mobile */}
+        <div className="numeric-editor-hint hide-mobile">
           Enter to apply, Esc to cancel, Up/Down to adjust
         </div>
       </form>
@@ -364,41 +369,31 @@ export function EditableNumericOperand({
   const displayValue = simEnabled ? value : operand
 
   return (
-    <div className="relative inline-block">
-      <div
+    <div className="editable-operand-container">
+      <button
+        type="button"
         className={`editable-numeric-operand ${canEdit ? 'editable' : ''} ${isEdited ? 'edited' : ''}`}
         onClick={handleClick}
+        disabled={!canEdit}
         title={canEdit ? 'Click to edit value' : undefined}
+        aria-label={canEdit ? `Edit ${paramLabel || operand}` : undefined}
       >
         {paramLabel && (
-          <span className="text-[9px] uppercase mr-1" style={{ color: 'var(--text-muted)' }}>
+          <span className="editable-operand-label">
             {paramLabel}:
           </span>
         )}
-        <span className={`font-mono text-[10px] ${isEdited ? 'text-amber-400' : ''}`}>
+        <span className={`editable-operand-value ${isEdited ? 'edited' : ''}`}>
           {simEnabled ? (
             <>
               {typeof displayValue === 'number' ? displayValue.toFixed(allowFloat && displayValue % 1 !== 0 ? 2 : 0) : displayValue}
-              {canEdit && (
-                <svg
-                  className="inline-block ml-1 opacity-50"
-                  width="8"
-                  height="8"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              )}
+              {canEdit && <IconEdit />}
             </>
           ) : (
             operand
           )}
         </span>
-      </div>
+      </button>
 
       {isEditing && (
         <NumericEditor
@@ -464,33 +459,24 @@ export function TimerCounterEditor({
   const displayPre = isTimer ? preValue / 1000 : preValue
 
   return (
-    <div className="timer-counter-editor flex flex-col gap-1 mt-1">
+    <div className="timer-counter-editor">
       {/* ACC Value */}
-      <div className="relative">
-        <div
+      <div className="timer-counter-field">
+        <button
+          type="button"
           className={`editable-numeric-operand editable ${isAccEdited ? 'edited' : ''}`}
           onClick={() => setEditingField('acc')}
           title="Click to edit accumulator value"
+          aria-label={`Edit ${tagName} accumulator value`}
         >
-          <span className="text-[9px] uppercase mr-1" style={{ color: 'var(--text-muted)' }}>
+          <span className="editable-operand-label">
             {accLabel}:
           </span>
-          <span className={`font-mono text-[10px] ${isAccEdited ? 'text-amber-400' : ''}`}>
+          <span className={`editable-operand-value ${isAccEdited ? 'edited' : ''}`}>
             {isTimer ? `${displayAcc.toFixed(1)}s` : displayAcc}
-            <svg
-              className="inline-block ml-1 opacity-50"
-              width="8"
-              height="8"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
+            <IconEdit />
           </span>
-        </div>
+        </button>
         {editingField === 'acc' && (
           <NumericEditor
             value={isTimer ? displayAcc : accValue}
@@ -501,7 +487,7 @@ export function TimerCounterEditor({
             onCancel={() => setEditingField(null)}
             label={`${tagName}.${accLabel}`}
             min={0}
-            max={isTimer ? 86400 : 32767}  // 24 hours for timer, INT16 for counter
+            max={isTimer ? 86400 : 32767}
             step={isTimer ? 0.1 : 1}
             allowFloat={isTimer}
             isEdited={isAccEdited}
@@ -515,31 +501,22 @@ export function TimerCounterEditor({
       </div>
 
       {/* PRE Value */}
-      <div className="relative">
-        <div
+      <div className="timer-counter-field">
+        <button
+          type="button"
           className={`editable-numeric-operand editable ${isPreEdited ? 'edited' : ''}`}
           onClick={() => setEditingField('pre')}
           title="Click to edit preset value (affects logic!)"
+          aria-label={`Edit ${tagName} preset value`}
         >
-          <span className="text-[9px] uppercase mr-1" style={{ color: 'var(--text-muted)' }}>
+          <span className="editable-operand-label">
             {preLabel}:
           </span>
-          <span className={`font-mono text-[10px] ${isPreEdited ? 'text-amber-400' : ''}`}>
+          <span className={`editable-operand-value ${isPreEdited ? 'edited' : ''}`}>
             {isTimer ? `${displayPre.toFixed(1)}s` : displayPre}
-            <svg
-              className="inline-block ml-1 opacity-50"
-              width="8"
-              height="8"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
+            <IconEdit />
           </span>
-        </div>
+        </button>
         {editingField === 'pre' && (
           <NumericEditor
             value={isTimer ? displayPre : preValue}

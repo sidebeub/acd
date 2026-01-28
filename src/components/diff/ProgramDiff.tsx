@@ -332,10 +332,18 @@ interface StatsCardProps {
 
 function StatsCard({ label, value, color }: StatsCardProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded" style={{ background: 'var(--surface-3)' }}>
-      <div className="w-3 h-3 rounded-full" style={{ background: color }} />
-      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}:</span>
-      <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{value}</span>
+    <div
+      className="flex items-center flex-shrink-0"
+      style={{
+        background: 'var(--surface-3)',
+        borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-2) var(--space-3)',
+        gap: 'var(--space-2)'
+      }}
+    >
+      <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span className="whitespace-nowrap" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>{label}:</span>
+      <span className="font-bold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>{value}</span>
     </div>
   )
 }
@@ -586,18 +594,34 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
   }, [beforeProject, afterProject])
 
   return (
-    <div className="h-full flex flex-col" style={{ background: 'var(--surface-1)' }}>
-      {/* Header */}
-      <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-2)' }}>
+    <div
+      className="h-screen-safe flex flex-col container-main"
+      style={{ background: 'var(--surface-1)' }}
+    >
+      {/* Header - Touch optimized */}
+      <div
+        className="flex items-center justify-between border-b flex-shrink-0 safe-area-top"
+        style={{
+          borderColor: 'var(--border-subtle)',
+          background: 'var(--surface-2)',
+          padding: 'var(--space-4) var(--space-5)',
+          minHeight: 'var(--touch-target-min)'
+        }}
+      >
         <div>
-          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Program Diff</h2>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Compare two versions of your PLC program</p>
+          <h2 className="font-bold" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-xl)' }}>Program Diff</h2>
+          <p className="hidden sm:block" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Compare two versions of your PLC program</p>
         </div>
         {onClose && (
           <button
             onClick={onClose}
-            className="p-2 rounded hover:bg-white/10"
-            style={{ color: 'var(--text-muted)' }}
+            className="flex items-center justify-center transition-colors"
+            style={{
+              color: 'var(--text-muted)',
+              minWidth: 'var(--touch-target-min)',
+              minHeight: 'var(--touch-target-min)',
+              borderRadius: 'var(--radius-md)'
+            }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -607,19 +631,24 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
         )}
       </div>
 
-      {/* File upload area */}
-      <div className="p-6 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* File upload area - Responsive grid */}
+      <div className="border-b flex-shrink-0" style={{ borderColor: 'var(--border-subtle)', padding: 'var(--space-5)' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 'var(--space-5)' }}>
           {/* Before file */}
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+            <label className="block font-medium" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>
               Before (Original Version)
             </label>
             <div
-              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-blue-500/50"
+              className="text-center cursor-pointer transition-colors"
               style={{
+                borderWidth: '2px',
+                borderStyle: 'dashed',
                 borderColor: beforeProject ? 'var(--diff-removed-border)' : 'var(--border-default)',
-                background: beforeProject ? 'var(--diff-removed-bg)' : 'var(--surface-2)'
+                background: beforeProject ? 'var(--diff-removed-bg)' : 'var(--surface-2)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-5)',
+                minHeight: '100px'
               }}
               onClick={() => {
                 const input = document.createElement('input')
@@ -635,12 +664,12 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
               {beforeProject ? (
                 <div>
                   <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{beforeProject.name}</div>
-                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
                     {beforeProject.programs.length} programs, {beforeProject.processorType || 'Unknown processor'}
                   </div>
                   <button
-                    className="mt-2 text-xs underline"
-                    style={{ color: 'var(--accent-blue)' }}
+                    className="underline"
+                    style={{ color: 'var(--accent-blue)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)', minHeight: '32px' }}
                     onClick={(e) => { e.stopPropagation(); setBeforeProject(null) }}
                   >
                     Remove
@@ -649,10 +678,10 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
               ) : (
                 <>
                   <IconUpload />
-                  <div className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-2)' }}>
                     Click to upload or drag and drop
                   </div>
-                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
                     JSON export file
                   </div>
                 </>
@@ -662,14 +691,19 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
 
           {/* After file */}
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+            <label className="block font-medium" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>
               After (New Version)
             </label>
             <div
-              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-blue-500/50"
+              className="text-center cursor-pointer transition-colors"
               style={{
+                borderWidth: '2px',
+                borderStyle: 'dashed',
                 borderColor: afterProject ? 'var(--diff-added-border)' : 'var(--border-default)',
-                background: afterProject ? 'var(--diff-added-bg)' : 'var(--surface-2)'
+                background: afterProject ? 'var(--diff-added-bg)' : 'var(--surface-2)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-5)',
+                minHeight: '100px'
               }}
               onClick={() => {
                 const input = document.createElement('input')
@@ -685,17 +719,17 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
               {afterProject ? (
                 <div>
                   <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{afterProject.name}</div>
-                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
                     {afterProject.programs.length} programs, {afterProject.processorType || 'Unknown processor'}
                   </div>
                   {currentProject && afterProject === currentProject ? (
-                    <div className="mt-2 text-xs" style={{ color: 'var(--accent-emerald)' }}>
+                    <div style={{ color: 'var(--accent-emerald)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)' }}>
                       (Current project)
                     </div>
                   ) : (
                     <button
-                      className="mt-2 text-xs underline"
-                      style={{ color: 'var(--accent-blue)' }}
+                      className="underline"
+                      style={{ color: 'var(--accent-blue)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)', minHeight: '32px' }}
                       onClick={(e) => { e.stopPropagation(); setAfterProject(currentProject || null) }}
                     >
                       Remove
@@ -705,10 +739,10 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
               ) : (
                 <>
                   <IconUpload />
-                  <div className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-2)' }}>
                     Click to upload or drag and drop
                   </div>
-                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
                     JSON export file
                   </div>
                 </>
@@ -718,24 +752,47 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
         </div>
 
         {error && (
-          <div className="mt-4 px-4 py-3 rounded" style={{ background: 'var(--accent-red-muted)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-            <span className="text-sm" style={{ color: 'var(--accent-red)' }}>{error}</span>
+          <div
+            style={{
+              background: 'var(--accent-red-muted)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              marginTop: 'var(--space-4)',
+              padding: 'var(--space-3) var(--space-4)'
+            }}
+          >
+            <span style={{ color: 'var(--accent-red)', fontSize: 'var(--text-sm)' }}>{error}</span>
           </div>
         )}
       </div>
 
-      {/* Controls */}
+      {/* Controls - Responsive with scrollable options */}
       {beforeProject && afterProject && (
-        <div className="px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4" style={{ borderColor: 'var(--border-subtle)' }}>
-          <div className="flex items-center gap-4">
+        <div
+          className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b flex-shrink-0"
+          style={{
+            borderColor: 'var(--border-subtle)',
+            padding: 'var(--space-4) var(--space-5)',
+            gap: 'var(--space-3)'
+          }}
+        >
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center" style={{ gap: 'var(--space-3)' }}>
             {/* Program selector */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm" style={{ color: 'var(--text-muted)' }}>Program:</label>
+            <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
+              <label className="hidden sm:inline" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Program:</label>
               <select
                 value={selectedProgram || ''}
                 onChange={(e) => setSelectedProgram(e.target.value)}
-                className="px-3 py-1.5 rounded text-sm"
-                style={{ background: 'var(--surface-3)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                style={{
+                  background: 'var(--surface-3)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-2) var(--space-3)',
+                  fontSize: 'var(--text-sm)',
+                  minHeight: 'var(--touch-target-min)',
+                  flex: 1
+                }}
               >
                 <option value="">Select a program</option>
                 {allPrograms.map(name => (
@@ -744,50 +801,75 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
               </select>
             </div>
 
-            {/* View mode toggle */}
-            <div className="flex items-center rounded overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
+            {/* View mode and filter - Horizontal scroll on mobile */}
+            <div className="flex items-center overflow-x-auto" style={{ gap: 'var(--space-2)' }}>
+              {/* View mode toggle */}
+              <div className="flex items-center overflow-hidden" style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
+                <button
+                  onClick={() => setViewMode('side-by-side')}
+                  className="flex items-center font-medium whitespace-nowrap"
+                  style={{
+                    background: viewMode === 'side-by-side' ? 'var(--accent-blue)' : 'var(--surface-3)',
+                    color: viewMode === 'side-by-side' ? 'white' : 'var(--text-secondary)',
+                    padding: 'var(--space-2) var(--space-3)',
+                    fontSize: 'var(--text-xs)',
+                    gap: 'var(--space-1)',
+                    minHeight: '36px'
+                  }}
+                >
+                  <IconSideBySide /> <span className="hidden sm:inline">Side by Side</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('unified')}
+                  className="flex items-center font-medium whitespace-nowrap"
+                  style={{
+                    background: viewMode === 'unified' ? 'var(--accent-blue)' : 'var(--surface-3)',
+                    color: viewMode === 'unified' ? 'white' : 'var(--text-secondary)',
+                    padding: 'var(--space-2) var(--space-3)',
+                    fontSize: 'var(--text-xs)',
+                    gap: 'var(--space-1)',
+                    minHeight: '36px'
+                  }}
+                >
+                  <IconUnified /> <span className="hidden sm:inline">Unified</span>
+                </button>
+              </div>
+
+              {/* Filter toggle */}
               <button
-                onClick={() => setViewMode('side-by-side')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                onClick={() => setFilterMode(filterMode === 'all' ? 'changed' : 'all')}
+                className="flex items-center font-medium whitespace-nowrap"
                 style={{
-                  background: viewMode === 'side-by-side' ? 'var(--accent-blue)' : 'var(--surface-3)',
-                  color: viewMode === 'side-by-side' ? 'white' : 'var(--text-secondary)'
+                  background: filterMode === 'changed' ? 'var(--accent-amber-muted)' : 'var(--surface-3)',
+                  border: `1px solid ${filterMode === 'changed' ? 'var(--accent-amber)' : 'var(--border-default)'}`,
+                  color: filterMode === 'changed' ? 'var(--accent-amber)' : 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-2) var(--space-3)',
+                  fontSize: 'var(--text-xs)',
+                  gap: 'var(--space-1)',
+                  minHeight: '36px'
                 }}
               >
-                <IconSideBySide /> Side by Side
-              </button>
-              <button
-                onClick={() => setViewMode('unified')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                style={{
-                  background: viewMode === 'unified' ? 'var(--accent-blue)' : 'var(--surface-3)',
-                  color: viewMode === 'unified' ? 'white' : 'var(--text-secondary)'
-                }}
-              >
-                <IconUnified /> Unified
+                <IconFilter /> {filterMode === 'changed' ? 'Changed' : 'All'}
               </button>
             </div>
-
-            {/* Filter toggle */}
-            <button
-              onClick={() => setFilterMode(filterMode === 'all' ? 'changed' : 'all')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium"
-              style={{
-                background: filterMode === 'changed' ? 'var(--accent-amber-muted)' : 'var(--surface-3)',
-                border: `1px solid ${filterMode === 'changed' ? 'var(--accent-amber)' : 'var(--border-default)'}`,
-                color: filterMode === 'changed' ? 'var(--accent-amber)' : 'var(--text-secondary)'
-              }}
-            >
-              <IconFilter /> {filterMode === 'changed' ? 'Changed only' : 'Show all'}
-            </button>
           </div>
 
           {/* Export button */}
           {programDiff && (
             <button
               onClick={handleExportReport}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium"
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+              className="flex items-center justify-center font-medium"
+              style={{
+                background: 'var(--surface-3)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-secondary)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-2) var(--space-3)',
+                fontSize: 'var(--text-xs)',
+                gap: 'var(--space-1)',
+                minHeight: 'var(--touch-target-min)'
+              }}
             >
               <IconDownload /> Export Report
             </button>
@@ -795,9 +877,17 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
         </div>
       )}
 
-      {/* Stats summary */}
+      {/* Stats summary - Scrollable on mobile */}
       {programDiff && (
-        <div className="px-6 py-4 border-b flex flex-wrap gap-4" style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-2)' }}>
+        <div
+          className="flex overflow-x-auto border-b flex-shrink-0"
+          style={{
+            borderColor: 'var(--border-subtle)',
+            background: 'var(--surface-2)',
+            padding: 'var(--space-4) var(--space-5)',
+            gap: 'var(--space-3)'
+          }}
+        >
           <StatsCard label="Rungs Added" value={programDiff.stats.rungsAdded} color="var(--diff-added-text)" />
           <StatsCard label="Rungs Removed" value={programDiff.stats.rungsRemoved} color="var(--diff-removed-text)" />
           <StatsCard label="Rungs Modified" value={programDiff.stats.rungsModified} color="var(--diff-modified-text)" />
@@ -805,8 +895,11 @@ export function ProgramDiff({ currentProject, onClose }: ProgramDiffProps) {
         </div>
       )}
 
-      {/* Diff content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      {/* Diff content - Scrollable area */}
+      <div
+        className="flex-1 overflow-y-auto overscroll-contain safe-area-bottom"
+        style={{ padding: 'var(--space-5)', WebkitOverflowScrolling: 'touch' }}
+      >
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">

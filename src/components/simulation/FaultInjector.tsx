@@ -12,9 +12,9 @@ interface FaultInjectorProps {
   className?: string
 }
 
-// Icons
+// Icons with larger touch-friendly sizes
 const IconWarning = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
     <line x1="12" y1="9" x2="12" y2="13" />
     <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -22,29 +22,46 @@ const IconWarning = () => (
 )
 
 const IconX = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 )
 
 const IconPlus = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 )
 
 const IconTrash = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
   </svg>
 )
 
 const IconZap = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+)
+
+const IconChevron = ({ expanded }: { expanded: boolean }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    style={{
+      transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+      transition: 'transform var(--transition-base)'
+    }}
+  >
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 )
 
@@ -96,20 +113,19 @@ function FaultItem({
 
   return (
     <div
-      className="fault-item flex items-center justify-between gap-2 px-3 py-2 rounded-md"
+      className="fault-item"
       style={{
-        background: 'var(--surface-2)',
-        border: `1px solid ${faultInfo.color}40`
+        borderColor: `${faultInfo.color}40`
       }}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="fault-item-content">
         {/* Fault type indicator */}
         <span
-          className="fault-type-badge flex items-center justify-center w-6 h-6 rounded text-xs font-bold flex-shrink-0"
+          className="fault-type-badge"
           style={{
             background: `${faultInfo.color}20`,
             color: faultInfo.color,
-            border: `1px solid ${faultInfo.color}50`
+            borderColor: `${faultInfo.color}50`
           }}
           title={faultInfo.description}
         >
@@ -117,15 +133,12 @@ function FaultItem({
         </span>
 
         {/* Tag name and fault type */}
-        <div className="min-w-0">
-          <div
-            className="font-mono text-sm font-medium truncate"
-            style={{ color: 'var(--text-primary)' }}
-          >
+        <div className="fault-item-info">
+          <div className="fault-item-tag">
             {tagName}
           </div>
           <div
-            className="text-xs"
+            className="fault-item-type"
             style={{ color: faultInfo.color }}
           >
             {faultInfo.label}
@@ -138,20 +151,9 @@ function FaultItem({
       {/* Remove button */}
       <button
         onClick={onRemove}
-        className="p-1.5 rounded transition-colors flex-shrink-0"
-        style={{
-          color: 'var(--text-muted)',
-          background: 'transparent'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'var(--surface-4)'
-          e.currentTarget.style.color = 'var(--accent-red)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'transparent'
-          e.currentTarget.style.color = 'var(--text-muted)'
-        }}
+        className="fault-item-remove touch-target"
         title="Remove fault"
+        aria-label={`Remove fault from ${tagName}`}
       >
         <IconX />
       </button>
@@ -191,27 +193,23 @@ function AddFaultForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="fault-form">
       {/* Tag name input */}
-      <div>
+      <div className="fault-form-field">
         <label
-          className="block text-xs font-medium mb-1"
-          style={{ color: 'var(--text-secondary)' }}
+          htmlFor="fault-tag-name"
+          className="fault-form-label"
         >
           Tag Name
         </label>
         <input
+          id="fault-tag-name"
           type="text"
           value={tagName}
           onChange={e => setTagName(e.target.value)}
           list="available-tags"
           placeholder="Enter tag name..."
-          className="w-full px-3 py-2 rounded-md text-sm font-mono"
-          style={{
-            background: 'var(--surface-1)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-primary)'
-          }}
+          className="fault-form-input touch-target-height"
           autoFocus
         />
         {availableTags.length > 0 && (
@@ -224,22 +222,18 @@ function AddFaultForm({
       </div>
 
       {/* Fault type selection */}
-      <div>
+      <div className="fault-form-field">
         <label
-          className="block text-xs font-medium mb-1"
-          style={{ color: 'var(--text-secondary)' }}
+          htmlFor="fault-type"
+          className="fault-form-label"
         >
           Fault Type
         </label>
         <select
+          id="fault-type"
           value={faultType}
           onChange={e => setFaultType(e.target.value as FaultType)}
-          className="w-full px-3 py-2 rounded-md text-sm"
-          style={{
-            background: 'var(--surface-1)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-primary)'
-          }}
+          className="fault-form-select touch-target-height"
         >
           {Object.entries(FAULT_TYPE_CONFIG).map(([type, info]) => (
             <option key={type} value={type}>
@@ -251,63 +245,56 @@ function AddFaultForm({
 
       {/* Fault type specific parameters */}
       {faultType === 'delayed' && (
-        <div>
+        <div className="fault-form-field">
           <label
-            className="block text-xs font-medium mb-1"
-            style={{ color: 'var(--text-secondary)' }}
+            htmlFor="fault-delay"
+            className="fault-form-label"
           >
             Delay (ms)
           </label>
           <input
+            id="fault-delay"
             type="number"
+            inputMode="numeric"
             value={delay}
             onChange={e => setDelay(parseInt(e.target.value) || 0)}
             min={100}
             max={10000}
             step={100}
-            className="w-full px-3 py-2 rounded-md text-sm"
-            style={{
-              background: 'var(--surface-1)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)'
-            }}
+            className="fault-form-input touch-target-height"
           />
         </div>
       )}
 
       {faultType === 'intermittent' && (
-        <div>
+        <div className="fault-form-field">
           <label
-            className="block text-xs font-medium mb-1"
-            style={{ color: 'var(--text-secondary)' }}
+            htmlFor="fault-probability"
+            className="fault-form-label"
           >
             Toggle Probability (%)
           </label>
           <input
+            id="fault-probability"
             type="range"
             value={probability}
             onChange={e => setProbability(parseInt(e.target.value))}
             min={1}
             max={100}
-            className="w-full"
+            className="fault-form-slider"
           />
-          <div className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
+          <div className="fault-form-hint">
             {probability}% chance to toggle each scan
           </div>
         </div>
       )}
 
       {/* Buttons */}
-      <div className="flex gap-2 pt-2">
+      <div className="fault-form-actions">
         <button
           type="submit"
           disabled={!tagName.trim()}
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-          style={{
-            background: tagName.trim() ? 'var(--accent-amber)' : 'var(--surface-3)',
-            color: tagName.trim() ? 'black' : 'var(--text-muted)',
-            cursor: tagName.trim() ? 'pointer' : 'not-allowed'
-          }}
+          className="fault-form-submit touch-target"
         >
           <IconPlus />
           Add Fault
@@ -315,11 +302,7 @@ function AddFaultForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-2 rounded-md text-sm transition-colors"
-          style={{
-            background: 'var(--surface-3)',
-            color: 'var(--text-secondary)'
-          }}
+          className="fault-form-cancel touch-target"
         >
           Cancel
         </button>
@@ -352,43 +335,30 @@ function QuickActions({
   const hasFaults = Object.keys(faults).length > 0
 
   return (
-    <div className="space-y-2">
-      <div
-        className="text-xs font-medium uppercase tracking-wider"
-        style={{ color: 'var(--text-muted)' }}
-      >
+    <div className="fault-quick-actions">
+      <div className="fault-quick-actions-label">
         Quick Actions
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="fault-quick-actions-buttons">
         {inputTags.length > 0 && (
           <button
             onClick={handleFailAllInputs}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
-            style={{
-              background: 'var(--accent-red-muted)',
-              color: 'var(--accent-red)',
-              border: '1px solid rgba(239, 68, 68, 0.3)'
-            }}
+            className="fault-quick-btn fault-quick-btn-danger touch-target"
             title={`Fail ${inputTags.length} input tags`}
           >
             <IconZap />
-            Fail All Inputs ({inputTags.length})
+            <span>Fail All Inputs ({inputTags.length})</span>
           </button>
         )}
 
         {hasFaults && (
           <button
             onClick={clearAllFaults}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
-            style={{
-              background: 'var(--surface-3)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)'
-            }}
+            className="fault-quick-btn fault-quick-btn-secondary touch-target"
           >
             <IconTrash />
-            Clear All Faults
+            <span>Clear All Faults</span>
           </button>
         )}
       </div>
@@ -415,73 +385,40 @@ export function FaultInjector({ availableTags = [], className = '' }: FaultInjec
 
   return (
     <div
-      className={`fault-injector-panel rounded-lg overflow-hidden ${className}`}
-      style={{
-        background: 'var(--surface-2)',
-        border: '1px solid var(--border-default)'
-      }}
+      className={`fault-injector-panel container-inline ${faultCount > 0 ? 'has-faults' : ''} ${className}`}
     >
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 transition-colors"
-        style={{
-          background: faultCount > 0 ? 'rgba(245, 158, 11, 0.1)' : 'var(--surface-3)',
-          borderBottom: isExpanded ? '1px solid var(--border-subtle)' : 'none'
-        }}
+        className={`fault-injector-header touch-target-height ${faultCount > 0 ? 'has-faults' : ''}`}
+        aria-expanded={isExpanded}
       >
-        <div className="flex items-center gap-2">
-          <span style={{ color: faultCount > 0 ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
+        <div className="fault-injector-title-group">
+          <span className={`fault-injector-icon ${faultCount > 0 ? 'active' : ''}`}>
             <IconWarning />
           </span>
-          <span
-            className="text-sm font-medium"
-            style={{ color: 'var(--text-primary)' }}
-          >
+          <span className="fault-injector-title">
             Fault Injection
           </span>
           {faultCount > 0 && (
-            <span
-              className="px-2 py-0.5 rounded-full text-xs font-medium"
-              style={{
-                background: 'var(--accent-amber)',
-                color: 'black'
-              }}
-            >
+            <span className="fault-count-badge">
               {faultCount} active
             </span>
           )}
         </div>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          style={{
-            color: 'var(--text-muted)',
-            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s ease'
-          }}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        <IconChevron expanded={isExpanded} />
       </button>
 
       {/* Content */}
       {isExpanded && (
-        <div className="p-4 space-y-4">
+        <div className="fault-injector-content">
           {/* Active faults list */}
           {faultCount > 0 && (
-            <div className="space-y-2">
-              <div
-                className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: 'var(--text-muted)' }}
-              >
+            <div className="fault-list-section">
+              <div className="fault-list-label">
                 Active Faults
               </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="fault-list">
                 {Object.entries(faults).map(([tagName, config]) => (
                   <FaultItem
                     key={tagName}
@@ -504,20 +441,7 @@ export function FaultInjector({ availableTags = [], className = '' }: FaultInjec
           ) : (
             <button
               onClick={() => setShowAddForm(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-              style={{
-                background: 'var(--surface-3)',
-                color: 'var(--text-secondary)',
-                border: '1px dashed var(--border-default)'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'var(--surface-4)'
-                e.currentTarget.style.borderStyle = 'solid'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'var(--surface-3)'
-                e.currentTarget.style.borderStyle = 'dashed'
-              }}
+              className="fault-add-btn touch-target"
             >
               <IconPlus />
               Add Fault
@@ -532,15 +456,9 @@ export function FaultInjector({ availableTags = [], className = '' }: FaultInjec
 
           {/* Help text */}
           {faultCount === 0 && !showAddForm && (
-            <div
-              className="text-xs p-3 rounded-md"
-              style={{
-                background: 'var(--surface-1)',
-                color: 'var(--text-muted)'
-              }}
-            >
+            <div className="fault-help-text">
               <strong>Use cases:</strong>
-              <ul className="mt-1 space-y-1 pl-4 list-disc">
+              <ul>
                 <li>Simulate a proximity sensor stuck ON</li>
                 <li>Test intermittent connection failures</li>
                 <li>Verify program handles sensor failures</li>
