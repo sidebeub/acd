@@ -1818,22 +1818,6 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
 
   const totalRungs = [...routineRungs.values()].reduce((sum, r) => sum + r.length, 0)
   console.log(`[RSS Parser] Created ${totalRungs} rungs across ${routineRungs.size} routines`)
-  console.log(`[RSS Parser] Branch regions found: ${branchRegions.length}`)
-
-  // Add debug info to first rung of first routine
-  const firstRoutineName = [...routineRungs.keys()][0]
-  if (firstRoutineName) {
-    const firstRungs = routineRungs.get(firstRoutineName)
-    if (firstRungs && firstRungs.length > 0) {
-      // Add to both comment and rawText for visibility
-      const branchedCount = allAddresses.filter(a => a.branchLeg && a.branchLeg > 0).length
-      const regionInfo = branchRegions.length > 0
-        ? ` Region: ${branchRegions[0].legStart}-${branchRegions[0].branchEnd} (${branchRegions[0].branchEnd - branchRegions[0].legStart} bytes)`
-        : ''
-      const debugMsg = `[DEBUG: ${branchRegions.length} CBranchLeg, ${branchedCount}/${allAddresses.length} branched${regionInfo}]`
-      firstRungs[0].comment = debugMsg + (firstRungs[0].comment ? ' ' + firstRungs[0].comment : '')
-    }
-  }
 
   return { routineRungs, addresses, ladderFiles }
 }
