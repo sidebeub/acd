@@ -175,7 +175,10 @@ export async function POST(request: NextRequest) {
                 raw_text: rung.rawText,
                 instructions: rung.instructions.map(inst => ({
                   type: inst.type,
-                  operands: inst.operands
+                  operands: inst.operands,
+                  branchLeg: inst.branchLeg,
+                  branchLevel: inst.branchLevel,
+                  branchStart: inst.branchStart
                 }))
               }))
             }))
