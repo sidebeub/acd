@@ -1587,7 +1587,8 @@ function LadderVisualization({
     if (Object.keys(counterUpdates).length > 0) {
       updateCounters(counterUpdates)
     }
-  }, [simEnabled, powerFlow, instructions, scanCycle])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simEnabled, powerFlow, instructions, scanCycle, setTagStates, updateTimers, updateCounters])
 
   // Calculate total height
   const totalHeight = Math.max(rows.length * rowHeight, 60)

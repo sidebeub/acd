@@ -258,8 +258,12 @@ export function getOutputUpdates(
     }
 
     // TON - Timer On-Delay
+    // Timer operands: [tag, timeBase, preset, accum]
+    // timeBase is in seconds (e.g., "1.0" = 1 second per count)
+    // preset is the count value
+    // preset_ms = preset * timeBase * 1000
     if (type === 'TON') {
-      const preset = parsePreset(inst.operands[1]) || 5000 // Default 5 seconds
+      const preset = parseTimerPreset(inst.operands[1], inst.operands[2])
       if (isEnergized) {
         timerUpdates[tagName] = { EN: true, PRE: preset }
       } else {
@@ -270,7 +274,7 @@ export function getOutputUpdates(
 
     // TOF - Timer Off-Delay
     if (type === 'TOF') {
-      const preset = parsePreset(inst.operands[1]) || 5000
+      const preset = parseTimerPreset(inst.operands[1], inst.operands[2])
       if (isEnergized) {
         // When energized, DN is true immediately, ACC resets
         timerUpdates[tagName] = { EN: true, DN: true, ACC: 0, TT: false, PRE: preset }
@@ -282,7 +286,7 @@ export function getOutputUpdates(
 
     // RTO - Retentive Timer On
     if (type === 'RTO') {
-      const preset = parsePreset(inst.operands[1]) || 5000
+      const preset = parseTimerPreset(inst.operands[1], inst.operands[2])
       if (isEnergized) {
         timerUpdates[tagName] = { EN: true, PRE: preset }
       } else {
@@ -308,11 +312,45 @@ export function getOutputUpdates(
 }
 
 /**
- * Parse preset value from operand string
+ * Parse timer preset from timeBase and preset operands
+ * Timer operands: [tag, timeBase, preset, accum]
+ * timeBase: seconds per count (e.g., "1.0" = 1 second, "0.01" = 10ms)
+ * preset: number of counts
+ * Returns preset in milliseconds
+ */
+function parseTimerPreset(timeBaseOp: string | undefined, presetOp: string | undefined): number {
+  // Default: 5 seconds
+  const DEFAULT_PRESET_MS = 5000
+
+  // Parse time base (seconds per count)
+  let timeBase = 1.0 // Default 1 second
+  if (timeBaseOp) {
+    const tbVal = parseFloat(timeBaseOp.split('§')[0])
+    if (!isNaN(tbVal) && tbVal > 0) {
+      timeBase = tbVal
+    }
+  }
+
+  // Parse preset (count value)
+  let preset = 5 // Default 5 counts
+  if (presetOp) {
+    const pVal = parseInt(presetOp.split('§')[0], 10)
+    if (!isNaN(pVal) && pVal > 0) {
+      preset = pVal
+    }
+  }
+
+  // Calculate preset in milliseconds
+  const presetMs = preset * timeBase * 1000
+  return presetMs > 0 ? presetMs : DEFAULT_PRESET_MS
+}
+
+/**
+ * Parse preset value from operand string (for counters)
  */
 function parsePreset(operand: string | undefined): number | null {
   if (!operand) return null
-  // Try to parse as number (in ms for timers, count for counters)
+  // Try to parse as number
   const num = parseInt(operand.split('§')[0], 10)
   if (!isNaN(num)) return num
   return null
