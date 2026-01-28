@@ -1840,9 +1840,12 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
     const firstRungs = routineRungs.get(firstRoutineName)
     if (firstRungs && firstRungs.length > 0) {
       // Add to both comment and rawText for visibility
-      const debugMsg = `[DEBUG: ${branchRegions.length} CBranchLeg markers, ${allAddresses.filter(a => a.branchLeg && a.branchLeg > 0).length} branched addrs]`
+      const branchedCount = allAddresses.filter(a => a.branchLeg && a.branchLeg > 0).length
+      const regionInfo = branchRegions.length > 0
+        ? ` Region: ${branchRegions[0].legStart}-${branchRegions[0].branchEnd} (${branchRegions[0].branchEnd - branchRegions[0].legStart} bytes)`
+        : ''
+      const debugMsg = `[DEBUG: ${branchRegions.length} CBranchLeg, ${branchedCount}/${allAddresses.length} branched${regionInfo}]`
       firstRungs[0].comment = debugMsg + (firstRungs[0].comment ? ' ' + firstRungs[0].comment : '')
-      firstRungs[0].rawText = debugMsg + ' ' + firstRungs[0].rawText
     }
   }
 
