@@ -1289,6 +1289,25 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           const opcode = data[pos - 6]
           let decoded = decodeOpcode(opcode)
 
+          // Override instruction type based on symbol description
+          // The MEM DATABASE has descriptions like "- Input - Gate 2 Open" or "- Output - Gate Unlock"
+          // Use this to correct misidentified instruction types
+          const symbol = lookupSymbol(addr)
+          if (symbol && symbol.description) {
+            const desc = symbol.description.toLowerCase()
+            if (desc.startsWith('- input -') || desc.includes(' input ')) {
+              // This is an input - should be XIC or XIO, not an output
+              if (decoded.type === 'OTE' || decoded.type === 'OTL' || decoded.type === 'OTU') {
+                decoded = { type: 'XIC', operandCount: 1 }
+              }
+            } else if (desc.startsWith('- output -') || desc.includes(' output ')) {
+              // This is an output - should be OTE, OTL, or OTU
+              if (decoded.type === 'XIC' || decoded.type === 'XIO') {
+                decoded = { type: 'OTE', operandCount: 1 }
+              }
+            }
+          }
+
           // Override instruction type based on address pattern for timers/counters
           // The opcode byte may not correctly identify these instruction types
           if (addr.match(/^T\d+:\d+$/)) {
