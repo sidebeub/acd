@@ -9,6 +9,8 @@ interface SearchResult {
   location?: string
   match: string
   context?: string
+  rungId?: string
+  rungNumber?: number
 }
 
 interface GlobalSearchProps {

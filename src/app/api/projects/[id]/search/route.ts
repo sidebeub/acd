@@ -8,6 +8,8 @@ interface SearchResult {
   location?: string
   match: string
   context?: string
+  rungId?: string  // For rung results, the database ID for scrolling
+  rungNumber?: number  // For rung results, the rung number
 }
 
 export async function GET(
@@ -102,7 +104,9 @@ export async function GET(
         match: rung.comment?.toLowerCase().includes(query)
           ? rung.comment
           : rung.rawText.substring(0, 100) + (rung.rawText.length > 100 ? '...' : ''),
-        context: rung.rawText.substring(0, 60) + '...'
+        context: rung.rawText.substring(0, 60) + '...',
+        rungId: rung.id,
+        rungNumber: rung.number
       })
     }
 

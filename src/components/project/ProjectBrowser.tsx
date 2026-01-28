@@ -2916,11 +2916,30 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                 setSelectedRoutine(routine.id)
                 setActiveTab('ladder')
                 setExpandedPrograms(prev => new Set([...prev, program.id]))
+
+                // Scroll to the specific rung after a short delay (to let the view render)
+                if (result.rungId) {
+                  setTimeout(() => {
+                    const rungElement = document.getElementById(`rung-${result.rungId}`)
+                    if (rungElement) {
+                      rungElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      // Highlight the rung briefly
+                      rungElement.style.outline = '2px solid var(--accent-blue)'
+                      rungElement.style.outlineOffset = '4px'
+                      setTimeout(() => {
+                        rungElement.style.outline = ''
+                        rungElement.style.outlineOffset = ''
+                      }, 2000)
+                    }
+                  }, 300)
+                }
               }
             }
           } else if (result.type === 'tag') {
-            setActiveTab('tags')
-            setSearchQuery(result.name)
+            // Open in-ladder tag search to find where this tag is used
+            setActiveTab('ladder')
+            setTagSearchTerm(result.name)
+            setTagSearchOpen(true)
           } else if (result.type === 'aoi') {
             setActiveTab('aoi')
           } else if (result.type === 'udt') {
