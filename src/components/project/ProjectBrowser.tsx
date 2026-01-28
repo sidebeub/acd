@@ -9,6 +9,8 @@ import { StructuredTextViewer } from '../structured-text/StructuredTextViewer'
 import { MiniMap } from '../ladder/MiniMap'
 import { IOVisualization } from '../IOVisualization'
 import { buildTagExportData, generateTagCSV, downloadCSV, generateCSVFilename } from '@/lib/csv-export'
+import { PDFExportModal } from '../export/PDFExportModal'
+import { ProgramDiff } from '../diff/ProgramDiff'
 
 interface Tag {
   id: string
@@ -354,7 +356,7 @@ const IconModule = () => (
   </svg>
 )
 
-type TabType = 'ladder' | 'tags' | 'xref' | 'calltree' | 'timers' | 'io' | 'alarms' | 'aoi' | 'udt' | 'tasks' | 'modules' | 'produced' | 'sequences' | 'safety' | 'report'
+type TabType = 'ladder' | 'tags' | 'xref' | 'calltree' | 'timers' | 'io' | 'alarms' | 'aoi' | 'udt' | 'tasks' | 'modules' | 'produced' | 'sequences' | 'safety' | 'report' | 'diff'
 
 const IconSafety = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -379,6 +381,16 @@ const IconSequence = () => (
     <circle cx="18" cy="18" r="2" />
     <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
     <path d="M12 6v12" strokeDasharray="2 2" />
+  </svg>
+)
+
+const IconDiff = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="3" width="7" height="18" rx="1" />
+    <rect x="14" y="3" width="7" height="18" rx="1" />
+    <path d="M5 8h3M5 12h3M5 16h3" />
+    <path d="M16 8h3M16 12h3M16 16h3" />
+    <path d="M10 12h4" strokeDasharray="2 2" />
   </svg>
 )
 
@@ -453,6 +465,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
   const [tagSearchOpen, setTagSearchOpen] = useState(false)
   const [tagSearchTerm, setTagSearchTerm] = useState('')
   const [currentTagSearchMatchIndex, setCurrentTagSearchMatchIndex] = useState(0)
+
+  // PDF Export modal state
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false)
 
   // Ref for the main content scroll container (for mini-map)
   const ladderScrollRef = useRef<HTMLElement>(null)
@@ -790,6 +805,42 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
     downloadCSV(csvContent, filename)
   }, [project])
 
+  // Handle Export for Diff - exports JSON file for comparison
+  const handleExportForDiff = useCallback(() => {
+    const exportData = {
+      name: project.name,
+      processorType: project.processorType,
+      exportedAt: new Date().toISOString(),
+      programs: project.programs.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        disabled: p.disabled,
+        routines: p.routines.map(r => ({
+          id: r.id,
+          name: r.name,
+          type: r.type,
+          description: r.description,
+          rungs: r.rungs.map(rung => ({
+            id: rung.id,
+            number: rung.number,
+            comment: rung.comment,
+            rawText: rung.rawText,
+            instructions: rung.instructions ? JSON.parse(rung.instructions) : []
+          }))
+        }))
+      }))
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${project.name.replace(/[^a-zA-Z0-9]/g, '_')}_diff_export_${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [project])
+
   // Build tag descriptions map for ladder view
   const tagDescriptions = useMemo(() => {
     const map: Record<string, string> = {}
@@ -1022,6 +1073,18 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                 <span className="hidden sm:inline">Report</span>
               </span>
             </button>
+
+            {/* Diff tab */}
+            <button
+              onClick={() => setActiveTab('diff')}
+              className={`tab-item ${activeTab === 'diff' ? 'tab-item-active' : ''}`}
+              title="Compare two versions of your PLC program"
+            >
+              <span className="flex items-center gap-1">
+                <IconDiff />
+                <span className="hidden sm:inline">Diff</span>
+              </span>
+            </button>
           </div>
 
           {/* Search button */}
@@ -1043,7 +1106,7 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
           {/* Print / Export PDF button */}
           <button
-            onClick={() => window.print()}
+            onClick={() => setPdfExportModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors no-print"
             style={{
               background: 'var(--surface-3)',
@@ -1057,10 +1120,10 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
               e.currentTarget.style.background = 'var(--surface-3)'
               e.currentTarget.style.color = 'var(--text-secondary)'
             }}
-            title="Print / Export PDF"
+            title="Export / Print PDF with options"
           >
             <IconPrint />
-            <span className="hidden sm:inline">Print</span>
+            <span className="hidden sm:inline">Export</span>
           </button>
 
           {/* Chat button */}
@@ -2583,6 +2646,17 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                       <div className="text-xs" style={{ color: 'var(--text-muted)' }}>All tags with addresses, types, and usage data</div>
                     </div>
                   </button>
+                  <button
+                    onClick={handleExportForDiff}
+                    className="w-full flex items-center gap-3 p-4 rounded border transition-colors text-left"
+                    style={{ background: 'var(--surface-1)', borderColor: 'var(--accent-blue)' }}
+                  >
+                    <IconDiff />
+                    <div>
+                      <div className="font-medium" style={{ color: 'var(--text-primary)' }}>Export for Diff</div>
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>JSON snapshot for version comparison in the Diff tool</div>
+                    </div>
+                  </button>
                 </div>
 
                 <h3 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--text-primary)' }}>Operator Documentation</h3>
@@ -2607,6 +2681,38 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                 </div>
               </div>
             </div>
+          </main>
+        )}
+
+        {/* Diff View */}
+        {activeTab === 'diff' && (
+          <main className="flex-1 overflow-hidden" style={{ background: 'var(--surface-0)' }}>
+            <ProgramDiff
+              currentProject={{
+                name: project.name,
+                processorType: project.processorType,
+                programs: project.programs.map(p => ({
+                  id: p.id,
+                  name: p.name,
+                  description: p.description,
+                  disabled: p.disabled,
+                  routines: p.routines.map(r => ({
+                    id: r.id,
+                    name: r.name,
+                    type: r.type,
+                    description: r.description,
+                    rungs: r.rungs.map(rung => ({
+                      id: rung.id,
+                      number: rung.number,
+                      comment: rung.comment,
+                      rawText: rung.rawText,
+                      instructions: rung.instructions ? JSON.parse(rung.instructions) : []
+                    }))
+                  }))
+                }))
+              }}
+              onClose={() => setActiveTab('ladder')}
+            />
           </main>
         )}
 
@@ -2676,6 +2782,16 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
         currentMatchIndex={currentTagSearchMatchIndex}
         onNavigateNext={handleTagSearchNext}
         onNavigatePrev={handleTagSearchPrev}
+      />
+
+      {/* PDF Export Modal */}
+      <PDFExportModal
+        isOpen={pdfExportModalOpen}
+        onClose={() => setPdfExportModalOpen(false)}
+        rungs={currentRoutine?.rungs || []}
+        projectName={project.name}
+        programName={currentProgram?.name}
+        routineName={currentRoutine?.name}
       />
     </div>
   )

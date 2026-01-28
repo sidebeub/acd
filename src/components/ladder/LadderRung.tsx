@@ -1,7 +1,9 @@
 'use client'
 
 import React, { useState } from 'react'
-import { SimulationToggleButton, useSimulation, calculatePowerFlow, getOutputUpdates, TimerDisplay, CounterDisplay } from './SimulationContext'
+import { SimulationToggleButton, useSimulation, calculatePowerFlowWithNumeric, getOutputUpdatesWithNumeric, getNumericValueFromOperand, TimerDisplay, CounterDisplay } from './SimulationContext'
+import { EditableNumericOperand, TimerCounterEditor } from '../simulation/NumericEditor'
+import { TrendChartButton } from '../simulation/TrendChart'
 
 interface Instruction {
   type: string
@@ -68,7 +70,7 @@ interface LadderRungProps {
   aoiNames?: string[]  // List of AOI names in this project
   isBookmarked?: boolean  // Whether this rung is bookmarked
   onToggleBookmark?: (rungId: string) => void  // Toggle bookmark callback
-  forcedTags?: Record<string, 'on' | 'off'>  // Tags that are forced (tag name -> force state)
+  forcedTags?: Record<string, 'on' | 'off' | null>  // Tags that are forced (tag name -> force state)
   // Tag search highlighting props
   searchTerm?: string  // Search term for highlighting matching operands
   currentSearchMatchIndex?: number  // The currently focused match index (for scroll-to and highlight focus)
@@ -77,6 +79,9 @@ interface LadderRungProps {
   isSelected?: boolean  // Whether this rung is selected via keyboard navigation
   selectedInstructionIndex?: number | null  // Index of the selected instruction within this rung
   onInstructionSelect?: (instructionIndex: number) => void  // Callback when an instruction is clicked/selected
+  // Cross-reference navigation props
+  onTagXRef?: (tagName: string) => void  // Callback when a tag is clicked for cross-reference
+  routineName?: string  // Current routine name for cross-reference display
 }
 
 // Helper to check if an operand matches the search term (partial, case-insensitive)
@@ -355,19 +360,35 @@ interface TraceResult {
   directTargets: TraceTarget[]
 }
 
-// Force indicator badge
+// Force indicator badge - RSLogix style with amber/yellow coloring
 function ForceBadge({ type }: { type: 'on' | 'off' }) {
   return (
     <span
-      className="absolute -top-1 -right-1 text-[8px] font-bold px-1 rounded"
+      className="force-badge"
       style={{
-        background: type === 'on' ? 'rgb(239, 68, 68)' : 'rgb(59, 130, 246)',
-        color: 'white',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+        position: 'absolute',
+        top: '-8px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        fontSize: '9px',
+        fontWeight: 700,
+        padding: '1px 4px',
+        borderRadius: '3px',
+        background: type === 'on'
+          ? 'linear-gradient(180deg, #f59e0b 0%, #d97706 100%)'
+          : 'linear-gradient(180deg, #eab308 0%, #ca8a04 100%)',
+        color: '#000',
+        boxShadow: type === 'on'
+          ? '0 0 8px rgba(245, 158, 11, 0.8), 0 1px 3px rgba(0,0,0,0.4)'
+          : '0 0 8px rgba(234, 179, 8, 0.8), 0 1px 3px rgba(0,0,0,0.4)',
+        border: '1px solid rgba(0,0,0,0.2)',
+        zIndex: 25,
+        whiteSpace: 'nowrap',
+        letterSpacing: '0.5px'
       }}
-      title={type === 'on' ? 'Forced ON' : 'Forced OFF'}
+      title={type === 'on' ? 'FORCED ON - Right-click to change' : 'FORCED OFF - Right-click to change'}
     >
-      F{type === 'on' ? '1' : '0'}
+      F
     </span>
   )
 }
@@ -1025,6 +1046,16 @@ function getInstructionColor(config: typeof DEFAULT_CONFIG): string {
   }
 }
 
+// Check if instruction type is a comparison instruction
+function isComparisonInstruction(type: string): boolean {
+  return ['EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ', 'LIM', 'CMP'].includes(type.toUpperCase())
+}
+
+// Check if instruction type is a math instruction
+function isMathInstruction(type: string): boolean {
+  return ['MOV', 'ADD', 'SUB', 'MUL', 'DIV'].includes(type.toUpperCase())
+}
+
 // Instruction Box Component (for timers, counters, math, etc.)
 function InstructionBox({
   inst,
@@ -1049,10 +1080,24 @@ function InstructionBox({
   const hasParams = paramLabels.length > 0 && inst.operands.length > 0
   const isTimer = isTimerInstruction(inst.type)
   const isCounter = isCounterInstruction(inst.type)
+  const isComparison = isComparisonInstruction(inst.type)
+  const isMath = isMathInstruction(inst.type)
   const headerColor = getInstructionColor(config)
 
-  // Get simulation state for timers/counters
-  const { enabled: simEnabled, timerStates, counterStates } = useSimulation()
+  // Get simulation state for timers/counters and numeric values
+  const {
+    enabled: simEnabled,
+    timerStates,
+    counterStates,
+    numericValues,
+    editedValues,
+    setNumericValue,
+    resetNumericValue,
+    setTimerAcc,
+    setTimerPre,
+    setCounterAcc,
+    setCounterPre
+  } = useSimulation()
 
   // Extract preset value for timers/counters
   const presetValue = (isTimer || isCounter) && inst.operands.length > 1 ? inst.operands[1] : null
@@ -1166,16 +1211,21 @@ function InstructionBox({
             />
           </div>
 
-          {/* ACC / PRE values */}
+          {/* ACC / PRE values - Editable in simulation */}
           {simEnabled && (isTimer ? timerState : counterState) && (
-            <div className="text-[10px] font-mono text-center mb-1" style={{ color: 'var(--text-secondary)' }}>
-              {isTimer && timerState
-                ? `${(timerState.ACC / 1000).toFixed(1)}s / ${(timerState.PRE / 1000).toFixed(1)}s`
-                : counterState
-                  ? `${counterState.ACC} / ${counterState.PRE}`
-                  : ''
-              }
-            </div>
+            <TimerCounterEditor
+              type={isTimer ? 'timer' : 'counter'}
+              tagName={tagName}
+              accValue={isTimer && timerState ? timerState.ACC : (counterState?.ACC ?? 0)}
+              preValue={isTimer && timerState ? timerState.PRE : (counterState?.PRE ?? 10)}
+              onAccChange={(val) => isTimer ? setTimerAcc(tagName, val) : setCounterAcc(tagName, val)}
+              onPreChange={(val) => isTimer ? setTimerPre(tagName, val) : setCounterPre(tagName, val)}
+              isAccEdited={editedValues.has(`${tagName}.ACC`)}
+              isPreEdited={editedValues.has(`${tagName}.PRE`)}
+              onAccReset={() => resetNumericValue(`${tagName}.ACC`)}
+              onPreReset={() => resetNumericValue(`${tagName}.PRE`)}
+              simEnabled={simEnabled}
+            />
           )}
 
           {/* Timer/Counter bits - highlight active bits during simulation */}
@@ -1241,21 +1291,51 @@ function InstructionBox({
         /* Regular parameters display */
         <div className="px-2 py-1.5" style={{ background: config.bg }}>
           {hasParams ? (
-            // Show labeled parameters
-            inst.operands.slice(0, 4).map((op, i) => (
-              <div key={i} className="flex justify-between items-center gap-2 py-0.5">
-                <span className="text-[9px] uppercase" style={{ color: 'var(--text-muted)' }}>
-                  {paramLabels[i] || `Param${i + 1}`}
-                </span>
-                <span
-                  className="font-mono text-[10px] truncate max-w-[80px] text-right"
-                  style={{ color: 'var(--text-secondary)' }}
-                  title={op}
-                >
-                  {op}
-                </span>
-              </div>
-            ))
+            // Show labeled parameters - editable for comparison/math instructions in simulation
+            inst.operands.slice(0, 4).map((op, i) => {
+              const cleanOp = op.split('§')[0]
+              // Make source operands editable for comparison and math instructions
+              // For math instructions: MOV has source at [0], ADD/SUB/MUL/DIV have sources at [0] and [1]
+              const isSourceOperand = isMath
+                ? (inst.type.toUpperCase() === 'MOV' ? i === 0 : i < 2)
+                : isComparison
+              const isNumericEditable = simEnabled && isSourceOperand
+
+              // Get the current value for this operand
+              const currentValue = (simEnabled && (isComparison || isMath))
+                ? getNumericValueFromOperand(op, numericValues)
+                : parseFloat(cleanOp)
+
+              const isEdited = editedValues.has(cleanOp)
+
+              return (
+                <div key={i} className="flex justify-between items-center gap-2 py-0.5">
+                  <span className="text-[9px] uppercase" style={{ color: 'var(--text-muted)' }}>
+                    {paramLabels[i] || `Param${i + 1}`}
+                  </span>
+                  {isNumericEditable ? (
+                    <EditableNumericOperand
+                      operand={cleanOp}
+                      value={currentValue}
+                      editable={true}
+                      onValueChange={(val) => setNumericValue(cleanOp, val)}
+                      isEdited={isEdited}
+                      onReset={() => resetNumericValue(cleanOp)}
+                      simEnabled={simEnabled}
+                      allowFloat={true}
+                    />
+                  ) : (
+                    <span
+                      className="font-mono text-[10px] truncate max-w-[80px] text-right"
+                      style={{ color: 'var(--text-secondary)' }}
+                      title={op}
+                    >
+                      {simEnabled && !isNaN(currentValue) ? currentValue : op}
+                    </span>
+                  )}
+                </div>
+              )
+            })
           ) : (
             // Show simple operands
             inst.operands.length > 0 && (
@@ -1267,6 +1347,82 @@ function InstructionBox({
                 {inst.operands[0]}
               </div>
             )
+          )}
+
+          {/* Comparison result indicator */}
+          {simEnabled && isComparison && (
+            <div className="mt-1 flex justify-center">
+              {(() => {
+                const sourceA = getNumericValueFromOperand(inst.operands[0], numericValues)
+                const sourceB = getNumericValueFromOperand(inst.operands[1], numericValues)
+                let result = false
+                const type = inst.type.toUpperCase()
+                switch (type) {
+                  case 'EQU': result = sourceA === sourceB; break
+                  case 'NEQ': result = sourceA !== sourceB; break
+                  case 'GRT': result = sourceA > sourceB; break
+                  case 'GEQ': result = sourceA >= sourceB; break
+                  case 'LES': result = sourceA < sourceB; break
+                  case 'LEQ': result = sourceA <= sourceB; break
+                  case 'LIM': {
+                    const highLimit = getNumericValueFromOperand(inst.operands[2], numericValues)
+                    result = sourceA <= sourceB && sourceB <= highLimit
+                    break
+                  }
+                  default: result = true
+                }
+                return (
+                  <span className={`comparison-result ${result ? 'true' : 'false'}`}>
+                    {result ? 'TRUE' : 'FALSE'}
+                  </span>
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Math instruction result indicator */}
+          {simEnabled && isMath && (
+            <div className="mt-1 pt-1 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+              {(() => {
+                const type = inst.type.toUpperCase()
+                let result = 0
+                let destTag = ''
+
+                if (type === 'MOV') {
+                  result = getNumericValueFromOperand(inst.operands[0], numericValues)
+                  destTag = inst.operands[1]?.split('§')[0] || ''
+                } else {
+                  const sourceA = getNumericValueFromOperand(inst.operands[0], numericValues)
+                  const sourceB = getNumericValueFromOperand(inst.operands[1], numericValues)
+                  destTag = inst.operands[2]?.split('§')[0] || ''
+
+                  switch (type) {
+                    case 'ADD': result = sourceA + sourceB; break
+                    case 'SUB': result = sourceA - sourceB; break
+                    case 'MUL': result = sourceA * sourceB; break
+                    case 'DIV': result = sourceB !== 0 ? sourceA / sourceB : 0; break
+                  }
+                }
+
+                // Format result: show as integer if whole number, otherwise 2 decimal places
+                const displayResult = Number.isInteger(result) ? result : result.toFixed(2)
+
+                return (
+                  <div className="flex justify-between items-center">
+                    <span className="text-[8px] uppercase" style={{ color: 'var(--text-muted)' }}>
+                      Result
+                    </span>
+                    <span
+                      className="font-mono text-[11px] font-semibold"
+                      style={{ color: 'var(--accent)' }}
+                      title={`${destTag} = ${displayResult}`}
+                    >
+                      {displayResult}
+                    </span>
+                  </div>
+                )
+              })()}
+            </div>
           )}
         </div>
       )}
@@ -1312,13 +1468,15 @@ function getTagDescription(tagName: string, descriptions: Record<string, string>
 }
 
 // Helper to check if tag is forced and get force state
-function getForceState(tagName: string, forcedTags?: Record<string, 'on' | 'off'>): 'on' | 'off' | null {
+function getForceState(tagName: string, forcedTags?: Record<string, 'on' | 'off' | null>): 'on' | 'off' | null {
   if (!tagName || !forcedTags) return null
   // Try exact match
-  if (forcedTags[tagName]) return forcedTags[tagName]
+  const exactMatch = forcedTags[tagName]
+  if (exactMatch === 'on' || exactMatch === 'off') return exactMatch
   // Try base tag (before first dot)
   const baseName = tagName.split('.')[0].split('[')[0]
-  if (forcedTags[baseName]) return forcedTags[baseName]
+  const baseMatch = forcedTags[baseName]
+  if (baseMatch === 'on' || baseMatch === 'off') return baseMatch
   return null
 }
 
@@ -1335,21 +1493,30 @@ function ContactCoilElement({
   simEnabled,
   isEnergized,
   tagState,
-  onToggleTag
+  onToggleTag,
+  onTagXRef,
+  onForceOn,
+  onForceOff,
+  onRemoveForce
 }: {
   inst: Instruction
   config: typeof DEFAULT_CONFIG & { isContact?: boolean; isCoil?: boolean }
   isHovered: boolean
   onHover: (hovered: boolean) => void
   tagDescriptions?: Record<string, string>
-  forcedTags?: Record<string, 'on' | 'off'>
+  forcedTags?: Record<string, 'on' | 'off' | null>
   isSearchMatch?: boolean
   isCurrentSearchMatch?: boolean
   simEnabled?: boolean
   isEnergized?: boolean
   tagState?: boolean
   onToggleTag?: () => void
+  onTagXRef?: (tagName: string) => void
+  onForceOn?: (tagName: string) => void
+  onForceOff?: (tagName: string) => void
+  onRemoveForce?: (tagName: string) => void
 }) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const rawOperand = inst.operands[0] || ''
   const [symbolName] = rawOperand.includes('§') ? rawOperand.split('§') : [rawOperand, null]
   const tagName = symbolName
@@ -1358,6 +1525,64 @@ function ContactCoilElement({
   const forceState = getForceState(tagName, forcedTags)
   const isContact = config.isContact
   const isCoil = config.isCoil
+
+  // Handle right-click for force menu
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (simEnabled && isContact) {
+      e.preventDefault()
+      e.stopPropagation()
+      setContextMenu({ x: e.clientX, y: e.clientY })
+    }
+  }
+
+  // Long press timer for mobile context menu
+  const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (simEnabled && isContact) {
+      const touch = e.touches[0]
+      longPressTimerRef.current = setTimeout(() => {
+        setContextMenu({ x: touch.clientX, y: touch.clientY })
+      }, 500)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  const handleTouchMove = () => {
+    // Cancel long press if user moves
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  // Close context menu when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null)
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
+      return () => {
+        document.removeEventListener('click', handleClickOutside)
+        document.removeEventListener('touchstart', handleClickOutside)
+      }
+    }
+  }, [contextMenu])
+
+  // Clean up timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current)
+      }
+    }
+  }, [])
 
   // Search highlight styling
   const searchHighlightStyle = isSearchMatch ? {
@@ -1370,16 +1595,42 @@ function ContactCoilElement({
     animation: isCurrentSearchMatch ? 'search-pulse 1.5s ease-in-out infinite' : undefined
   } : {}
 
-  // Simulation classes
+  // Simulation classes - add forced class for visual distinction
   const simClass = simEnabled ? (
     isContact ? (isEnergized ? 'contact-energized' : 'contact-de-energized') :
     isCoil ? (isEnergized ? 'coil-energized' : 'coil-de-energized') : ''
   ) : ''
   const clickableClass = simEnabled && isContact ? 'contact-clickable' : ''
+  const forcedClass = forceState ? 'contact-forced' : ''
+
+  // Cross-reference clickable class (when not in simulation mode or for non-contacts)
+  const xrefClickableClass = !simEnabled && onTagXRef ? 'tag-clickable' : ''
+
+  // Handle click - simulation toggle vs cross-reference
+  const handleClick = (e: React.MouseEvent) => {
+    // Ctrl+click or Cmd+click always opens cross-reference
+    if ((e.ctrlKey || e.metaKey) && onTagXRef) {
+      e.preventDefault()
+      e.stopPropagation()
+      onTagXRef(tagName)
+      return
+    }
+
+    // In simulation mode, contacts toggle state
+    if (simEnabled && isContact && onToggleTag) {
+      onToggleTag()
+      return
+    }
+
+    // When not in simulation mode, regular click opens cross-reference
+    if (!simEnabled && onTagXRef) {
+      onTagXRef(tagName)
+    }
+  }
 
   return (
     <div
-      className={`relative flex flex-col items-center ${simEnabled && isContact ? 'cursor-pointer' : 'cursor-default'} ${isSearchMatch ? 'search-highlight' : ''} ${simClass} ${clickableClass}`}
+      className={`relative flex flex-col items-center touch-ripple ${simEnabled && isContact ? 'touch-ripple-green' : ''} ${simEnabled && isContact ? 'cursor-pointer' : !simEnabled && onTagXRef ? 'cursor-pointer' : 'cursor-default'} ${isSearchMatch ? 'search-highlight' : ''} ${simClass} ${clickableClass} ${forcedClass} ${xrefClickableClass}`}
       style={{
         transform: isHovered ? 'translateY(-2px)' : 'none',
         transition: 'transform 0.15s ease',
@@ -1387,8 +1638,65 @@ function ContactCoilElement({
       }}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      onClick={simEnabled && isContact && onToggleTag ? onToggleTag : undefined}
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
     >
+      {/* Force context menu - touch-friendly */}
+      {contextMenu && (
+        <div
+          className="force-context-menu touch-context-menu"
+          style={{
+            position: 'fixed',
+            left: Math.min(contextMenu.x, window.innerWidth - 200),
+            top: Math.min(contextMenu.y, window.innerHeight - 200),
+            zIndex: 1000
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          <div className="force-menu-header" style={{ minHeight: '44px', display: 'flex', alignItems: 'center', padding: '8px 12px' }}>
+            Force Tag: {tagName}
+          </div>
+          <button
+            className={`force-menu-item touch-ripple ${forceState === 'on' ? 'force-menu-item-active' : ''}`}
+            style={{ minHeight: '48px' }}
+            onClick={() => {
+              onForceOn?.(tagName)
+              setContextMenu(null)
+            }}
+          >
+            <span className="force-menu-icon force-on">F1</span>
+            Force ON
+          </button>
+          <button
+            className={`force-menu-item touch-ripple ${forceState === 'off' ? 'force-menu-item-active' : ''}`}
+            style={{ minHeight: '48px' }}
+            onClick={() => {
+              onForceOff?.(tagName)
+              setContextMenu(null)
+            }}
+          >
+            <span className="force-menu-icon force-off">F0</span>
+            Force OFF
+          </button>
+          {forceState && (
+            <button
+              className="force-menu-item force-menu-item-remove touch-ripple"
+              style={{ minHeight: '48px' }}
+              onClick={() => {
+                onRemoveForce?.(tagName)
+                setContextMenu(null)
+              }}
+            >
+              <span className="force-menu-icon">X</span>
+              Remove Force
+            </button>
+          )}
+        </div>
+      )}
       {/* Simulation state badge */}
       {simEnabled && isContact && (
         <div className={`contact-state-badge ${tagState ? 'contact-state-on' : 'contact-state-off'}`}>
@@ -1452,6 +1760,11 @@ function ContactCoilElement({
           <div className="mt-1 font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
             {tagName}
           </div>
+          {onTagXRef && (
+            <div className="mt-1.5 pt-1.5 border-t text-[9px]" style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}>
+              {simEnabled ? 'Ctrl+click for X-Ref' : 'Click for X-Ref'}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1523,10 +1836,11 @@ function LadderVisualization({
   tagDescriptions,
   aoiNames,
   onExpandAoi,
-  forcedTags,
+  forcedTags: _externalForcedTags,  // Unused - we get forcedTags from SimulationContext now
   searchTerm,
   currentSearchMatchIndex,
-  searchMatchStartIndex
+  searchMatchStartIndex,
+  onTagXRef
 }: {
   instructions: Instruction[]
   hoveredInstruction: number | null
@@ -1534,11 +1848,13 @@ function LadderVisualization({
   tagDescriptions?: Record<string, string>
   aoiNames?: string[]
   onExpandAoi?: (name: string) => void
-  forcedTags?: Record<string, 'on' | 'off'>
+  forcedTags?: Record<string, 'on' | 'off' | null>
   searchTerm?: string
   currentSearchMatchIndex?: number
   searchMatchStartIndex?: number
+  onTagXRef?: (tagName: string) => void
 }) {
+  void _externalForcedTags // Suppress unused warning - kept for backward compatibility
   const { rows, hasBranches, branchRows } = organizeBranches(instructions)
   const rowHeight = 130 // Height per row - enough space for instruction boxes with 3+ params
   const indentPerLevel = 60 // Pixels to indent per nesting level
@@ -1549,28 +1865,35 @@ function LadderVisualization({
     tagStates,
     timerStates,
     counterStates,
+    forcedTags: simForcedTags,
+    numericValues,
     toggleTag,
     setTagStates,
     updateTimers,
     updateCounters,
+    forceTagOn,
+    forceTagOff,
+    removeForce,
+    setNumericValue,
     scanCycle
   } = useSimulation()
 
-  // Calculate power flow when simulation is enabled
+  // Calculate power flow when simulation is enabled (with numeric values for comparisons)
   const powerFlow = React.useMemo(() => {
     if (!simEnabled) return null
-    return calculatePowerFlow(instructions, tagStates, rows, timerStates, counterStates)
-  }, [simEnabled, instructions, tagStates, rows, timerStates, counterStates])
+    return calculatePowerFlowWithNumeric(instructions, tagStates, rows, timerStates, counterStates, numericValues, simForcedTags)
+  }, [simEnabled, instructions, tagStates, rows, timerStates, counterStates, numericValues, simForcedTags])
 
-  // Apply output updates (OTE sets tags, timers accumulate, etc.)
+  // Apply output updates (OTE sets tags, timers accumulate, math instructions update values, etc.)
   React.useEffect(() => {
     if (!simEnabled || !powerFlow) return
 
-    const { tagUpdates, timerUpdates, counterUpdates } = getOutputUpdates(
+    const { tagUpdates, timerUpdates, counterUpdates, numericUpdates } = getOutputUpdatesWithNumeric(
       instructions,
       powerFlow,
       timerStates,
-      counterStates
+      counterStates,
+      numericValues
     )
 
     // Apply tag updates (OTE, OTL, OTU)
@@ -1587,8 +1910,15 @@ function LadderVisualization({
     if (Object.keys(counterUpdates).length > 0) {
       updateCounters(counterUpdates)
     }
+
+    // Apply numeric value updates from math instructions (MOV, ADD, SUB, MUL, DIV)
+    if (Object.keys(numericUpdates).length > 0) {
+      for (const [tag, value] of Object.entries(numericUpdates)) {
+        setNumericValue(tag, value)
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [simEnabled, powerFlow, instructions, scanCycle, setTagStates, updateTimers, updateCounters])
+  }, [simEnabled, powerFlow, instructions, scanCycle, setTagStates, updateTimers, updateCounters, setNumericValue])
 
   // Calculate total height
   const totalHeight = Math.max(rows.length * rowHeight, 60)
@@ -1726,13 +2056,17 @@ function LadderVisualization({
                             isHovered={isHovered}
                             onHover={(h) => setHoveredInstruction(h ? globalIndex : null)}
                             tagDescriptions={tagDescriptions}
-                            forcedTags={forcedTags}
+                            forcedTags={simForcedTags}
                             isSearchMatch={isSearchMatch}
                             isCurrentSearchMatch={isCurrentSearchMatch}
                             simEnabled={simEnabled}
                             isEnergized={powerFlow?.instructionEnergized[globalIndex]}
                             tagState={tagStates[(inst.operands[0]?.split('§')[0] || '')]}
                             onToggleTag={() => toggleTag(inst.operands[0]?.split('§')[0] || '')}
+                            onTagXRef={onTagXRef}
+                            onForceOn={forceTagOn}
+                            onForceOff={forceTagOff}
+                            onRemoveForce={removeForce}
                           />
                         ) : (
                           <InstructionBox
@@ -1826,7 +2160,9 @@ export function LadderRung({
   forcedTags,
   searchTerm,
   currentSearchMatchIndex,
-  searchMatchStartIndex
+  searchMatchStartIndex,
+  onTagXRef,
+  routineName
 }: LadderRungProps) {
   const [isExplaining, setIsExplaining] = useState(false)
   const [showRaw, setShowRaw] = useState(false)
@@ -1846,6 +2182,22 @@ export function LadderRung({
     .filter(inst => ['OTE', 'OTL', 'OTU', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'MOV', 'CLR'].includes(inst.type))
     .map(inst => inst.operands[0])
     .filter(Boolean)
+
+  // Extract all unique tags from rung for trend chart
+  const availableTags = React.useMemo(() => {
+    const tags = new Set<string>()
+    instructions.forEach(inst => {
+      inst.operands.forEach(op => {
+        if (op) {
+          const tagName = op.split('\u00A7')[0] // Remove description suffix
+          if (tagName && !tagName.match(/^[0-9.]+$/)) { // Skip numeric literals
+            tags.add(tagName)
+          }
+        }
+      })
+    })
+    return Array.from(tags).sort()
+  }, [instructions])
 
   const handleTrace = async (tag: string, direction: 'sources' | 'targets') => {
     if (!projectId || isTracing) return
@@ -2157,6 +2509,7 @@ export function LadderRung({
             <span className="hidden sm:inline">{isExplaining ? 'Analyzing...' : 'Explain'}</span>
           </button>
           <SimulationToggleButton />
+          <TrendChartButton availableTags={availableTags} />
         </div>
       </div>
 
@@ -2172,6 +2525,7 @@ export function LadderRung({
         searchTerm={searchTerm}
         currentSearchMatchIndex={currentSearchMatchIndex}
         searchMatchStartIndex={searchMatchStartIndex}
+        onTagXRef={onTagXRef}
       />
 
       {/* AOI Modal */}
