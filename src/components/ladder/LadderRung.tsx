@@ -916,64 +916,146 @@ const SOURCE_LABELS: Record<string, { label: string }> = {
 function formatExplanation(text: string): React.ReactNode {
   if (!text) return text
 
-  const lines: string[] = []
-  let currentText = text
+  // Split into sections by **Section:** pattern
+  const sections: React.ReactNode[] = []
+  const lines = text.split('\n')
+  let currentSection: { title: string | null; content: string[] } = { title: null, content: [] }
 
-  // Split on "Also:" to separate sections
-  const alsoSplit = currentText.split(/\nAlso:\s*/)
+  lines.forEach((line, idx) => {
+    // Check for section header: **Purpose:** or **Logic Flow:** etc.
+    const sectionMatch = line.match(/^\*\*([^*]+):\*\*\s*(.*)/)
+    if (sectionMatch) {
+      // Save previous section if it has content
+      if (currentSection.title || currentSection.content.length > 0) {
+        sections.push(renderSection(currentSection, sections.length))
+      }
+      currentSection = {
+        title: sectionMatch[1],
+        content: sectionMatch[2] ? [sectionMatch[2]] : []
+      }
+    } else if (line.trim()) {
+      currentSection.content.push(line)
+    } else if (currentSection.content.length > 0) {
+      currentSection.content.push('') // preserve empty lines within sections
+    }
+  })
 
-  if (alsoSplit.length > 1) {
-    // First part before "Also:"
-    lines.push(...formatMainSection(alsoSplit[0]))
-    // "Also:" section
-    lines.push('')
-    lines.push(`Also: ${alsoSplit[1]}`)
-  } else {
-    lines.push(...formatMainSection(currentText))
+  // Add the last section
+  if (currentSection.title || currentSection.content.length > 0) {
+    sections.push(renderSection(currentSection, sections.length))
   }
 
-  return lines.map((line, i) => (
-    <span key={i} className="block py-0.5">
-      {line || <br />}
-    </span>
-  ))
+  return <div className="space-y-3">{sections}</div>
 }
 
-function formatMainSection(text: string): string[] {
-  const lines: string[] = []
-
-  // Check for "When X, one of these parallel paths executes:" pattern
-  const parallelIndex = text.indexOf(', one of these parallel paths executes:')
-
-  if (parallelIndex > 0) {
-    const whenPart = text.substring(0, parallelIndex)
-    const itemsPart = text.substring(parallelIndex + ', one of these parallel paths executes:'.length).trim()
-
-    lines.push(whenPart)
-    lines.push('')
-
-    // Parse numbered items (1. ..., 2. ...)
-    const items = itemsPart.split(/(?=\d+\.\s)/).filter(s => s.trim())
-
-    items.forEach(item => {
-      const cleaned = item.trim()
-      if (cleaned) {
-        // Format: "1. If X → Y" becomes "  1. If X → Y"
-        lines.push(`  ${cleaned}`)
-      }
-    })
-  } else if (text.match(/^\d+\.\s/)) {
-    // Already has numbered items at start
-    const items = text.split(/(?=\d+\.\s)/).filter(s => s.trim())
-    items.forEach(item => {
-      lines.push(`  ${item.trim()}`)
-    })
-  } else {
-    // Simple format: "If X → Y"
-    lines.push(text)
+function renderSection(section: { title: string | null; content: string[] }, key: number): React.ReactNode {
+  const sectionStyles: Record<string, { bg: string; border: string; titleColor: string }> = {
+    'Purpose': { bg: 'var(--surface-3)', border: 'var(--border-default)', titleColor: 'var(--accent-blue)' },
+    'Logic Flow': { bg: 'transparent', border: 'transparent', titleColor: 'var(--text-secondary)' },
+    'If conditions NOT met': { bg: 'var(--accent-red-muted)', border: 'rgba(239, 68, 68, 0.2)', titleColor: 'var(--accent-red)' },
+    'Note': { bg: 'var(--accent-amber-muted)', border: 'rgba(245, 158, 11, 0.2)', titleColor: 'var(--accent-amber)' },
+    'Quick Checks': { bg: 'var(--surface-2)', border: 'var(--border-subtle)', titleColor: 'var(--accent-emerald)' },
+    'Troubleshooting': { bg: 'var(--surface-2)', border: 'var(--border-subtle)', titleColor: 'var(--accent-amber)' },
   }
 
-  return lines
+  const style = section.title ? sectionStyles[section.title] || { bg: 'transparent', border: 'transparent', titleColor: 'var(--text-secondary)' } : { bg: 'transparent', border: 'transparent', titleColor: 'var(--text-secondary)' }
+
+  return (
+    <div
+      key={key}
+      style={{
+        background: style.bg,
+        borderLeft: style.bg !== 'transparent' ? `2px solid ${style.border}` : 'none',
+        padding: style.bg !== 'transparent' ? 'var(--space-2) var(--space-3)' : '0',
+        borderRadius: 'var(--radius-sm)'
+      }}
+    >
+      {section.title && (
+        <div
+          className="text-fluid-xs font-semibold uppercase tracking-wider mb-1"
+          style={{ color: style.titleColor }}
+        >
+          {section.title}
+        </div>
+      )}
+      <div className="space-y-1">
+        {section.content.filter(c => c.trim()).map((line, i) => (
+          <div key={i} className="text-fluid-sm" style={{ color: 'var(--text-primary)' }}>
+            {formatLine(line)}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function formatLine(line: string): React.ReactNode {
+  // Handle numbered steps: "1. **XIC(tag)** — explanation"
+  const stepMatch = line.match(/^(\s*)(\d+)\.\s*\*\*([^*]+)\*\*\s*(?:—|-)?\s*(.*)/)
+  if (stepMatch) {
+    const [, indent, num, instruction, desc] = stepMatch
+    const isOutput = /OTE|OTL|OTU|MOV|COP|ADD|SUB|MUL|DIV/.test(instruction)
+    return (
+      <div style={{ paddingLeft: indent ? '1rem' : '0', display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline' }}>
+        <span className="text-fluid-xs font-mono" style={{ color: 'var(--text-muted)', minWidth: '1.5rem' }}>{num}.</span>
+        <span>
+          <code
+            className="text-fluid-xs font-mono px-1.5 py-0.5"
+            style={{
+              background: isOutput ? 'var(--accent-amber-muted)' : 'var(--accent-blue-muted)',
+              color: isOutput ? 'var(--accent-amber)' : 'var(--accent-blue)',
+              borderRadius: 'var(--radius-sm)'
+            }}
+          >
+            {instruction}
+          </code>
+          {desc && <span className="ml-2" style={{ color: 'var(--text-secondary)' }}>{desc}</span>}
+        </span>
+      </div>
+    )
+  }
+
+  // Handle branch headers: "**Branch 1:**"
+  const branchMatch = line.match(/^\s*\*\*Branch (\d+):\*\*/)
+  if (branchMatch) {
+    return (
+      <div
+        className="text-fluid-xs font-semibold mt-2 mb-1 pl-4"
+        style={{ color: 'var(--accent-blue)', borderLeft: '2px solid var(--accent-blue)', paddingLeft: 'var(--space-2)' }}
+      >
+        Branch {branchMatch[1]}
+      </div>
+    )
+  }
+
+  // Handle list items: "  - something"
+  const listMatch = line.match(/^\s*-\s+(.+)/)
+  if (listMatch) {
+    return (
+      <div className="flex gap-2 pl-2">
+        <span style={{ color: 'var(--text-muted)' }}>-</span>
+        <span style={{ color: 'var(--text-secondary)' }}>{listMatch[1]}</span>
+      </div>
+    )
+  }
+
+  // Handle bold text: **text**
+  const parts = line.split(/(\*\*[^*]+\*\*)/)
+  if (parts.length > 1) {
+    return (
+      <>
+        {parts.map((part, i) => {
+          const boldMatch = part.match(/^\*\*([^*]+)\*\*$/)
+          if (boldMatch) {
+            return <strong key={i} style={{ color: 'var(--text-primary)' }}>{boldMatch[1]}</strong>
+          }
+          return <span key={i}>{part}</span>
+        })}
+      </>
+    )
+  }
+
+  return line
 }
 
 // Contact Symbol Component -| |- or -|/|-

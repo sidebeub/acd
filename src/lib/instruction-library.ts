@@ -7615,16 +7615,14 @@ export function generateFullRungExplanation(
   const purpose = detectRungPurpose(allInstructions, rungText)
 
   if (purpose) {
-    explanation = `**Purpose:** ${purpose.purpose}\n\n`
+    explanation = `**Purpose:** ${purpose.purpose}\n`
     if (purpose.details) {
-      explanation += `${purpose.details}\n\n`
+      explanation += `${purpose.details}\n`
     }
+    explanation += '\n'
   }
 
-  // Show the rung code
-  explanation += `**Rung Logic:**\n\`\`\`\n${rungText.trim()}\n\`\`\`\n\n`
-
-  // Logic Flow - numbered steps
+  // Logic Flow - numbered steps (skip the raw code block for cleaner display)
   explanation += '**Logic Flow:**\n'
   let stepNum = 1
 
@@ -7711,7 +7709,7 @@ export function generateFullRungExplanation(
 
   // Add operational note
   if (purpose?.operationalNote) {
-    explanation += `\n💡 **Tip:** ${purpose.operationalNote}\n`
+    explanation += `\n**Note:** ${purpose.operationalNote}\n`
   }
 
   // Add quick checks (fast visual things to verify first)
@@ -7721,7 +7719,7 @@ export function generateFullRungExplanation(
 
   if (quickChecks.length > 0) {
     const uniqueChecks = Array.from(new Set(quickChecks)).slice(0, 4)
-    explanation += '\n👀 **Quick Checks:** ' + uniqueChecks.join(' • ')
+    explanation += '\n\n**Quick Checks:**\n' + uniqueChecks.map(c => `  - ${c}`).join('\n')
   }
 
   // Add troubleshooting tips (limit to 3 unique tips)
@@ -7731,7 +7729,7 @@ export function generateFullRungExplanation(
 
   if (troubleshootingTips.length > 0) {
     const uniqueTips = Array.from(new Set(troubleshootingTips)).slice(0, 3)
-    explanation += '\n\n🔧 **Troubleshooting:** ' + uniqueTips.join(' • ')
+    explanation += '\n\n**Troubleshooting:**\n' + uniqueTips.map(t => `  - ${t}`).join('\n')
   }
 
   if (includeRaw) {
