@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     if (existingProject) {
       // For RSS files, delete the old project and re-parse (RSS parser is being improved)
-      if (fileName.endsWith('.rss')) {
+      if (fileName.toLowerCase().endsWith('.rss')) {
         console.log(`[Upload] Deleting cached RSS project ${existingProject.id} to re-parse`)
         await prisma.project.delete({ where: { id: existingProject.id } })
       } else {
