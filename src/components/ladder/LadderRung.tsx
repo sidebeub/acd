@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
+import { SimulationToggleButton, useSimulation } from './SimulationContext'
 
 interface Instruction {
   type: string
@@ -2006,6 +2007,7 @@ export function LadderRung({
             <IconSparkles />
             <span className="hidden sm:inline">{isExplaining ? 'Analyzing...' : 'Explain'}</span>
           </button>
+          <SimulationToggleButton />
         </div>
       </div>
 
