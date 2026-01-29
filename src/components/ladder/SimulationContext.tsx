@@ -571,7 +571,9 @@ export function getOutputUpdatesWithNumeric(
 
   instructions.forEach((inst, idx) => {
     const type = inst.type.toUpperCase()
-    const isEnergized = powerFlow.instructionEnergized[idx] && powerFlow.rungEnergized
+    // Math/output instructions execute based on power reaching THEM, not entire rung result
+    // This is consistent with real PLC behavior where instructions execute when power flows to them
+    const isEnergized = powerFlow.instructionEnergized[idx]
 
     // Only execute math instructions when energized
     if (!isEnergized) return
@@ -726,15 +728,20 @@ export function getOutputUpdates(
     }
 
     // CTU - Count Up
+    // NOTE: CTU counts based on power reaching IT, not whether entire rung is energized
+    // This allows CTU to count even when downstream instructions (like XIC(Counter.DN)) block the rung
     if (type === 'CTU') {
       const preset = parsePreset(inst.operands[1]) || 10
-      counterUpdates[tagName] = { CU: isEnergized, PRE: preset }
+      const cuEnergized = powerFlow.instructionEnergized[idx]  // Power INTO the CTU, not rung result
+      counterUpdates[tagName] = { CU: cuEnergized, PRE: preset }
     }
 
     // CTD - Count Down
+    // Same as CTU - counts based on power reaching it
     if (type === 'CTD') {
       const preset = parsePreset(inst.operands[1]) || 10
-      counterUpdates[tagName] = { CD: isEnergized, PRE: preset }
+      const cdEnergized = powerFlow.instructionEnergized[idx]  // Power INTO the CTD, not rung result
+      counterUpdates[tagName] = { CD: cdEnergized, PRE: preset }
     }
   })
 
