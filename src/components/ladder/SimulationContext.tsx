@@ -468,7 +468,8 @@ export function calculatePowerFlowWithNumeric(
   instructions.forEach((inst, idx) => {
     const type = inst.type.toUpperCase()
     if (['OTE', 'OTL', 'OTU', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'RES', 'MOV', 'ADD', 'SUB', 'MUL', 'DIV'].includes(type)) {
-      outputEnergized.push(rungEnergized && instructionEnergized[idx])
+      // Output instructions energized based on power reaching them, not entire rung
+      outputEnergized.push(instructionEnergized[idx])
     }
   })
 
@@ -537,7 +538,8 @@ export function calculatePowerFlow(
   instructions.forEach((inst, idx) => {
     const type = inst.type.toUpperCase()
     if (['OTE', 'OTL', 'OTU', 'TON', 'TOF', 'RTO', 'CTU', 'CTD', 'RES'].includes(type)) {
-      outputEnergized.push(rungEnergized && instructionEnergized[idx])
+      // Output instructions energized based on power reaching them, not entire rung
+      outputEnergized.push(instructionEnergized[idx])
     }
   })
 
