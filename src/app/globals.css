@@ -698,32 +698,66 @@ body {
 
 /* Contact energized (power passing through) */
 .contact-energized {
-  animation: contact-glow 1s ease-in-out infinite;
+  background: rgba(34, 197, 94, 0.25) !important;
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 0 0 2px rgba(34, 197, 94, 0.6),
+    0 0 12px rgba(34, 197, 94, 0.5),
+    inset 0 0 8px rgba(34, 197, 94, 0.3);
+  animation: contact-glow 1.2s ease-in-out infinite;
 }
 
 @keyframes contact-glow {
-  0%, 100% { filter: drop-shadow(0 0 4px rgba(34, 197, 94, 0.6)); }
-  50% { filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.9)); }
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px rgba(34, 197, 94, 0.6),
+      0 0 12px rgba(34, 197, 94, 0.5),
+      inset 0 0 8px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(34, 197, 94, 0.8),
+      0 0 20px rgba(34, 197, 94, 0.7),
+      inset 0 0 12px rgba(34, 197, 94, 0.5);
+  }
 }
 
 /* Contact de-energized (no power) */
 .contact-de-energized {
-  opacity: 0.6;
+  opacity: 0.5;
+  filter: grayscale(30%);
 }
 
-/* Coil energized (output active) */
+/* Coil energized (output active) - bright amber/yellow */
 .coil-energized {
+  background: rgba(250, 204, 21, 0.3) !important;
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 0 0 2px rgba(250, 204, 21, 0.7),
+    0 0 15px rgba(250, 204, 21, 0.6),
+    inset 0 0 10px rgba(250, 204, 21, 0.4);
   animation: coil-glow 0.8s ease-in-out infinite;
 }
 
 @keyframes coil-glow {
-  0%, 100% { filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.7)); }
-  50% { filter: drop-shadow(0 0 12px rgba(239, 68, 68, 1)); }
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px rgba(250, 204, 21, 0.7),
+      0 0 15px rgba(250, 204, 21, 0.6),
+      inset 0 0 10px rgba(250, 204, 21, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(250, 204, 21, 0.9),
+      0 0 25px rgba(250, 204, 21, 0.8),
+      inset 0 0 15px rgba(250, 204, 21, 0.6);
+  }
 }
 
 /* Coil de-energized */
 .coil-de-energized {
-  opacity: 0.5;
+  opacity: 0.4;
+  filter: grayscale(40%);
 }
 
 /* Clickable contacts in simulation mode */
