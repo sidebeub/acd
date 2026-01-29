@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="32.00" TargetName="SimulationTest" TargetType="Controller" ContainsContext="true" Owner="SimTest" ExportDate="Mon Jan 27 2025 12:00:00 GMT" ExportOptions="References NoRawData L5KData DecoratedData Context Dependencies ForceProtectedEncoding AllProjDocTrans">
+<Controller Use="Target" Name="SimulationTest" ProcessorType="1756-L83E" MajorRev="32" MinorRev="11">
+
+<DataTypes>
+</DataTypes>
+
+<Tags>
+<!-- Basic Boolean Tags for Testing -->
+<Tag Name="Input1" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Test Input 1 - Click to toggle</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="Input2" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Test Input 2 - Click to toggle</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="Input3" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Test Input 3 - Click to toggle</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="Input4" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Test Input 4 - For unlatch test</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+
+<!-- Output Tags -->
+<Tag Name="Output1" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Simple Output - follows Input1</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="Output2" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>AND Output - Input1 AND Input2</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="Output3" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>OR Output - Input1 OR Input2</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="LatchedOutput" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Latched Output - Use Input3 to latch, Input4 to unlatch</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+
+<!-- Timer Tags -->
+<Tag Name="Timer1" TagType="Base" DataType="TIMER" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>TON Timer - 3 second delay</Description>
+<Data Format="Decorated"><Structure DataType="TIMER"><DataValueMember Name="PRE" DataType="DINT" Radix="Decimal" Value="3000"/><DataValueMember Name="ACC" DataType="DINT" Radix="Decimal" Value="0"/><DataValueMember Name="EN" DataType="BOOL" Value="0"/><DataValueMember Name="TT" DataType="BOOL" Value="0"/><DataValueMember Name="DN" DataType="BOOL" Value="0"/></Structure></Data>
+</Tag>
+<Tag Name="Timer2" TagType="Base" DataType="TIMER" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>TOF Timer - 2 second off delay</Description>
+<Data Format="Decorated"><Structure DataType="TIMER"><DataValueMember Name="PRE" DataType="DINT" Radix="Decimal" Value="2000"/><DataValueMember Name="ACC" DataType="DINT" Radix="Decimal" Value="0"/><DataValueMember Name="EN" DataType="BOOL" Value="0"/><DataValueMember Name="TT" DataType="BOOL" Value="0"/><DataValueMember Name="DN" DataType="BOOL" Value="0"/></Structure></Data>
+</Tag>
+<Tag Name="Timer3" TagType="Base" DataType="TIMER" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>RTO Retentive Timer - 5 seconds total</Description>
+<Data Format="Decorated"><Structure DataType="TIMER"><DataValueMember Name="PRE" DataType="DINT" Radix="Decimal" Value="5000"/><DataValueMember Name="ACC" DataType="DINT" Radix="Decimal" Value="0"/><DataValueMember Name="EN" DataType="BOOL" Value="0"/><DataValueMember Name="TT" DataType="BOOL" Value="0"/><DataValueMember Name="DN" DataType="BOOL" Value="0"/></Structure></Data>
+</Tag>
+<Tag Name="TimerDone" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Turns ON when Timer1 is done</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+
+<!-- Counter Tags -->
+<Tag Name="Counter1" TagType="Base" DataType="COUNTER" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Count Up - Preset 10</Description>
+<Data Format="Decorated"><Structure DataType="COUNTER"><DataValueMember Name="PRE" DataType="DINT" Radix="Decimal" Value="10"/><DataValueMember Name="ACC" DataType="DINT" Radix="Decimal" Value="0"/><DataValueMember Name="CU" DataType="BOOL" Value="0"/><DataValueMember Name="CD" DataType="BOOL" Value="0"/><DataValueMember Name="DN" DataType="BOOL" Value="0"/><DataValueMember Name="OV" DataType="BOOL" Value="0"/><DataValueMember Name="UN" DataType="BOOL" Value="0"/></Structure></Data>
+</Tag>
+<Tag Name="Counter2" TagType="Base" DataType="COUNTER" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Count Down - Preset 5</Description>
+<Data Format="Decorated"><Structure DataType="COUNTER"><DataValueMember Name="PRE" DataType="DINT" Radix="Decimal" Value="5"/><DataValueMember Name="ACC" DataType="DINT" Radix="Decimal" Value="5"/><DataValueMember Name="CU" DataType="BOOL" Value="0"/><DataValueMember Name="CD" DataType="BOOL" Value="0"/><DataValueMember Name="DN" DataType="BOOL" Value="0"/><DataValueMember Name="OV" DataType="BOOL" Value="0"/><DataValueMember Name="UN" DataType="BOOL" Value="0"/></Structure></Data>
+</Tag>
+<Tag Name="CounterDone" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Turns ON when Counter1 reaches preset</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+
+<!-- Numeric Tags for Math -->
+<Tag Name="ValueA" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Math Source A - Default 100</Description>
+<Data Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="100"/></Data>
+</Tag>
+<Tag Name="ValueB" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Math Source B - Default 25</Description>
+<Data Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="25"/></Data>
+</Tag>
+<Tag Name="AddResult" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>ADD Result = ValueA + ValueB</Description>
+<Data Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="SubResult" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>SUB Result = ValueA - ValueB</Description>
+<Data Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="MulResult" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>MUL Result = ValueA * ValueB</Description>
+<Data Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="DivResult" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>DIV Result = ValueA / ValueB</Description>
+<Data Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="MovResult" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>MOV Result = Copy of ValueA</Description>
+<Data Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="0"/></Data>
+</Tag>
+
+<!-- Compare Tags -->
+<Tag Name="CompareValue" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Value for comparisons - Default 50</Description>
+<Data Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="50"/></Data>
+</Tag>
+<Tag Name="IsEqual" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>True if ValueA equals CompareValue</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="IsGreater" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>True if ValueA greater than CompareValue</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="IsLess" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>True if ValueA less than CompareValue</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+
+<!-- One-Shot Tags -->
+<Tag Name="OneShotStorage" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Storage bit for one-shot</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="OneShotOutput" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>One-shot output - pulses once per input rising edge</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+<Tag Name="ResetInput" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description>Reset input for timers and counters</Description>
+<Data Format="Decorated"><DataValue DataType="BOOL" Radix="Decimal" Value="0"/></Data>
+</Tag>
+</Tags>
+
+<Programs>
+<Program Name="MainProgram" Type="Normal" TestEdits="false" Disabled="false" UseAsFolder="false">
+<Tags></Tags>
+<Routines>
+<Routine Name="MainRoutine" Type="RLL">
+<RLLContent>
+
+<!-- RUNG 0: Simple XIC to OTE -->
+<Rung Number="0" Type="N">
+<Comment>RUNG 0: SIMPLE OUTPUT - Click Input1 to turn on Output1</Comment>
+<Text>XIC(Input1)OTE(Output1);</Text>
+</Rung>
+
+<!-- RUNG 1: AND Logic -->
+<Rung Number="1" Type="N">
+<Comment>RUNG 1: AND LOGIC - Both Input1 AND Input2 must be ON for Output2</Comment>
+<Text>XIC(Input1)XIC(Input2)OTE(Output2);</Text>
+</Rung>
+
+<!-- RUNG 2: OR Logic (Parallel Branches) -->
+<Rung Number="2" Type="N">
+<Comment>RUNG 2: OR LOGIC - Input1 OR Input2 turns on Output3</Comment>
+<Text>[XIC(Input1),XIC(Input2)]OTE(Output3);</Text>
+</Rung>
+
+<!-- RUNG 3: Latch with OTL -->
+<Rung Number="3" Type="N">
+<Comment>RUNG 3: LATCH - Input3 latches LatchedOutput ON (stays on after Input3 goes off)</Comment>
+<Text>XIC(Input3)OTL(LatchedOutput);</Text>
+</Rung>
+
+<!-- RUNG 4: Unlatch with OTU -->
+<Rung Number="4" Type="N">
+<Comment>RUNG 4: UNLATCH - Input4 unlatches LatchedOutput OFF</Comment>
+<Text>XIC(Input4)OTU(LatchedOutput);</Text>
+</Rung>
+
+<!-- RUNG 5: TON Timer -->
+<Rung Number="5" Type="N">
+<Comment>RUNG 5: TON TIMER - Input1 starts 3 second timer, TimerDone turns on when complete</Comment>
+<Text>XIC(Input1)TON(Timer1,?,?)XIC(Timer1.DN)OTE(TimerDone);</Text>
+</Rung>
+
+<!-- RUNG 6: TOF Timer -->
+<Rung Number="6" Type="N">
+<Comment>RUNG 6: TOF TIMER - Output stays on 2 seconds after Input2 turns off</Comment>
+<Text>XIC(Input2)TOF(Timer2,?,?);</Text>
+</Rung>
+
+<!-- RUNG 7: RTO Retentive Timer -->
+<Rung Number="7" Type="N">
+<Comment>RUNG 7: RTO TIMER - Accumulates time while Input3 is on, retains value when off</Comment>
+<Text>XIC(Input3)RTO(Timer3,?,?);</Text>
+</Rung>
+
+<!-- RUNG 8: Reset Timer -->
+<Rung Number="8" Type="N">
+<Comment>RUNG 8: RESET - ResetInput resets Timer3 accumulated time to zero</Comment>
+<Text>XIC(ResetInput)RES(Timer3);</Text>
+</Rung>
+
+<!-- RUNG 9: Counter Up -->
+<Rung Number="9" Type="N">
+<Comment>RUNG 9: COUNT UP - Each Input1 rising edge increments Counter1, CounterDone at 10</Comment>
+<Text>XIC(Input1)CTU(Counter1,10,0)XIC(Counter1.DN)OTE(CounterDone);</Text>
+</Rung>
+
+<!-- RUNG 10: Counter Down -->
+<Rung Number="10" Type="N">
+<Comment>RUNG 10: COUNT DOWN - Each Input2 rising edge decrements Counter2</Comment>
+<Text>XIC(Input2)CTD(Counter2,5,5);</Text>
+</Rung>
+
+<!-- RUNG 11: Reset Counter -->
+<Rung Number="11" Type="N">
+<Comment>RUNG 11: RESET COUNTER - ResetInput resets Counter1 to zero</Comment>
+<Text>XIC(ResetInput)RES(Counter1);</Text>
+</Rung>
+
+<!-- RUNG 12: Math - ADD -->
+<Rung Number="12" Type="N">
+<Comment>RUNG 12: ADD - When Input1 is on, AddResult = ValueA + ValueB (100+25=125)</Comment>
+<Text>XIC(Input1)ADD(ValueA,ValueB,AddResult);</Text>
+</Rung>
+
+<!-- RUNG 13: Math - SUB -->
+<Rung Number="13" Type="N">
+<Comment>RUNG 13: SUBTRACT - When Input1 is on, SubResult = ValueA - ValueB (100-25=75)</Comment>
+<Text>XIC(Input1)SUB(ValueA,ValueB,SubResult);</Text>
+</Rung>
+
+<!-- RUNG 14: Math - MUL -->
+<Rung Number="14" Type="N">
+<Comment>RUNG 14: MULTIPLY - When Input2 is on, MulResult = ValueA * ValueB (100*25=2500)</Comment>
+<Text>XIC(Input2)MUL(ValueA,ValueB,MulResult);</Text>
+</Rung>
+
+<!-- RUNG 15: Math - DIV -->
+<Rung Number="15" Type="N">
+<Comment>RUNG 15: DIVIDE - When Input2 is on, DivResult = ValueA / ValueB (100/25=4)</Comment>
+<Text>XIC(Input2)DIV(ValueA,ValueB,DivResult);</Text>
+</Rung>
+
+<!-- RUNG 16: Math - MOV -->
+<Rung Number="16" Type="N">
+<Comment>RUNG 16: MOVE - When Input3 is on, MovResult copies ValueA (100)</Comment>
+<Text>XIC(Input3)MOV(ValueA,MovResult);</Text>
+</Rung>
+
+<!-- RUNG 17: Compare - EQU -->
+<Rung Number="17" Type="N">
+<Comment>RUNG 17: EQUAL - IsEqual is true when ValueA equals CompareValue (100=50? No)</Comment>
+<Text>EQU(ValueA,CompareValue)OTE(IsEqual);</Text>
+</Rung>
+
+<!-- RUNG 18: Compare - GRT -->
+<Rung Number="18" Type="N">
+<Comment>RUNG 18: GREATER THAN - IsGreater is true when ValueA greater than CompareValue (100>50? Yes)</Comment>
+<Text>GRT(ValueA,CompareValue)OTE(IsGreater);</Text>
+</Rung>
+
+<!-- RUNG 19: Compare - LES -->
+<Rung Number="19" Type="N">
+<Comment>RUNG 19: LESS THAN - IsLess is true when ValueA less than CompareValue (100&lt;50? No)</Comment>
+<Text>LES(ValueA,CompareValue)OTE(IsLess);</Text>
+</Rung>
+
+<!-- RUNG 20: One-Shot Rising -->
+<Rung Number="20" Type="N">
+<Comment>RUNG 20: ONE-SHOT - OneShotOutput pulses ON for one scan when Input1 goes from OFF to ON</Comment>
+<Text>XIC(Input1)ONS(OneShotStorage)OTE(OneShotOutput);</Text>
+</Rung>
+
+<!-- RUNG 21: XIO (Examine If Open) -->
+<Rung Number="21" Type="N">
+<Comment>RUNG 21: XIO TEST - Output1 is ON when Input2 is OFF (inverted logic)</Comment>
+<Text>XIO(Input2)OTE(Output1);</Text>
+</Rung>
+
+</RLLContent>
+</Routine>
+</Routines>
+</Program>
+</Programs>
+
+</Controller>
+</RSLogix5000Content>
