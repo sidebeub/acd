@@ -655,9 +655,11 @@ export function getOutputUpdates(
   instructions.forEach((inst, idx) => {
     const type = inst.type.toUpperCase()
     const tagName = inst.operands[0]?.split('§')[0] || ''
-    const isEnergized = powerFlow.instructionEnergized[idx] && powerFlow.rungEnergized
+    // Output instructions execute based on power reaching THEM, not entire rung result
+    // This matches real PLC behavior - power flows left to right, instructions execute when power reaches them
+    const isEnergized = powerFlow.instructionEnergized[idx]
 
-    // OTE - Output Energize - follows rung state
+    // OTE - Output Energize - follows power flow to this instruction
     if (type === 'OTE') {
       tagUpdates[tagName] = isEnergized
     }
