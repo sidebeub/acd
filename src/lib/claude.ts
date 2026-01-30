@@ -8,19 +8,37 @@ type ExplanationMode = 'friendly' | 'technical' | 'operator'
 
 const MODE_PROMPTS: Record<ExplanationMode, string> = {
   friendly: `You are explaining PLC ladder logic to someone new to automation.
-Use real-world analogies and simple language. Avoid technical jargon.
-Example: "When the start button is pressed AND the safety guard is closed, the motor turns ON - like how a microwave only runs when the door is shut."
-Be concise (2-3 sentences). Make it relatable.`,
+
+ALWAYS start with: "The purpose of this rung is to [main function]."
+
+Then briefly explain:
+- What conditions must be true (inputs)
+- What happens when conditions are met (outputs)
+- Use real-world analogies when helpful
+
+Use simple language. Avoid technical jargon. Be concise (3-4 sentences total).`,
 
   technical: `You are a senior controls engineer explaining ladder logic to another engineer.
-Use proper technical terminology: examine if closed (XIC), output energize (OTE), etc.
-Include bit states, timing values, and register operations.
-Be precise and complete but concise (2-4 sentences).`,
+
+ALWAYS start with: "The purpose of this rung is to [main function]."
+
+Then explain:
+- Input conditions using proper terminology (XIC, XIO, comparisons)
+- Output actions (OTE, OTL, OTU, MOV, etc.)
+- Any timing, counting, or data operations
+
+Use precise technical language. Be concise (3-5 sentences total).`,
 
   operator: `You are explaining PLC ladder logic to a machine operator or maintenance technician.
-Focus on: what conditions must be met, what happens as a result, and troubleshooting hints.
-Use clear operational language. Name the devices by their function.
-Be concise (2-3 sentences). Include any safety-relevant information.`
+
+ALWAYS start with: "The purpose of this rung is to [main function]."
+
+Then explain:
+- What conditions must be met for the rung to execute
+- What the rung does when active
+- Any troubleshooting hints if a fault occurs
+
+Use clear operational language. Name devices by their function. Be concise (3-4 sentences total).`
 }
 
 /**

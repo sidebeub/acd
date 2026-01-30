@@ -988,6 +988,7 @@ interface SimulationContextType {
   getNumericValue: (tag: string, defaultVal?: number) => number  // Get numeric value with optional default
   resetNumericValue: (tag: string) => void  // Reset single numeric value to original
   resetAllEditedValues: () => void  // Reset all edited values
+  initializeNumericValues: (values: Record<string, number>) => void  // Initialize multiple numeric values (e.g., from project tags)
   setTimerAcc: (tagName: string, acc: number) => void  // Direct timer ACC edit
   setTimerPre: (tagName: string, pre: number) => void  // Direct timer PRE edit
   setCounterAcc: (tagName: string, acc: number) => void  // Direct counter ACC edit
@@ -1213,6 +1214,14 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   const resetAllEditedValues = useCallback(() => {
     setNumericValues({})
     setEditedValues(new Set())
+  }, [])
+
+  // Initialize multiple numeric values at once (e.g., from project tags)
+  const initializeNumericValues = useCallback((values: Record<string, number>) => {
+    setNumericValues(prev => ({
+      ...prev,
+      ...values
+    }))
   }, [])
 
   // Direct timer ACC/PRE editing
@@ -1483,6 +1492,7 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
         getNumericValue,
         resetNumericValue,
         resetAllEditedValues,
+        initializeNumericValues,
         setTimerAcc,
         setTimerPre,
         setCounterAcc,
@@ -1539,6 +1549,7 @@ export function useSimulation() {
       getNumericValue: (_tag: string, defaultVal: number = 0) => defaultVal,
       resetNumericValue: () => {},
       resetAllEditedValues: () => {},
+      initializeNumericValues: () => {},
       setTimerAcc: () => {},
       setTimerPre: () => {},
       setCounterAcc: () => {},

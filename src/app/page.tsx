@@ -1,85 +1,30 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { CTASection } from '@/components/home/CTASection'
+import {
+  ScrollProgress,
+  AnimatedCounter,
+  ScrambleText,
+  Typewriter,
+  TiltCard,
+  FloatingElements,
+  GrainOverlay
+} from '@/components/home/Effects'
 
 export default function Home() {
-  const router = useRouter()
-  const [isDragging, setIsDragging] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-
-  const handleFile = async (file: File) => {
-    const fileName = file.name.toLowerCase()
-    if (!fileName.endsWith('.l5x') && !fileName.endsWith('.acd') && !fileName.endsWith('.rss')) {
-      setError('Please upload an .L5X, .ACD, or .RSS file')
-      return
-    }
-
-    setError(null)
-    setIsUploading(true)
-    setUploadProgress(0)
-
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => Math.min(prev + 10, 90))
-    }, 200)
-
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        body: formData
-      })
-
-      clearInterval(progressInterval)
-      setUploadProgress(100)
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Upload failed')
-      }
-
-      const project = await response.json()
-      router.push(`/project/${project.id}`)
-    } catch (err) {
-      clearInterval(progressInterval)
-      setError(err instanceof Error ? err.message : 'Upload failed')
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) handleFile(file)
-  }, [])
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }, [])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) handleFile(file)
-  }
-
   return (
     <div className="min-h-screen-safe relative safe-area-inset" style={{ background: 'var(--surface-0)' }}>
-      {/* Subtle grid background */}
+      {/* Scroll progress bar at top */}
+      <ScrollProgress />
+
+      {/* Grain texture overlay */}
+      <GrainOverlay />
+      <JsonLd />
+      {/* Subtle grid background - very faint for premium feel */}
       <div
-        className="fixed inset-0 grid-pattern opacity-20 pointer-events-none"
-        style={{ maskImage: 'radial-gradient(ellipse at center, black 0%, transparent 70%)' }}
+        className="fixed inset-0 grid-pattern opacity-5 pointer-events-none"
+        style={{ maskImage: 'radial-gradient(ellipse at center, black 0%, transparent 60%)' }}
       />
 
       {/* Navigation */}
@@ -92,46 +37,42 @@ export default function Home() {
         }}
       >
         <div className="container-default flex items-center justify-between" style={{ height: 'clamp(56px, 8vw, 64px)' }}>
-          <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-            <div
-              className="flex items-center justify-center"
+          <a href="/" className="flex items-center">
+            <img
+              src="/logplc2.svg"
+              alt="PLC Company"
               style={{
-                width: 'clamp(36px, 5vw, 40px)',
-                height: 'clamp(36px, 5vw, 40px)',
-                background: 'var(--accent-blue-muted)',
-                border: '1px solid var(--accent-blue)',
-                borderRadius: 'var(--radius-sm)'
+                height: 'clamp(44px, 7vw, 56px)',
+                width: 'auto',
+                filter: 'brightness(0) invert(1)'
               }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2.5">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-                <circle cx="8" cy="6" r="1" fill="currentColor" />
-                <circle cx="16" cy="12" r="1" fill="currentColor" />
-                <circle cx="12" cy="18" r="1" fill="currentColor" />
-              </svg>
-            </div>
-            <span className="text-fluid-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-              PLC Viewer
-            </span>
-          </div>
+            />
+          </a>
 
           <nav className="hide-mobile flex items-center" style={{ gap: 'var(--space-8)' }}>
             <a
-              href="#features"
+              href="/l5x-file"
               className="text-fluid-sm font-medium transition-colors hover:text-white"
               style={{ color: 'var(--text-tertiary)' }}
             >
-              Features
+              L5X Files
             </a>
             <a
-              href="#how-it-works"
+              href="/acd-file"
               className="text-fluid-sm font-medium transition-colors hover:text-white"
               style={{ color: 'var(--text-tertiary)' }}
             >
-              How It Works
+              ACD Files
             </a>
             <a
-              href="#upload"
+              href="/rss-file"
+              className="text-fluid-sm font-medium transition-colors hover:text-white"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              RSS Files
+            </a>
+            <a
+              href="#waitlist"
               className="btn btn-primary text-fluid-sm"
               style={{
                 paddingInline: 'var(--space-4)',
@@ -140,611 +81,513 @@ export default function Home() {
                 borderRadius: 'var(--radius-md)'
               }}
             >
-              Upload File
+              Join Waitlist
             </a>
           </nav>
         </div>
       </header>
 
       <main className="relative z-10">
-        {/* ==================== HERO SECTION ==================== */}
-        <section className="py-fluid-20" style={{ paddingBlock: 'var(--space-24)' }}>
-          <div className="container-default text-center">
+        {/* ==================== HERO SECTION - Full-width video background ==================== */}
+        <section className="relative overflow-hidden" style={{ minHeight: '100vh' }}>
+          {/* Floating decorative elements */}
+          <FloatingElements />
+
+          {/* Video Background */}
+          <div className="absolute inset-0 z-0">
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            >
+              <source src="/hero-video.webm" type="video/webm" />
+            </video>
+            {/* Dark overlay for text readability */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.8) 100%)'
+              }}
+            />
+          </div>
+
+          {/* Hero Content - Overlaid on video */}
+          <div
+            className="relative z-10 flex flex-col items-center justify-center text-center"
+            style={{ minHeight: '100vh', padding: 'var(--space-8)' }}
+          >
             <div
               className="inline-flex items-center"
               style={{
                 gap: 'var(--space-2)',
-                paddingInline: 'var(--space-4)',
-                paddingBlock: 'var(--space-2)',
-                marginBlockEnd: 'var(--space-8)',
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)'
+                paddingInline: 'var(--space-3)',
+                paddingBlock: 'var(--space-1)',
+                marginBlockEnd: 'var(--space-6)',
+                border: '1px solid var(--accent-amber)'
               }}
             >
               <span
                 className="animate-pulse-subtle"
                 style={{
-                  width: '8px',
-                  height: '8px',
-                  background: 'var(--accent-emerald)',
-                  borderRadius: 'var(--radius-sm)'
+                  width: '6px',
+                  height: '6px',
+                  background: 'var(--accent-amber)'
                 }}
               />
-              <span className="text-fluid-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Rockwell Automation Compatible
+              <span style={{
+                color: 'var(--accent-amber)',
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase'
+              }}>
+                Launching Soon
               </span>
             </div>
 
             <h1
-              className="text-fluid-6xl font-bold tracking-tight"
               style={{
-                color: 'var(--text-primary)',
-                marginBlockEnd: 'var(--space-6)',
-                lineHeight: '1.1'
+                fontSize: 'clamp(3rem, 10vw, 7rem)',
+                fontWeight: 700,
+                color: '#ffffff',
+                marginBlockEnd: 'var(--space-4)',
+                lineHeight: '1',
+                letterSpacing: '-0.03em',
+                textShadow: '0 4px 30px rgba(0,0,0,0.5)'
               }}
             >
-              Understand Your
-              <br />
-              <span style={{ color: 'var(--accent-blue)' }}>PLC Programs</span>
+              <ScrambleText text="PLC VIEWER" />
             </h1>
 
             <p
-              className="text-fluid-xl"
               style={{
-                color: 'var(--text-secondary)',
-                lineHeight: '1.7',
-                maxWidth: '42rem',
-                marginInline: 'auto',
-                marginBlockEnd: 'var(--space-10)'
+                fontSize: 'clamp(1.25rem, 3vw, 1.75rem)',
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.9)',
+                marginBlockEnd: 'var(--space-8)',
+                textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+                minHeight: '2em'
               }}
             >
-              Upload your Studio 5000 files and instantly visualize ladder logic,
-              browse tags, and get AI-powered explanations that make complex control code easy to understand.
+              <Typewriter
+                texts={[
+                  'No Studio 5000 Required',
+                  'View L5X, ACD, RSS Files',
+                  'AI-Powered Explanations',
+                  'Works in Your Browser'
+                ]}
+                speed={80}
+                pauseTime={2500}
+              />
             </p>
 
-            <div className="stack-to-row justify-center" style={{ gap: 'var(--space-4)' }}>
+            <p
+              className="text-fluid-lg"
+              style={{
+                color: 'rgba(255,255,255,0.7)',
+                lineHeight: '1.6',
+                maxWidth: '36rem',
+                marginBlockEnd: 'var(--space-8)'
+              }}
+            >
+              View L5X, ACD, and RSS files in your browser.
+              AI-powered explanations for Allen-Bradley ladder logic.
+            </p>
+
+            <div className="flex flex-wrap justify-center" style={{ gap: 'var(--space-4)' }}>
               <a
-                href="#upload"
-                className="btn btn-primary text-fluid-base inline-flex items-center justify-center"
+                href="#waitlist"
+                className="inline-flex items-center justify-center transition-all"
                 style={{
-                  paddingInline: 'var(--space-8)',
+                  paddingInline: 'var(--space-6)',
                   paddingBlock: 'var(--space-3)',
                   gap: 'var(--space-2)',
-                  minHeight: 'var(--touch-target-min)',
-                  borderRadius: 'var(--radius-md)'
+                  background: '#ffffff',
+                  color: '#0a0a0a',
+                  border: '1px solid #ffffff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase'
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                </svg>
-                Upload PLC File
+                Join Waitlist
               </a>
               <a
                 href="#how-it-works"
-                className="btn btn-secondary text-fluid-base inline-flex items-center justify-center"
+                className="inline-flex items-center justify-center transition-all"
                 style={{
-                  paddingInline: 'var(--space-8)',
+                  paddingInline: 'var(--space-6)',
                   paddingBlock: 'var(--space-3)',
-                  minHeight: 'var(--touch-target-min)',
-                  borderRadius: 'var(--radius-md)'
+                  background: 'transparent',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.4)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase'
                 }}
-              >
-                See How It Works
-              </a>
-            </div>
-          </div>
-        </section>
-
-        {/* ==================== TRUST INDICATORS ==================== */}
-        <section
-          className="py-fluid-8"
-          style={{
-            borderBlock: '1px solid var(--border-subtle)',
-            background: 'var(--surface-1)'
-          }}
-        >
-          <div className="container-default">
-            <div
-              className="flex flex-wrap items-center justify-center"
-              style={{ gap: 'var(--space-8)' }}
-            >
-              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="M9 12l2 2 4-4" />
-                </svg>
-                <span className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>Files processed locally</span>
-              </div>
-              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0110 0v4" />
-                </svg>
-                <span className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>No cloud storage required</span>
-              </div>
-              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" />
-                </svg>
-                <span className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>Parse in seconds</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ==================== PROBLEM / SOLUTION ==================== */}
-        <section className="py-fluid-20" style={{ background: 'var(--surface-0)', paddingBlock: 'var(--space-24)' }}>
-          <div className="container-default">
-            <div
-              className="grid items-center"
-              style={{
-                gap: 'var(--space-12)',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))'
-              }}
-            >
-              <div>
-                <span
-                  className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                  style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
-                >
-                  The Problem
-                </span>
-                <h2
-                  className="text-fluid-4xl font-bold"
-                  style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-6)' }}
-                >
-                  PLC code is hard to understand quickly
-                </h2>
-                <div className="stack" style={{ color: 'var(--text-secondary)', gap: 'var(--space-4)' }}>
-                  <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
-                    Maintenance technicians often face unfamiliar machines with thousands of rungs of ladder logic.
-                    Understanding what a rung does requires experience with the specific controller, instruction set, and the machine itself.
-                  </p>
-                  <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
-                    Without Studio 5000 on every workstation, reviewing PLC programs becomes a bottleneck.
-                    Teams waste time searching for tag references and trying to trace signal flow through complex programs.
-                  </p>
-                </div>
-              </div>
-              <div
-                className="container-inline"
-                style={{
-                  padding: 'var(--space-6)',
-                  background: 'var(--surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)'
-                }}
-              >
-                <div className="stack" style={{ gap: 'var(--space-4)' }}>
-                  {[
-                    { title: 'Studio 5000 license required', desc: 'Expensive software limits who can view code' },
-                    { title: 'Cryptic instruction mnemonics', desc: 'XIC, OTE, TON - what do they mean?' },
-                    { title: 'No context for troubleshooting', desc: 'Hard to know where to look when things break' }
-                  ].map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start"
-                      style={{
-                        gap: 'var(--space-4)',
-                        padding: 'var(--space-4)',
-                        background: 'var(--accent-red-muted)',
-                        borderRadius: 'var(--radius-sm)'
-                      }}
-                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2" className="flex-shrink-0" style={{ marginBlockStart: '2px' }}>
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M15 9l-6 6M9 9l6 6" />
-                      </svg>
-                      <div>
-                        <p className="text-fluid-base font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
-                        <p className="text-fluid-sm" style={{ color: 'var(--text-tertiary)' }}>{item.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ==================== HOW IT WORKS ==================== */}
-        <section id="how-it-works" className="py-fluid-20" style={{ background: 'var(--surface-1)', paddingBlock: 'var(--space-24)' }}>
-          <div className="container-default">
-            <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
-              <span
-                className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
               >
                 How It Works
-              </span>
-              <h2 className="text-fluid-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                Three steps to clarity
-              </h2>
+              </a>
             </div>
 
+            {/* Scroll indicator */}
             <div
-              className="grid-auto-fit container-inline"
-              style={{ gap: 'var(--space-8)' }}
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce"
+              style={{ opacity: 0.6 }}
             >
-              {/* Step 1 */}
-              <div className="relative">
-                <div
-                  className="text-fluid-6xl font-bold"
-                  style={{ color: 'var(--surface-4)', marginBlockEnd: 'var(--space-6)' }}
-                >
-                  01
-                </div>
-                <div
-                  className="flex items-center justify-center"
-                  style={{
-                    width: 'clamp(48px, 8vw, 56px)',
-                    height: 'clamp(48px, 8vw, 56px)',
-                    marginBlockEnd: 'var(--space-5)',
-                    background: 'var(--accent-blue-muted)',
-                    border: '1px solid var(--accent-blue)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                  </svg>
-                </div>
-                <h3 className="text-fluid-xl font-semibold" style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-3)' }}>
-                  Upload Your File
-                </h3>
-                <p className="text-fluid-base" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  Drop an L5X, ACD, or RSS file. Supports Studio 5000 (ControlLogix/CompactLogix) and RSLogix 500 (SLC 500/MicroLogix).
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div className="relative">
-                <div
-                  className="text-fluid-6xl font-bold"
-                  style={{ color: 'var(--surface-4)', marginBlockEnd: 'var(--space-6)' }}
-                >
-                  02
-                </div>
-                <div
-                  className="flex items-center justify-center"
-                  style={{
-                    width: 'clamp(48px, 8vw, 56px)',
-                    height: 'clamp(48px, 8vw, 56px)',
-                    marginBlockEnd: 'var(--space-5)',
-                    background: 'var(--accent-emerald-muted)',
-                    border: '1px solid var(--accent-emerald)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <path d="M9 9h6M9 13h6M9 17h4" />
-                  </svg>
-                </div>
-                <h3 className="text-fluid-xl font-semibold" style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-3)' }}>
-                  Browse Structure
-                </h3>
-                <p className="text-fluid-base" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  Navigate programs, routines, and tags in an intuitive tree view. Find what you need fast.
-                </p>
-              </div>
-
-              {/* Step 3 */}
-              <div className="relative">
-                <div
-                  className="text-fluid-6xl font-bold"
-                  style={{ color: 'var(--surface-4)', marginBlockEnd: 'var(--space-6)' }}
-                >
-                  03
-                </div>
-                <div
-                  className="flex items-center justify-center"
-                  style={{
-                    width: 'clamp(48px, 8vw, 56px)',
-                    height: 'clamp(48px, 8vw, 56px)',
-                    marginBlockEnd: 'var(--space-5)',
-                    background: 'var(--accent-amber-muted)',
-                    border: '1px solid var(--accent-amber)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
-                  </svg>
-                </div>
-                <h3 className="text-fluid-xl font-semibold" style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-3)' }}>
-                  Get Explanations
-                </h3>
-                <p className="text-fluid-base" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  Click any rung to get AI-powered explanations in plain English. See troubleshooting tips instantly.
-                </p>
-              </div>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <path d="M12 5v14M5 12l7 7 7-7" />
+              </svg>
             </div>
           </div>
         </section>
 
-        {/* ==================== FEATURES ==================== */}
-        <section id="features" className="py-fluid-20" style={{ background: 'var(--surface-0)', paddingBlock: 'var(--space-24)' }}>
-          <div className="container-default">
-            <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
-              <span
-                className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
-              >
-                Features
-              </span>
-              <h2
-                className="text-fluid-4xl font-bold"
-                style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
-              >
-                Everything you need to understand PLC code
-              </h2>
-              <p
-                className="text-fluid-lg"
-                style={{
-                  color: 'var(--text-secondary)',
-                  maxWidth: '42rem',
-                  marginInline: 'auto'
-                }}
-              >
-                Purpose-built for controls engineers, maintenance technicians, and anyone who works with Allen-Bradley PLCs.
+        {/* ==================== SCROLLING MARQUEE ==================== */}
+        <div style={{
+          borderBlock: '1px solid var(--border-subtle)',
+          background: 'var(--surface-1)',
+          paddingBlock: 'var(--space-4)',
+          overflow: 'hidden'
+        }}>
+          <div className="marquee">
+            {[0, 1].map((i) => (
+              <div key={i} className="marquee-content" style={{ gap: 'var(--space-8)' }}>
+                {['XIC', 'XIO', 'OTE', 'OTL', 'OTU', 'TON', 'TOF', 'CTU', 'CTD', 'ADD', 'SUB', 'MUL', 'DIV', 'MOV', 'COP', 'JSR', 'RET', 'EQU', 'NEQ', 'GRT', 'LES', 'GEQ', 'LEQ', 'ONS', 'OSR', 'OSF', 'RTO', 'RES', 'CPT', 'FLL', 'MSG', 'GSV', 'SSV', 'ABL', 'ABS', 'ACB', 'ACS', 'AFI'].map((inst) => (
+                  <span
+                    key={`${i}-${inst}`}
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-muted)',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.05em'
+                    }}
+                  >
+                    {inst}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ==================== MASSIVE STATEMENT ==================== */}
+        <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(80px, 15vh, 150px)' }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <h2 style={{
+              fontSize: 'clamp(2.5rem, 8vw, 6rem)',
+              fontWeight: 300,
+              color: 'var(--text-primary)',
+              lineHeight: 1.1,
+              letterSpacing: '-0.03em',
+              maxWidth: '1200px'
+            }}>
+              <ScrambleText
+                text="STOP PAYING"
+                style={{ display: 'inline' }}
+              />{' '}
+              <span style={{ color: 'var(--text-muted)' }}>$5,000</span> just to{' '}
+              <em style={{ fontStyle: 'italic', color: 'var(--accent-emerald)' }}>look</em> at your code.
+            </h2>
+          </div>
+        </section>
+
+        {/* ==================== FILE FORMATS - Horizontal Scroll ==================== */}
+        <section style={{
+          background: 'var(--surface-1)',
+          borderBlock: '1px solid var(--border-subtle)',
+          paddingBlock: 'clamp(60px, 10vh, 100px)'
+        }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-end',
+              marginBlockEnd: 'var(--space-10)',
+              flexWrap: 'wrap',
+              gap: 'var(--space-4)'
+            }}>
+              <div>
+                <p style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  marginBlockEnd: 'var(--space-2)'
+                }}>
+                  Supported Formats
+                </p>
+                <h3 style={{
+                  fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.02em'
+                }}>
+                  Every Allen-Bradley file type
+                </h3>
+              </div>
+              <p style={{ color: 'var(--text-tertiary)', maxWidth: '400px' }}>
+                From modern ControlLogix to legacy SLC 500. One viewer for everything.
               </p>
             </div>
 
-            <div
-              className="grid container-inline"
-              style={{
-                gap: 'var(--space-6)',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'
-              }}
-            >
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '1px',
+              background: 'var(--border-subtle)'
+            }}>
               {[
                 {
-                  icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-input)" strokeWidth="1.5">
-                      <rect x="3" y="6" width="4" height="12" rx="1" />
-                      <rect x="10" y="6" width="4" height="12" rx="1" />
-                      <rect x="17" y="6" width="4" height="12" rx="1" />
-                      <path d="M5 9h2M5 12h2M5 15h2M12 9h2M12 12h2M19 9h2M19 12h2M19 15h2" strokeWidth="1" />
-                    </svg>
-                  ),
-                  iconBg: 'rgba(34, 197, 94, 0.1)',
-                  iconBorder: 'rgba(34, 197, 94, 0.2)',
-                  title: 'Ladder Logic Visualization',
-                  desc: 'Color-coded instructions make it easy to identify inputs, outputs, timers, counters, and math at a glance.'
+                  ext: '.L5X',
+                  name: 'Studio 5000 Export',
+                  desc: 'ControlLogix, CompactLogix, GuardLogix',
+                  controllers: '1756-L8x, 1769-L3x',
+                  color: 'var(--accent-emerald)'
                 },
                 {
-                  icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
-                      <path d="M12 2a4 4 0 014 4v1a3 3 0 013 3v1h1a3 3 0 013 3v2a4 4 0 01-4 4h-1" />
-                      <path d="M12 2a4 4 0 00-4 4v1a3 3 0 00-3 3v1H4a3 3 0 00-3 3v2a4 4 0 004 4h1" />
-                      <circle cx="12" cy="14" r="4" />
-                    </svg>
-                  ),
-                  iconBg: 'var(--accent-blue-muted)',
-                  iconBorder: 'rgba(59, 130, 246, 0.3)',
-                  title: 'AI-Powered Explanations',
-                  desc: 'Get plain-English summaries of what each rung does. Choose between friendly, technical, or operator modes.'
+                  ext: '.ACD',
+                  name: 'Native Project',
+                  desc: 'Full Studio 5000 project files',
+                  controllers: 'All Logix controllers',
+                  color: 'var(--accent-blue)'
                 },
                 {
-                  icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-counter)" strokeWidth="1.5">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                      <path d="M2 17l10 5 10-5" />
-                      <path d="M2 12l10 5 10-5" />
-                    </svg>
-                  ),
-                  iconBg: 'rgba(168, 85, 247, 0.1)',
-                  iconBorder: 'rgba(168, 85, 247, 0.2)',
-                  title: 'Complete Tag Browser',
-                  desc: 'Search and filter all controller and program-scoped tags. See data types, descriptions, and usage.'
-                },
-                {
-                  icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
-                      <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
-                    </svg>
-                  ),
-                  iconBg: 'var(--accent-amber-muted)',
-                  iconBorder: 'rgba(245, 158, 11, 0.3)',
-                  title: 'Troubleshooting Tips',
-                  desc: 'Each instruction includes context-aware troubleshooting suggestions to help diagnose issues faster.'
-                },
-                {
-                  icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--inst-jump)" strokeWidth="1.5">
-                      <circle cx="5" cy="12" r="3" />
-                      <circle cx="19" cy="6" r="3" />
-                      <circle cx="19" cy="18" r="3" />
-                      <path d="M8 12h4l3-6M12 12l3 6" />
-                    </svg>
-                  ),
-                  iconBg: 'rgba(249, 115, 22, 0.1)',
-                  iconBorder: 'rgba(249, 115, 22, 0.2)',
-                  title: 'Program Structure View',
-                  desc: 'Navigate tasks, programs, and routines in a hierarchical tree. See how your code is organized.'
-                },
-                {
-                  icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="1.5">
-                      <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                      <path d="M22 4L12 14.01l-3-3" />
-                    </svg>
-                  ),
-                  iconBg: 'var(--accent-emerald-muted)',
-                  iconBorder: 'rgba(16, 185, 129, 0.3)',
-                  title: 'No PLC Software Required',
-                  desc: 'View and analyze PLC programs without expensive software licenses. Works with L5X, ACD, and RSS files.'
+                  ext: '.RSS',
+                  name: 'RSLogix 500',
+                  desc: 'SLC 500, MicroLogix, PLC-5',
+                  controllers: 'SLC 5/01-5/05, ML1000-1400',
+                  color: 'var(--accent-amber)'
                 }
-              ].map((feature, idx) => (
-                <div
-                  key={idx}
-                  className="surface-card container-inline"
-                  style={{ padding: 'var(--space-6)' }}
+              ].map((format) => (
+                <TiltCard
+                  key={format.ext}
+                  className="format-card"
+                  style={{
+                    background: 'var(--surface-0)',
+                    padding: 'clamp(24px, 4vw, 48px)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--space-4)',
+                    transition: 'background 0.3s ease',
+                    cursor: 'default',
+                    position: 'relative'
+                  }}
                 >
-                  <div
-                    className="flex items-center justify-center"
-                    style={{
-                      width: 'clamp(40px, 6vw, 48px)',
-                      height: 'clamp(40px, 6vw, 48px)',
-                      marginBlockEnd: 'var(--space-5)',
-                      background: feature.iconBg,
-                      border: `1px solid ${feature.iconBorder}`,
-                      borderRadius: 'var(--radius-sm)'
-                    }}
-                  >
-                    {feature.icon}
+                  <span className="format-ext" style={{
+                    fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-primary)',
+                    letterSpacing: '-0.02em',
+                    transition: 'color 0.3s ease'
+                  }}>
+                    {format.ext}
+                  </span>
+                  <div>
+                    <p style={{
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBlockEnd: '4px'
+                    }}>
+                      {format.name}
+                    </p>
+                    <p style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>
+                      {format.desc}
+                    </p>
                   </div>
-                  <h3
-                    className="text-fluid-lg font-semibold"
-                    style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-2)' }}
-                  >
-                    {feature.title}
-                  </h3>
-                  <p className="text-fluid-sm" style={{ color: 'var(--text-tertiary)', lineHeight: '1.6' }}>
-                    {feature.desc}
+                  <p style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-muted)',
+                    marginBlockStart: 'auto'
+                  }}>
+                    {format.controllers}
                   </p>
-                </div>
+                  {/* Hover accent line */}
+                  <div
+                    className="format-accent"
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: '2px',
+                      background: format.color,
+                      transform: 'scaleX(0)',
+                      transformOrigin: 'left',
+                      transition: 'transform 0.3s ease'
+                    }}
+                  />
+                </TiltCard>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ==================== SUPPORTED INSTRUCTIONS ==================== */}
-        <section className="py-fluid-20" style={{ background: 'var(--surface-1)', paddingBlock: 'var(--space-24)' }}>
-          <div className="container-default">
-            <div className="text-center" style={{ marginBlockEnd: 'var(--space-12)' }}>
-              <span
-                className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
-              >
-                Comprehensive Coverage
-              </span>
-              <h2
-                className="text-fluid-4xl font-bold"
-                style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
-              >
-                215+ Instructions Supported
-              </h2>
-              <p
-                className="text-fluid-lg"
-                style={{
+        {/* ==================== FEATURES - Editorial Grid ==================== */}
+        <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(80px, 15vh, 150px)' }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(12, 1fr)',
+              gap: 'var(--space-6)'
+            }}>
+              {/* Left column - Big number + title */}
+              <div style={{ gridColumn: 'span 5' }}>
+                <span style={{
+                  fontSize: 'clamp(6rem, 15vw, 12rem)',
+                  fontWeight: 800,
+                  color: 'var(--surface-3)',
+                  lineHeight: 0.8,
+                  display: 'block'
+                }}>
+                  <AnimatedCounter end={215} suffix="+" duration={2500} />
+                </span>
+                <h3 style={{
+                  fontSize: 'clamp(1.5rem, 3vw, 2rem)',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBlockStart: 'var(--space-4)'
+                }}>
+                  Instructions supported
+                </h3>
+                <p style={{
                   color: 'var(--text-secondary)',
-                  maxWidth: '42rem',
-                  marginInline: 'auto'
-                }}
-              >
-                From basic bit logic to advanced motion control, we have got you covered.
-              </p>
-            </div>
+                  marginBlockStart: 'var(--space-3)',
+                  maxWidth: '300px',
+                  lineHeight: 1.6
+                }}>
+                  From basic XIC/OTE to motion control. Every instruction explained in plain English.
+                </p>
+              </div>
 
-            <div className="flex flex-wrap justify-center" style={{ gap: 'var(--space-3)' }}>
+              {/* Right column - Feature list */}
+              <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--border-subtle)' }}>
+                {[
+                  { title: 'AI Explanations', desc: 'Click any rung. Get instant understanding. Choose friendly, technical, or operator mode.' },
+                  { title: 'Tag Browser', desc: 'Search thousands of tags instantly. Filter by type, scope, or usage.' },
+                  { title: 'Cross Reference', desc: 'Find every place a tag is used. Trace signal flow through your program.' },
+                  { title: 'No Installation', desc: 'Runs in your browser. Works on any device. Start viewing in seconds.' },
+                ].map((feature, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'var(--surface-0)',
+                      padding: 'var(--space-6)',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 2fr',
+                      gap: 'var(--space-6)',
+                      alignItems: 'baseline'
+                    }}
+                  >
+                    <h4 style={{
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)'
+                    }}>
+                      {feature.title}
+                    </h4>
+                    <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      {feature.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== HOW IT WORKS - Minimal ==================== */}
+        <section id="how-it-works" style={{
+          background: 'var(--surface-1)',
+          borderBlock: '1px solid var(--border-subtle)',
+          paddingBlock: 'clamp(60px, 10vh, 100px)'
+        }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '1px',
+              background: 'var(--border-subtle)'
+            }}>
               {[
-                { name: 'Bit Logic', examples: 'XIC, XIO, OTE, OTL, OTU, ONS', color: 'var(--inst-input)' },
-                { name: 'Timers', examples: 'TON, TOF, RTO, TONR', color: 'var(--inst-timer)' },
-                { name: 'Counters', examples: 'CTU, CTD, CTUD, RES', color: 'var(--inst-counter)' },
-                { name: 'Compare', examples: 'EQU, NEQ, GRT, LES, GEQ, LEQ', color: 'var(--inst-math)' },
-                { name: 'Math', examples: 'ADD, SUB, MUL, DIV, CPT', color: 'var(--inst-math)' },
-                { name: 'Move', examples: 'MOV, MVM, COP, FLL', color: 'var(--inst-move)' },
-                { name: 'Program', examples: 'JSR, JMP, RET, FOR, NXT', color: 'var(--inst-jump)' },
-                { name: 'Motion', examples: 'MSO, MSF, MAJ, MAM, MAS', color: 'var(--accent-blue)' },
-              ].map((category) => (
-                <div
-                  key={category.name}
-                  className="surface-card"
+                { num: '01', title: 'Upload', desc: 'Drop your L5X, ACD, or RSS file' },
+                { num: '02', title: 'Browse', desc: 'Navigate programs, routines, tags' },
+                { num: '03', title: 'Understand', desc: 'Get AI explanations in plain English' },
+              ].map((step) => (
+                <TiltCard
+                  key={step.num}
                   style={{
-                    paddingInline: 'var(--space-4)',
-                    paddingBlock: 'var(--space-3)'
+                    background: 'var(--surface-0)',
+                    padding: 'clamp(32px, 5vw, 64px)'
                   }}
                 >
-                  <div className="text-fluid-sm font-semibold" style={{ color: category.color, marginBlockEnd: 'var(--space-1)' }}>
-                    {category.name}
-                  </div>
-                  <div className="text-fluid-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
-                    {category.examples}
-                  </div>
-                </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    letterSpacing: '0.1em',
+                    color: 'var(--text-muted)'
+                  }}>
+                    {step.num}
+                  </span>
+                  <h3 style={{
+                    fontSize: 'clamp(1.5rem, 3vw, 2rem)',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBlock: 'var(--space-3)'
+                  }}>
+                    {step.title}
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {step.desc}
+                  </p>
+                </TiltCard>
               ))}
             </div>
           </div>
         </section>
 
         {/* ==================== WHO IT'S FOR ==================== */}
-        <section className="py-fluid-20" style={{ background: 'var(--surface-0)', paddingBlock: 'var(--space-24)' }}>
-          <div className="container-default">
-            <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
-              <span
-                className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
-              >
-                Use Cases
-              </span>
-              <h2 className="text-fluid-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                Built for people who work with PLCs
-              </h2>
-            </div>
-
-            <div
-              className="grid-auto-fit container-inline"
-              style={{ gap: 'var(--space-8)' }}
-            >
+        <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(80px, 15vh, 150px)' }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <p style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+              marginBlockEnd: 'var(--space-6)'
+            }}>
+              Built for
+            </p>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: 'var(--space-8)'
+            }}>
               {[
-                {
-                  icon: (
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
-                      <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
-                    </svg>
-                  ),
-                  title: 'Maintenance Technicians',
-                  desc: 'Quickly understand unfamiliar machine code during troubleshooting. Get context without needing Studio 5000.'
-                },
-                {
-                  icon: (
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
-                      <rect x="2" y="3" width="20" height="14" rx="2" />
-                      <path d="M8 21h8M12 17v4" />
-                    </svg>
-                  ),
-                  title: 'Controls Engineers',
-                  desc: 'Review programs from integrators or legacy systems. Document code with AI-generated explanations.'
-                },
-                {
-                  icon: (
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="1.5">
-                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-                    </svg>
-                  ),
-                  title: 'Training and Onboarding',
-                  desc: 'Help new team members understand existing code. The friendly explanation mode breaks down complex logic.'
-                }
-              ].map((item, idx) => (
-                <div key={idx} className="text-center">
-                  <div
-                    className="flex items-center justify-center"
-                    style={{
-                      width: 'clamp(56px, 8vw, 64px)',
-                      height: 'clamp(56px, 8vw, 64px)',
-                      marginInline: 'auto',
-                      marginBlockEnd: 'var(--space-5)',
-                      background: 'var(--surface-2)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-sm)'
-                    }}
-                  >
-                    {item.icon}
-                  </div>
-                  <h3
-                    className="text-fluid-xl font-semibold"
-                    style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-3)' }}
-                  >
+                { title: 'Maintenance Technicians', desc: 'Understand unfamiliar machine code during troubleshooting without needing Studio 5000.' },
+                { title: 'Controls Engineers', desc: 'Review programs from integrators or legacy systems. Document code with AI-generated explanations.' },
+                { title: 'Training Teams', desc: 'Help new team members understand existing code. Plain English explanations break down complex logic.' },
+              ].map((item) => (
+                <div key={item.title}>
+                  <h3 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBlockEnd: 'var(--space-3)'
+                  }}>
                     {item.title}
                   </h3>
-                  <p className="text-fluid-base" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                     {item.desc}
                   </p>
                 </div>
@@ -753,179 +596,579 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ==================== UPLOAD CTA ==================== */}
-        <section id="upload" className="py-fluid-20" style={{ background: 'var(--surface-1)', paddingBlock: 'var(--space-24)' }}>
-          <div className="container-narrow">
-            <div className="text-center" style={{ marginBlockEnd: 'var(--space-12)' }}>
-              <h2
-                className="text-fluid-4xl font-bold"
-                style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
-              >
-                Ready to get started?
-              </h2>
-              <p className="text-fluid-lg" style={{ color: 'var(--text-secondary)' }}>
-                Upload your L5X, ACD, or RSS file and start exploring your PLC program.
+        {/* ==================== COMPARISON SECTION ==================== */}
+        <section style={{
+          background: 'var(--surface-1)',
+          borderBlock: '1px solid var(--border-subtle)',
+          paddingBlock: 'clamp(80px, 15vh, 150px)'
+        }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <div style={{ textAlign: 'center', marginBlockEnd: 'var(--space-12)' }}>
+              <p style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                marginBlockEnd: 'var(--space-3)'
+              }}>
+                Why PLC Viewer
               </p>
+              <h2 style={{
+                fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em'
+              }}>
+                The smarter way to view PLC code
+              </h2>
             </div>
 
-            {/* Upload card */}
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              className={`relative transition-all duration-200 ${isUploading ? 'pointer-events-none' : ''}`}
-              style={{
-                padding: 'var(--space-10)',
-                background: isDragging ? 'var(--accent-blue-muted)' : 'var(--surface-2)',
-                border: `2px dashed ${isDragging ? 'var(--accent-blue)' : 'var(--border-default)'}`,
-                borderRadius: 'var(--radius-md)'
-              }}
-            >
-              <input
-                type="file"
-                accept=".l5x,.acd,.rss"
-                onChange={handleInputChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                disabled={isUploading}
-                style={{ minHeight: 'var(--touch-target-min)' }}
-              />
-
-              {isUploading ? (
-                <div className="text-center" style={{ paddingBlock: 'var(--space-4)' }}>
-                  <div style={{ marginBlockEnd: 'var(--space-4)' }}>
-                    <svg className="animate-pulse-subtle" style={{ width: '48px', height: '48px', marginInline: 'auto' }} viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
-                      <path d="M12 3v12M12 3l4 4M12 3L8 7" />
-                      <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
-                    </svg>
-                  </div>
-                  <p
-                    className="text-fluid-base font-medium"
-                    style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
-                  >
-                    Processing file...
-                  </p>
-                  <div
-                    className="overflow-hidden"
-                    style={{
-                      width: 'clamp(200px, 50vw, 288px)',
-                      height: '6px',
-                      marginInline: 'auto',
-                      background: 'var(--surface-4)',
-                      borderRadius: 'var(--radius-sm)'
-                    }}
-                  >
-                    <div
-                      className="transition-all duration-200"
-                      style={{
-                        height: '100%',
-                        background: 'var(--accent-blue)',
-                        width: `${uploadProgress}%`,
-                        borderRadius: 'var(--radius-sm)'
-                      }}
-                    />
-                  </div>
-                  <p
-                    className="text-fluid-sm"
-                    style={{ color: 'var(--text-muted)', marginBlockStart: 'var(--space-3)' }}
-                  >
-                    Parsing program structure...
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center" style={{ paddingBlock: 'var(--space-4)' }}>
-                  <div style={{ marginBlockEnd: 'var(--space-5)' }}>
-                    <svg
-                      className="transition-colors"
-                      style={{ width: 'clamp(48px, 8vw, 56px)', height: 'clamp(48px, 8vw, 56px)', marginInline: 'auto' }}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke={isDragging ? 'var(--accent-blue)' : 'var(--text-muted)'}
-                      strokeWidth="1.5"
-                    >
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                    </svg>
-                  </div>
-                  <p
-                    className="text-fluid-lg font-medium"
-                    style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-2)' }}
-                  >
-                    {isDragging ? 'Drop to upload' : 'Drop your file here'}
-                  </p>
-                  <p
-                    className="text-fluid-sm"
-                    style={{ color: 'var(--text-muted)', marginBlockEnd: 'var(--space-4)' }}
-                  >
-                    or <span style={{ color: 'var(--accent-blue)' }} className="cursor-pointer font-medium">browse</span> to select a file
-                  </p>
-                  <div className="flex items-center justify-center" style={{ gap: 'var(--space-4)' }}>
-                    <span className="tech-badge">.L5X</span>
-                    <span className="tech-badge">.ACD</span>
-                    <span className="tech-badge">.RSS</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Error message */}
-            {error && (
-              <div
-                className="flex items-center"
-                style={{
-                  marginBlockStart: 'var(--space-4)',
-                  paddingInline: 'var(--space-4)',
-                  paddingBlock: 'var(--space-3)',
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '1px',
+              background: 'var(--border-subtle)'
+            }}>
+              {/* Studio 5000 Column */}
+              <div style={{ background: 'var(--surface-0)', padding: 'clamp(32px, 5vw, 48px)' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: 'var(--space-3)',
-                  background: 'var(--accent-red-muted)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 'var(--radius-sm)'
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M15 9l-6 6M9 9l6 6" />
-                </svg>
-                <span className="text-fluid-sm" style={{ color: 'var(--accent-red)' }}>{error}</span>
+                  marginBlockEnd: 'var(--space-6)'
+                }}>
+                  <span style={{
+                    width: '12px',
+                    height: '12px',
+                    background: 'var(--text-muted)',
+                    opacity: 0.5
+                  }} />
+                  <h3 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 600,
+                    color: 'var(--text-tertiary)'
+                  }}>
+                    Studio 5000
+                  </h3>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {[
+                    '$5,000+ license cost',
+                    'Windows only',
+                    'Heavy installation required',
+                    'Version compatibility issues',
+                    'No AI explanations',
+                    'Complex interface'
+                  ].map((item, idx) => (
+                    <li
+                      key={idx}
+                      style={{
+                        padding: 'var(--space-3) 0',
+                        borderBlockEnd: idx < 5 ? '1px solid var(--border-subtle)' : 'none',
+                        color: 'var(--text-tertiary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-3)'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            )}
+
+              {/* PLC Viewer Column */}
+              <div style={{ background: 'var(--surface-0)', padding: 'clamp(32px, 5vw, 48px)' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-3)',
+                  marginBlockEnd: 'var(--space-6)'
+                }}>
+                  <span style={{
+                    width: '12px',
+                    height: '12px',
+                    background: 'var(--accent-emerald)'
+                  }} />
+                  <h3 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)'
+                  }}>
+                    PLC Viewer
+                  </h3>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {[
+                    'Affordable subscription',
+                    'Works on any device',
+                    'No installation needed',
+                    'Opens any version instantly',
+                    'AI-powered explanations',
+                    'Clean, modern interface'
+                  ].map((item, idx) => (
+                    <li
+                      key={idx}
+                      style={{
+                        padding: 'var(--space-3) 0',
+                        borderBlockEnd: idx < 5 ? '1px solid var(--border-subtle)' : 'none',
+                        color: 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-3)'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* ==================== FOOTER ==================== */}
-        <footer
-          className="safe-area-bottom"
-          style={{
-            borderBlockStart: '1px solid var(--border-subtle)',
-            background: 'var(--surface-0)',
-            paddingBlock: 'var(--space-12)'
-          }}
-        >
-          <div className="container-default">
-            <div className="stack-to-row justify-between" style={{ gap: 'var(--space-6)' }}>
-              <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+        {/* ==================== STATS SECTION ==================== */}
+        <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(60px, 10vh, 100px)' }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '1px',
+              background: 'var(--border-subtle)'
+            }}>
+              {[
+                { value: 215, suffix: '+', label: 'Instructions Supported' },
+                { value: 25, suffix: '+', label: 'Motion Instructions' },
+                { value: 3, suffix: '', label: 'File Formats (L5X/ACD/RSS)' },
+                { value: 14, suffix: '', label: 'Analysis Tools' }
+              ].map((stat, idx) => (
                 <div
-                  className="flex items-center justify-center"
+                  key={idx}
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    background: 'var(--accent-blue-muted)',
-                    border: '1px solid var(--accent-blue)',
-                    borderRadius: 'var(--radius-sm)'
+                    background: 'var(--surface-0)',
+                    padding: 'clamp(24px, 4vw, 48px)',
+                    textAlign: 'center'
                   }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2.5">
-                    <path d="M4 6h16M4 12h16M4 18h16" />
-                    <circle cx="8" cy="6" r="1" fill="currentColor" />
-                    <circle cx="16" cy="12" r="1" fill="currentColor" />
-                    <circle cx="12" cy="18" r="1" fill="currentColor" />
-                  </svg>
+                  <span style={{
+                    fontSize: 'clamp(2.5rem, 6vw, 4rem)',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    display: 'block',
+                    lineHeight: 1
+                  }}>
+                    <AnimatedCounter end={stat.value} suffix={stat.suffix} duration={2000} />
+                  </span>
+                  <span style={{
+                    fontSize: '0.875rem',
+                    color: 'var(--text-tertiary)',
+                    marginBlockStart: 'var(--space-2)',
+                    display: 'block'
+                  }}>
+                    {stat.label}
+                  </span>
                 </div>
-                <span className="text-fluid-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  PLC Viewer
-                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== DEEP DIVE FEATURES ==================== */}
+        <section style={{
+          background: 'var(--surface-1)',
+          borderBlock: '1px solid var(--border-subtle)',
+          paddingBlock: 'clamp(80px, 15vh, 150px)'
+        }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <div style={{ marginBlockEnd: 'var(--space-12)' }}>
+              <p style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                marginBlockEnd: 'var(--space-3)'
+              }}>
+                Features
+              </p>
+              <h2 style={{
+                fontSize: 'clamp(2rem, 5vw, 3rem)',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+                maxWidth: '600px'
+              }}>
+                Everything you need to understand PLC code
+              </h2>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 'var(--space-6)'
+            }}>
+              {[
+                {
+                  title: 'AI-Powered Explanations',
+                  desc: 'Click any rung and get an instant explanation in plain English. Choose from three modes: Friendly (for beginners), Technical (for engineers), or Operator (for floor personnel). Chat with AI about your entire program.',
+                  accent: 'var(--accent-emerald)'
+                },
+                {
+                  title: 'Interactive Simulation',
+                  desc: 'Toggle tags and watch power flow through your ladder logic in real-time. Simulate timers and counters. Inject faults to test logic. See exactly what would happen on the real PLC.',
+                  accent: 'var(--accent-blue)'
+                },
+                {
+                  title: 'Cross Reference & Tracing',
+                  desc: 'Find every rung where a tag is read or written. Trace signal flow upstream and downstream. See call trees for JSR relationships. Find similar or duplicate rungs across your program.',
+                  accent: 'var(--accent-amber)'
+                },
+                {
+                  title: 'Trend Charts & Watch Window',
+                  desc: 'Monitor multiple tags in real-time with a floating watch window. Graph tag values over time with trend charts. Perfect for understanding timing and sequence behavior.',
+                  accent: 'var(--accent-emerald)'
+                },
+                {
+                  title: 'Safety & Alarm Analysis',
+                  desc: 'Automatically detect E-stops, guard interlocks, light curtains, and safety relays. Find all ALMD and ALMA alarm instructions. Understand your safety system at a glance.',
+                  accent: 'var(--accent-blue)'
+                },
+                {
+                  title: 'Program Diff & Compare',
+                  desc: 'Compare two versions of your program to see what changed. Color-coded diff view shows added, removed, and modified rungs. Essential for version control and code review.',
+                  accent: 'var(--accent-amber)'
+                },
+                {
+                  title: '215+ Instructions Supported',
+                  desc: 'Full support for ladder logic, timers, counters, math, compare, motion control (25+ servo instructions), sequencers, string operations, and more. Plus structured text viewing.',
+                  accent: 'var(--accent-emerald)'
+                },
+                {
+                  title: 'Export & Documentation',
+                  desc: 'Export to PDF with AI explanations, color-coded rungs, and simulation state. Generate CSV tag lists. Create markdown documentation. Print-ready reports for maintenance.',
+                  accent: 'var(--accent-blue)'
+                }
+              ].map((feature, idx) => (
+                <TiltCard
+                  key={idx}
+                  style={{
+                    background: 'var(--surface-0)',
+                    padding: 'clamp(24px, 4vw, 40px)',
+                    border: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    marginBlockEnd: 'var(--space-4)',
+                    background: feature.accent,
+                    opacity: 0.15
+                  }} />
+                  <h3 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBlockEnd: 'var(--space-3)'
+                  }}>
+                    {feature.title}
+                  </h3>
+                  <p style={{
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.7,
+                    fontSize: '0.9375rem'
+                  }}>
+                    {feature.desc}
+                  </p>
+                </TiltCard>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== QUOTE / TESTIMONIAL ==================== */}
+        <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(80px, 15vh, 150px)' }}>
+          <div style={{ maxWidth: '900px', marginInline: 'auto', paddingInline: 'var(--space-6)', textAlign: 'center' }}>
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--border-subtle)"
+              strokeWidth="1"
+              style={{ marginBlockEnd: 'var(--space-6)' }}
+            >
+              <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21c0 1 0 1 1 1z" />
+              <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+            </svg>
+            <blockquote style={{
+              fontSize: 'clamp(1.5rem, 4vw, 2.25rem)',
+              fontWeight: 300,
+              color: 'var(--text-primary)',
+              lineHeight: 1.4,
+              fontStyle: 'italic',
+              marginBlockEnd: 'var(--space-6)'
+            }}>
+              Finally, a way to review PLC code without buying another $5,000 license just to look at a file someone sent me.
+            </blockquote>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.05em'
+            }}>
+              — Every controls engineer, probably
+            </p>
+          </div>
+        </section>
+
+        {/* ==================== FAQ SECTION ==================== */}
+        <section style={{
+          background: 'var(--surface-1)',
+          borderBlock: '1px solid var(--border-subtle)',
+          paddingBlock: 'clamp(80px, 15vh, 150px)'
+        }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 2fr',
+              gap: 'var(--space-12)'
+            }}>
+              <div>
+                <p style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  marginBlockEnd: 'var(--space-3)'
+                }}>
+                  FAQ
+                </p>
+                <h2 style={{
+                  fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.02em'
+                }}>
+                  Common questions
+                </h2>
               </div>
 
-              <p className="text-fluid-sm" style={{ color: 'var(--text-muted)' }}>
-                Compatible with Allen-Bradley ControlLogix, CompactLogix, GuardLogix, SLC 500, and MicroLogix
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--border-subtle)' }}>
+                {[
+                  {
+                    q: 'Can I edit PLC code with this tool?',
+                    a: 'No. PLC Viewer is a read-only tool designed for viewing and understanding code. For editing, you\'ll still need Studio 5000 or RSLogix. We focus on doing one thing exceptionally well: helping you understand PLC code.'
+                  },
+                  {
+                    q: 'What file versions are supported?',
+                    a: 'We support L5X exports from any Studio 5000 version, ACD project files from v20+, and RSS files from RSLogix 500. Legacy formats are parsed and displayed correctly regardless of the original software version.'
+                  },
+                  {
+                    q: 'How accurate are the AI explanations?',
+                    a: 'Our AI is trained on PLC programming patterns and understands Allen-Bradley instruction sets deeply. It considers tag names, comments, and context to provide meaningful explanations. You can choose Technical mode for precise details or Friendly mode for simplified overviews.'
+                  },
+                  {
+                    q: 'Is my code secure?',
+                    a: 'Yes. Files are processed in secure, isolated environments. We don\'t store your PLC code permanently or share it with third parties. Your intellectual property remains yours.'
+                  },
+                  {
+                    q: 'Does it work offline?',
+                    a: 'Currently, PLC Viewer requires an internet connection for AI features. The core viewing functionality processes files locally in your browser for speed and privacy.'
+                  },
+                  {
+                    q: 'What about safety-rated programs?',
+                    a: 'PLC Viewer displays safety program structure, safety tags, and GuardLogix-specific content. Safety instructions are clearly marked and explained appropriately.'
+                  }
+                ].map((faq, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'var(--surface-0)',
+                      padding: 'var(--space-6)'
+                    }}
+                  >
+                    <h3 style={{
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBlockEnd: 'var(--space-3)'
+                    }}>
+                      {faq.q}
+                    </h3>
+                    <p style={{
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.7
+                    }}>
+                      {faq.a}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== COMING SOON / ROADMAP ==================== */}
+        <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(60px, 10vh, 100px)' }}>
+          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+            <div style={{ textAlign: 'center', marginBlockEnd: 'var(--space-10)' }}>
+              <p style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--accent-amber)',
+                marginBlockEnd: 'var(--space-3)'
+              }}>
+                Coming Soon
+              </p>
+              <h2 style={{
+                fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em'
+              }}>
+                Features on the roadmap
+              </h2>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 'var(--space-4)'
+            }}>
+              {[
+                'Siemens TIA Portal Support',
+                'Omron CX-Programmer Support',
+                'Team Sharing & Collaboration',
+                'API Access',
+                'Offline Mode',
+                'Code Annotations',
+                'Custom Report Templates',
+                'Integration with CMMS'
+              ].map((feature, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: 'var(--space-4)',
+                    border: '1px dashed var(--border-subtle)',
+                    textAlign: 'center'
+                  }}
+                >
+                  <span style={{
+                    fontSize: '0.875rem',
+                    color: 'var(--text-tertiary)'
+                  }}>
+                    {feature}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== REVERSE SCROLLING MARQUEE ==================== */}
+        <div style={{
+          borderBlock: '1px solid var(--border-subtle)',
+          background: 'var(--surface-1)',
+          paddingBlock: 'var(--space-4)',
+          overflow: 'hidden'
+        }}>
+          <div className="marquee">
+            {[0, 1].map((i) => (
+              <div key={i} className="marquee-content-reverse" style={{ gap: 'var(--space-12)' }}>
+                {['ControlLogix', 'CompactLogix', 'GuardLogix', 'SLC 500', 'MicroLogix 1000', 'MicroLogix 1100', 'MicroLogix 1400', 'PLC-5', 'Studio 5000', 'RSLogix 500', 'RSLogix 5000'].map((name) => (
+                  <span
+                    key={`${i}-${name}`}
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      color: 'var(--text-tertiary)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ==================== CTA SECTION (Upload for admin, Waitlist for others) ==================== */}
+        <CTASection />
+
+        {/* ==================== FOOTER ==================== */}
+        <footer style={{
+          borderBlockStart: '1px solid var(--border-subtle)',
+          background: 'var(--surface-0)',
+          paddingBlock: 'var(--space-10)'
+        }}>
+          <div style={{
+            maxWidth: '1400px',
+            marginInline: 'auto',
+            paddingInline: 'var(--space-6)'
+          }}>
+            {/* Footer grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: 'var(--space-8)',
+              marginBlockEnd: 'var(--space-8)'
+            }}>
+              {/* Logo column */}
+              <div>
+                <a href="/">
+                  <img
+                    src="/logplc2.svg"
+                    alt="PLC Company"
+                    style={{
+                      height: '40px',
+                      width: 'auto',
+                      filter: 'brightness(0) invert(1)',
+                      opacity: 0.8,
+                      marginBlockEnd: 'var(--space-3)'
+                    }}
+                  />
+                </a>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  View PLC programs without expensive licenses.
+                </p>
+              </div>
+
+              {/* File Formats */}
+              <div>
+                <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBlockEnd: 'var(--space-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>File Formats</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <a href="/l5x-file" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>L5X Viewer</a>
+                  <a href="/acd-file" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>ACD Viewer</a>
+                  <a href="/rss-file" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>RSS Viewer</a>
+                </div>
+              </div>
+
+              {/* Resources */}
+              <div>
+                <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBlockEnd: 'var(--space-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resources</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <a href="/ladder-logic-viewer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Ladder Logic Viewer</a>
+                  <a href="/view-l5x-without-studio-5000" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>View L5X Without Studio 5000</a>
+                  <a href="/studio-5000-alternative" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Studio 5000 Alternative</a>
+                  <a href="/free-allen-bradley-plc-viewer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Free Allen-Bradley Viewer</a>
+                </div>
+              </div>
+            </div>
+
+            {/* Copyright */}
+            <div style={{ borderBlockStart: '1px solid var(--border-subtle)', paddingBlockStart: 'var(--space-6)' }}>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                © {new Date().getFullYear()} PLC Viewer. Allen-Bradley, ControlLogix, CompactLogix, RSLogix, and Studio 5000 are trademarks of Rockwell Automation.
               </p>
             </div>
           </div>

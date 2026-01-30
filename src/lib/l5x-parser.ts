@@ -4,6 +4,20 @@ import JSZip from 'jszip'
 // Re-export RSS parser
 export { parseRSS, isRSSFile, parseRss500Address, formatRss500Address } from './rss-parser'
 
+// Timer/counter programmed values (from RSS PROGRAM FILES instruction parameters)
+export interface PlcTimerProgramValue {
+  address: string     // e.g., "T4:0"
+  timeBase: number    // Time base in seconds (0.001, 0.01, 0.1, or 1.0)
+  preset: number      // PRE value
+  accum: number       // ACC value (initial/programmed)
+}
+
+export interface PlcCounterProgramValue {
+  address: string     // e.g., "C5:0"
+  preset: number      // PRE value
+  accum: number       // ACC value (initial/programmed)
+}
+
 // Types for parsed PLC data
 export interface PlcProject {
   name: string
@@ -14,6 +28,9 @@ export interface PlcProject {
   tasks: PlcTask[]
   modules: PlcModule[]
   dataTypes: PlcDataType[]
+  // Optional timer/counter programmed values (RSS files only)
+  timerProgramValues?: PlcTimerProgramValue[]
+  counterProgramValues?: PlcCounterProgramValue[]
 }
 
 export interface PlcTag {

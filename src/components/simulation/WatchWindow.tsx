@@ -83,11 +83,11 @@ export function WatchWindow({
   } = useSimulation()
 
   // Panel state
-  const [isCollapsed, setIsCollapsed] = useState(false)
   const [position, setPosition] = useState(initialPosition)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isMobile, setIsMobile] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Section collapse state
@@ -96,6 +96,17 @@ export function WatchWindow({
     timers: false,
     counters: false
   })
+
+  // Start collapsed on mobile
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const mobile = window.innerWidth < 640
+      setIsMobile(mobile)
+      if (mobile) {
+        setIsCollapsed(true)
+      }
+    }
+  }, [])
 
   // Search/filter state
   const [searchTerm, setSearchTerm] = useState('')

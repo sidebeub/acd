@@ -7,7 +7,7 @@
 
 import CFB from 'cfb'
 import { inflateSync, inflateRawSync, gunzipSync } from 'zlib'
-import type { PlcProject, PlcProgram, PlcRoutine, PlcRung, PlcInstruction, PlcTag } from './l5x-parser'
+import type { PlcProject, PlcProgram, PlcRoutine, PlcRung, PlcInstruction, PlcTag, PlcTimerProgramValue, PlcCounterProgramValue } from './l5x-parser'
 
 /**
  * Try multiple decompression methods on data
@@ -94,11 +94,73 @@ export interface RssSymbol {
 // Global symbol table extracted from RSS file
 let symbolTable: Map<string, RssSymbol> = new Map()
 
+// Global data table values extracted from RSS file (address -> numeric value)
+let dataTableValues: Map<string, number> = new Map()
+
+// Timer/counter values extracted from PROGRAM FILES instruction parameters
+// These are the programmed initial values, more reliable than DATA FILES runtime values
+export interface ProgramTimerValue {
+  timeBase: number    // Time base in seconds (0.001, 0.01, 0.1, or 1.0)
+  preset: number      // PRE value
+  accum: number       // ACC value (initial/programmed)
+}
+
+export interface ProgramCounterValue {
+  preset: number      // PRE value
+  accum: number       // ACC value (initial/programmed)
+}
+
+let programTimerValues: Map<string, ProgramTimerValue> = new Map()
+let programCounterValues: Map<string, ProgramCounterValue> = new Map()
+
 /**
  * Get the symbol table (for use by other modules)
  */
 export function getSymbolTable(): Map<string, RssSymbol> {
   return symbolTable
+}
+
+/**
+ * Get the data table values (for use by other modules)
+ */
+export function getDataTableValues(): Map<string, number> {
+  return dataTableValues
+}
+
+/**
+ * Get timer values extracted from PROGRAM FILES instruction parameters
+ * These are the programmed initial values (timeBase, PRE, ACC)
+ * More reliable than DATA FILES runtime values for simulation initialization
+ */
+export function getProgramTimerValues(): Map<string, ProgramTimerValue> {
+  return programTimerValues
+}
+
+/**
+ * Get counter values extracted from PROGRAM FILES instruction parameters
+ * These are the programmed initial values (PRE, ACC)
+ * More reliable than DATA FILES runtime values for simulation initialization
+ */
+export function getProgramCounterValues(): Map<string, ProgramCounterValue> {
+  return programCounterValues
+}
+
+/**
+ * Look up a timer's programmed values by address (e.g., "T4:0")
+ * Returns timeBase (seconds), preset, and initial accumulator
+ */
+export function lookupProgramTimerValue(address: string): ProgramTimerValue | undefined {
+  const normalized = normalizeAddress(address)
+  return programTimerValues.get(normalized) ?? programTimerValues.get(address)
+}
+
+/**
+ * Look up a counter's programmed values by address (e.g., "C5:0")
+ * Returns preset and initial accumulator
+ */
+export function lookupProgramCounterValue(address: string): ProgramCounterValue | undefined {
+  const normalized = normalizeAddress(address)
+  return programCounterValues.get(normalized) ?? programCounterValues.get(address)
 }
 
 /**
@@ -108,6 +170,14 @@ export function lookupSymbol(address: string): RssSymbol | undefined {
   // Normalize address for lookup (remove leading zeros, standardize format)
   const normalized = normalizeAddress(address)
   return symbolTable.get(normalized) || symbolTable.get(address)
+}
+
+/**
+ * Look up a data value for an address
+ */
+export function lookupDataValue(address: string): number | undefined {
+  const normalized = normalizeAddress(address)
+  return dataTableValues.get(normalized) ?? dataTableValues.get(address)
 }
 
 /**
@@ -206,6 +276,143 @@ function extractSymbolTable(cfb: CFB.CFB$Container): Map<string, RssSymbol> {
   return symbols
 }
 
+/**
+ * Extract data table values from DATA FILES stream
+ *
+ * RSS DATA FILES structure:
+ * - Files are stored sequentially with headers containing type and element count
+ * - File numbers are assigned based on order within each type
+ * - Default starting numbers: O=0, I=1, S=2, B=3, T=4, C=5, R=6, N=7, F=8
+ *
+ * Header format at each 0x03 0x80 marker:
+ * - Byte 2: File type (0x08=N, 0x09=F, etc.)
+ * - Bytes 10-11: Element count (16-bit LE)
+ * - Bytes 12-13: Words per element
+ * - Data follows after 16-byte header
+ */
+function extractDataTableValues(dataFilesStream: Buffer): Map<string, number> {
+  const values = new Map<string, number>()
+
+  if (!dataFilesStream || dataFilesStream.length < 20) {
+    return values
+  }
+
+  console.log(`[RSS Parser] Extracting data table values from ${dataFilesStream.length} bytes`)
+
+  // File type codes
+  const FILE_TYPES: Record<number, string> = {
+    0x01: 'O', 0x02: 'I', 0x03: 'S', 0x04: 'B', 0x05: 'T',
+    0x06: 'C', 0x07: 'R', 0x08: 'N', 0x09: 'F', 0x0D: 'L'
+  }
+
+  // Default starting file numbers by type (RSLogix 500 standard)
+  const DEFAULT_FILE_NUMS: Record<string, number> = {
+    'O': 0, 'I': 1, 'S': 2, 'B': 3, 'T': 4, 'C': 5, 'R': 6, 'N': 7, 'F': 8, 'L': 9
+  }
+
+  // Track file numbers by type as we encounter them
+  const fileCounters: Record<string, number> = {}
+
+  // Scan for file headers (0x03 0x80 marker)
+  for (let i = 0; i < dataFilesStream.length - 20; i++) {
+    if (dataFilesStream[i] === 0x03 && dataFilesStream[i + 1] === 0x80) {
+      const fileTypeCode = dataFilesStream[i + 2]
+      const typeName = FILE_TYPES[fileTypeCode]
+
+      if (!typeName) continue
+
+      // Determine file number based on order of appearance
+      if (!(typeName in fileCounters)) {
+        fileCounters[typeName] = DEFAULT_FILE_NUMS[typeName] ?? 0
+      }
+      const fileNum = fileCounters[typeName]
+      fileCounters[typeName]++
+
+      // Get element count and words per element from header
+      const elementCount = dataFilesStream.readUInt16LE(i + 10)
+      const wordsPerElement = dataFilesStream.readUInt16LE(i + 12)
+
+      // Skip invalid entries
+      if (elementCount === 0 || elementCount > 10000 || wordsPerElement === 0) continue
+
+      // Data starts after 16-byte header
+      const dataStart = i + 16
+
+      // Extract values based on file type
+      if (typeName === 'N') {
+        // Integer file: structure varies - try to extract sensible values
+        // RSLogix 500 N files store 16-bit integers, but the binary structure
+        // may include metadata. We'll read values and only store "reasonable" ones.
+        let validCount = 0
+        for (let elem = 0; elem < elementCount && dataStart + elem * wordsPerElement * 2 + 1 < dataFilesStream.length; elem++) {
+          const value = dataFilesStream.readInt16LE(dataStart + elem * wordsPerElement * 2)
+          // Only store values that look like valid program data
+          // Skip -1 (0xFFFF, often means "empty") and very large values that look like garbage
+          if (value !== -1 && Math.abs(value) < 32000) {
+            const addr = `N${fileNum}:${elem}`
+            values.set(addr, value)
+            validCount++
+          }
+        }
+        if (validCount > 0) {
+          console.log(`[RSS Parser] Extracted N${fileNum}: ${validCount} valid values`)
+        }
+      } else if (typeName === 'F') {
+        // Float file: 32-bit IEEE floats
+        let validCount = 0
+        for (let elem = 0; elem < elementCount && dataStart + elem * 4 + 3 < dataFilesStream.length; elem++) {
+          const value = dataFilesStream.readFloatLE(dataStart + elem * 4)
+          // Only store finite values that look like valid program data
+          if (isFinite(value) && Math.abs(value) < 1e10) {
+            const addr = `F${fileNum}:${elem}`
+            values.set(addr, value)
+            validCount++
+          }
+        }
+        if (validCount > 0) {
+          console.log(`[RSS Parser] Extracted F${fileNum}: ${validCount} valid values`)
+        }
+      } else if (typeName === 'T') {
+        // Timer file: 3 words per element (control, PRE, ACC)
+        for (let elem = 0; elem < elementCount && dataStart + elem * 6 + 5 < dataFilesStream.length; elem++) {
+          const preset = dataFilesStream.readInt16LE(dataStart + elem * 6 + 2)
+          const accum = dataFilesStream.readInt16LE(dataStart + elem * 6 + 4)
+          values.set(`T${fileNum}:${elem}.PRE`, preset)
+          values.set(`T${fileNum}:${elem}.ACC`, accum)
+        }
+        if (elementCount > 0) {
+          console.log(`[RSS Parser] Extracted T${fileNum}: ${elementCount} timers`)
+        }
+      } else if (typeName === 'C') {
+        // Counter file: 3 words per element (control, PRE, ACC)
+        for (let elem = 0; elem < elementCount && dataStart + elem * 6 + 5 < dataFilesStream.length; elem++) {
+          const preset = dataFilesStream.readInt16LE(dataStart + elem * 6 + 2)
+          const accum = dataFilesStream.readInt16LE(dataStart + elem * 6 + 4)
+          values.set(`C${fileNum}:${elem}.PRE`, preset)
+          values.set(`C${fileNum}:${elem}.ACC`, accum)
+        }
+        if (elementCount > 0) {
+          console.log(`[RSS Parser] Extracted C${fileNum}: ${elementCount} counters`)
+        }
+      }
+    }
+  }
+
+  console.log(`[RSS Parser] Total data values extracted: ${values.size}`)
+
+  // Log sample values
+  const sampleN = [...values.entries()].filter(([k]) => k.startsWith('N')).slice(0, 5)
+  const sampleF = [...values.entries()].filter(([k]) => k.startsWith('F')).slice(0, 5)
+  if (sampleN.length > 0) {
+    console.log(`[RSS Parser] Sample N values: ${sampleN.map(([k, v]) => `${k}=${v}`).join(', ')}`)
+  }
+  if (sampleF.length > 0) {
+    console.log(`[RSS Parser] Sample F values: ${sampleF.map(([k, v]) => `${k}=${v.toFixed(2)}`).join(', ')}`)
+  }
+
+  return values
+}
+
 // RSLogix 500 instruction opcodes - decoded from binary analysis
 // Format: [type byte][0b][80][01][00][length][address]
 // The low 2 bits encode the base instruction type:
@@ -292,24 +499,36 @@ function extractSourceAOperand(data: Buffer, text: string, currentAddrPos: numbe
 
 /**
  * Extract timer parameters (time base, preset, accumulated) from binary data
- * Timer instructions are followed by: [len][timebase][len][preset][len][accum]
- * Example: T4:14 followed by 04 30 2e 30 31 (0.01) 03 33 30 30 (300) 01 30 (0)
+ *
+ * Timer instruction binary pattern (from research):
+ * [0x0b 0x80] [type=0x04] [0x00] [len] [address] [len] [timebase] [len] [preset] [len] [accum]
+ *
+ * Example: T4:14 with 0.01s time base, 300 preset, 0 accumulated:
+ *   0b 80 04 XX 05 54 34 3a 31 34  04 30 2e 30 31  03 33 30 30  01 30
+ *                  T  4  :  1  4   [4] "0.01"      [3] "300"    [1] "0"
+ *
+ * Valid time bases: "0.001" (1ms), "0.01" (10ms), "0.1" (100ms), "1.0" (1s)
+ * PRE/ACC are integer strings (max 32767 due to 16-bit signed limit)
  */
 function extractTimerParams(data: Buffer, text: string, timerAddrPos: number, timerAddrLen: number): { timeBase: string | null, preset: string | null, accum: string | null } {
   const afterPos = timerAddrPos + timerAddrLen
-  const maxSearch = 20
+  // Timer parameters appear immediately after the address, within ~30 bytes
+  const maxSearch = 30
 
   const params: string[] = []
 
   let pos = afterPos
   while (params.length < 3 && pos < afterPos + maxSearch && pos < data.length - 1) {
     const len = data[pos]
+    // Valid parameter lengths: 1-10 characters
+    // Time base: 3-5 chars ("1.0", "0.01", "0.001", "0.1")
+    // PRE/ACC: 1-5 chars (up to 32767)
     if (len >= 1 && len <= 10 && pos + len < data.length) {
       let isValid = true
       let value = ''
       for (let i = 1; i <= len; i++) {
         const c = data[pos + i]
-        // Allow digits and decimal point
+        // Allow digits (0x30-0x39) and decimal point (0x2e)
         if ((c >= 0x30 && c <= 0x39) || c === 0x2e) {
           value += String.fromCharCode(c)
         } else {
@@ -317,10 +536,35 @@ function extractTimerParams(data: Buffer, text: string, timerAddrPos: number, ti
           break
         }
       }
-      if (isValid && value.length === len && /^\d+\.?\d*$/.test(value)) {
-        params.push(value)
-        pos += len + 1
-        continue
+
+      // Validate the extracted value
+      if (isValid && value.length === len) {
+        if (params.length === 0) {
+          // First param is time base - must be a valid time base value
+          // Valid: 0.001, 0.01, 0.1, 1.0 (and variations like "1" for 1.0)
+          if (/^(0\.001|0\.01|0\.1|1\.0|1)$/.test(value)) {
+            params.push(value)
+            pos += len + 1
+            continue
+          }
+          // Also accept other decimal values as time base (some programs may use non-standard)
+          if (/^\d+\.?\d*$/.test(value) && parseFloat(value) <= 10) {
+            params.push(value)
+            pos += len + 1
+            continue
+          }
+        } else {
+          // PRE and ACC must be integers
+          if (/^\d+$/.test(value)) {
+            const numValue = parseInt(value, 10)
+            // Valid range for 16-bit signed: 0 to 32767 (negative values unlikely for PRE/ACC)
+            if (numValue >= 0 && numValue <= 32767) {
+              params.push(value)
+              pos += len + 1
+              continue
+            }
+          }
+        }
       }
     }
     pos++
@@ -335,22 +579,33 @@ function extractTimerParams(data: Buffer, text: string, timerAddrPos: number, ti
 
 /**
  * Extract counter parameters (preset, accumulated) from binary data
- * Counter instructions are followed by: [len][preset][len][accum]
+ *
+ * Counter instruction binary pattern (from research):
+ * [0x0b 0x80] [type] [0x00] [len] [address] [len] [preset] [len] [accum]
+ *
+ * Example: C5:0 with preset 100, accumulated 0:
+ *   0b 80 XX 00 04 43 35 3a 30  03 31 30 30  01 30
+ *               C  5  :  0      [3] "100"   [1] "0"
+ *
+ * PRE/ACC are integer strings (max 32767 due to 16-bit signed limit)
  */
 function extractCounterParams(data: Buffer, text: string, counterAddrPos: number, counterAddrLen: number): { preset: string | null, accum: string | null } {
   const afterPos = counterAddrPos + counterAddrLen
-  const maxSearch = 15
+  // Counter parameters appear immediately after the address, within ~20 bytes
+  const maxSearch = 20
 
   const params: string[] = []
 
   let pos = afterPos
   while (params.length < 2 && pos < afterPos + maxSearch && pos < data.length - 1) {
     const len = data[pos]
-    if (len >= 1 && len <= 10 && pos + len < data.length) {
+    // Valid parameter lengths: 1-5 characters (up to 32767)
+    if (len >= 1 && len <= 5 && pos + len < data.length) {
       let isValid = true
       let value = ''
       for (let i = 1; i <= len; i++) {
         const c = data[pos + i]
+        // Counter params are integers only (0x30-0x39)
         if (c >= 0x30 && c <= 0x39) {
           value += String.fromCharCode(c)
         } else {
@@ -358,10 +613,15 @@ function extractCounterParams(data: Buffer, text: string, counterAddrPos: number
           break
         }
       }
+
+      // Validate: must be an integer within 16-bit signed range
       if (isValid && value.length === len && /^\d+$/.test(value)) {
-        params.push(value)
-        pos += len + 1
-        continue
+        const numValue = parseInt(value, 10)
+        if (numValue >= 0 && numValue <= 32767) {
+          params.push(value)
+          pos += len + 1
+          continue
+        }
       }
     }
     pos++
@@ -374,7 +634,196 @@ function extractCounterParams(data: Buffer, text: string, counterAddrPos: number
 }
 
 /**
+ * Extract a length-prefixed ASCII value AFTER a given position
+ * Pattern: [length byte][ASCII characters]
+ * Supports integers, floats, and address references
+ * Returns { value, nextPos } or null if no valid value found
+ */
+function extractLengthPrefixedValue(data: Buffer, startPos: number): { value: string, nextPos: number } | null {
+  if (startPos >= data.length) return null
+
+  const lengthByte = data[startPos]
+
+  // Valid lengths: 1-20 characters (addresses can be longer than numbers)
+  if (lengthByte < 1 || lengthByte > 20 || startPos + lengthByte >= data.length) {
+    return null
+  }
+
+  let value = ''
+  let isValid = true
+
+  for (let i = 1; i <= lengthByte; i++) {
+    const charByte = data[startPos + i]
+    // Allow printable ASCII: digits, letters, decimal point, colon, slash, minus, brackets
+    if ((charByte >= 0x30 && charByte <= 0x39) ||  // 0-9
+        (charByte >= 0x41 && charByte <= 0x5A) ||  // A-Z
+        (charByte >= 0x61 && charByte <= 0x7A) ||  // a-z
+        charByte === 0x2E ||  // .
+        charByte === 0x3A ||  // :
+        charByte === 0x2F ||  // /
+        charByte === 0x2D ||  // -
+        charByte === 0x5B ||  // [
+        charByte === 0x5D ||  // ]
+        charByte === 0x23) {  // #
+      value += String.fromCharCode(charByte)
+    } else {
+      isValid = false
+      break
+    }
+  }
+
+  if (isValid && value.length === lengthByte) {
+    return { value, nextPos: startPos + lengthByte + 1 }
+  }
+
+  return null
+}
+
+/**
+ * Check if a string looks like an SLC-500 address
+ */
+function isSlcAddress(value: string): boolean {
+  // Standard addresses: B3:0/15, N7:5, T4:0.DN, F8:36, etc.
+  // Indirect: N200:[N200:35], #N210:[N200:40]
+  return /^#?[BIOTCRNFSAL]\d+:(\d+|\[[^\]]+\])(\/\d+)?(\.[A-Z]+)?$/i.test(value)
+}
+
+/**
+ * Check if a string looks like a numeric constant (integer or float)
+ */
+function isNumericConstant(value: string): boolean {
+  return /^-?\d+\.?\d*$/.test(value)
+}
+
+/**
+ * Extract MOV source operand AFTER the destination address
+ * Research finding: Source operands come AFTER the destination in MOV instructions
+ * Pattern: [dest_addr] ... [len][source_value]
+ * Returns the source value (address or constant) or null
+ */
+function extractMovSourceAfterDest(data: Buffer, text: string, destAddrEndPos: number, maxSearchBytes: number = 50): string | null {
+  const searchEnd = Math.min(data.length, destAddrEndPos + maxSearchBytes)
+
+  // Scan for length-prefixed values after the destination
+  // Skip initial metadata bytes - source operands typically appear after some control bytes
+  for (let pos = destAddrEndPos; pos < searchEnd; pos++) {
+    const result = extractLengthPrefixedValue(data, pos)
+    if (result) {
+      const { value, nextPos } = result
+
+      // Check if this is an address reference
+      if (isSlcAddress(value)) {
+        console.log(`[RSS Parser] MOV source address found AFTER dest at pos ${pos}: ${value}`)
+        return value.toUpperCase()
+      }
+
+      // Check if this is a numeric constant
+      if (isNumericConstant(value)) {
+        // Skip single digit "0" values that are likely metadata/status bytes
+        // Real source constants usually have more significance
+        const numVal = parseFloat(value)
+        if (value.length > 1 || numVal !== 0) {
+          console.log(`[RSS Parser] MOV source constant found AFTER dest at pos ${pos}: ${value}`)
+          return value
+        }
+      }
+
+      // Move past this value
+      pos = nextPos - 1  // -1 because loop will increment
+    }
+  }
+
+  return null
+}
+
+/**
+ * Extract math instruction operands (ADD/SUB/MUL/DIV) AFTER the destination address
+ *
+ * Research findings from program-files-structure.md:
+ * - Source operands come AFTER the destination address in the binary
+ * - Example: Type0x06 Dest="T4:5.ACC" Operands: [0, 10, 10, N14:0, 10]
+ *           -> ADD instruction: ADD(10, N14:0, T4:5.ACC)
+ * - Example: Type0x06 Dest="F8:36" Operands: [20.0, F9:34, 4.0, F9:37, 16.0]
+ *
+ * For math: INST(SourceA, SourceB, Dest) but stored as Dest first, then operands
+ * Returns { sourceA, sourceB } or null values if not found
+ */
+function extractMathOperandsAfterDest(data: Buffer, text: string, destAddrEndPos: number, maxSearchBytes: number = 80): { sourceA: string | null, sourceB: string | null } {
+  const searchEnd = Math.min(data.length, destAddrEndPos + maxSearchBytes)
+  const foundOperands: { value: string, pos: number, isAddr: boolean }[] = []
+
+  // Scan for length-prefixed values after the destination
+  let pos = destAddrEndPos
+  while (pos < searchEnd && foundOperands.length < 8) {
+    const result = extractLengthPrefixedValue(data, pos)
+    if (result) {
+      const { value, nextPos } = result
+
+      // Check if this is an address reference
+      if (isSlcAddress(value)) {
+        foundOperands.push({ value: value.toUpperCase(), pos, isAddr: true })
+        console.log(`[RSS Parser] Math operand (address) at pos ${pos}: ${value}`)
+      } else if (isNumericConstant(value)) {
+        // Include numeric constants
+        foundOperands.push({ value, pos, isAddr: false })
+        const numVal = parseFloat(value)
+        if (value.length > 1 || numVal !== 0) {
+          console.log(`[RSS Parser] Math operand (constant) at pos ${pos}: ${value}`)
+        }
+      }
+
+      pos = nextPos
+    } else {
+      pos++
+    }
+  }
+
+  // Filter and identify Source A and Source B
+  // Based on research: operands like [0, 10, 10, N14:0, 10] where
+  // the meaningful values are "10" (Source A) and "N14:0" (Source B)
+  // Leading zeros are often metadata, not operands
+
+  // Strategy: Find the first significant operand (non-zero or address) as Source A
+  // and the second significant operand as Source B
+  const significantOperands: string[] = []
+
+  for (const op of foundOperands) {
+    if (op.isAddr) {
+      // Addresses are always significant
+      significantOperands.push(op.value)
+    } else {
+      const numVal = parseFloat(op.value)
+      // Non-zero constants or multi-digit zeros (like "10" or "20.0") are significant
+      if (numVal !== 0 || op.value.length > 1) {
+        significantOperands.push(op.value)
+      }
+    }
+
+    // Stop after finding 2 significant operands
+    if (significantOperands.length >= 2) break
+  }
+
+  if (significantOperands.length >= 2) {
+    return {
+      sourceA: significantOperands[0],
+      sourceB: significantOperands[1]
+    }
+  } else if (significantOperands.length === 1) {
+    // Single operand - might be used for both Source A and Source B
+    return {
+      sourceA: significantOperands[0],
+      sourceB: significantOperands[0]
+    }
+  }
+
+  return { sourceA: null, sourceB: null }
+}
+
+/**
  * Extract both Source A and Source B operands for math instructions (ADD, SUB, MUL, DIV)
+ * DEPRECATED: This function searches BEFORE the destination, which may be incorrect.
+ * Use extractMathOperandsAfterDest as the primary method, with this as fallback.
+ *
  * These instructions have format: INST(SourceA, SourceB, Dest)
  * Returns { sourceA, sourceB } or null values if not found
  */
@@ -522,6 +971,10 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
   const data = new Uint8Array(buffer)
   const cfb = CFB.read(data, { type: 'array' })
 
+  // Clear global maps from previous parses
+  programTimerValues = new Map()
+  programCounterValues = new Map()
+
   // Extract symbol table from MEM DATABASE (contains address-to-name mappings)
   symbolTable = extractSymbolTable(cfb)
 
@@ -589,6 +1042,13 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
       console.log(`[RSS Parser] Found DATA FILES stream: ${stream.path} (${dataFilesStream.length} bytes)`)
       break
     }
+  }
+
+  // Extract data table values from DATA FILES stream
+  if (dataFilesStream) {
+    dataTableValues = extractDataTableValues(dataFilesStream)
+  } else {
+    dataTableValues = new Map()
   }
 
   // Strategy 3: Try COMPILER stream which may have symbol info
@@ -748,6 +1208,58 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     }
   }
 
+  // Add synthetic tags for timer/counter programmed values (for simulation initialization)
+  // These allow the simulation to initialize PRE/ACC values from the programmed parameters
+  for (const [address, timerVal] of programTimerValues) {
+    // Create timer preset tag with calculated millisecond value
+    const presetMs = timerVal.preset * timerVal.timeBase * 1000
+    tags.push({
+      name: `${address}.PRE`,
+      dataType: 'INT',
+      scope: 'controller',
+      description: `Timer preset (${timerVal.preset} x ${timerVal.timeBase}s = ${presetMs}ms)`,
+      value: String(presetMs)
+    })
+    // Create timer accumulator tag
+    const accumMs = timerVal.accum * timerVal.timeBase * 1000
+    tags.push({
+      name: `${address}.ACC`,
+      dataType: 'INT',
+      scope: 'controller',
+      description: `Timer accumulator (initial: ${timerVal.accum})`,
+      value: String(accumMs)
+    })
+    // Create timebase tag (for reference)
+    tags.push({
+      name: `${address}.TB`,
+      dataType: 'REAL',
+      scope: 'controller',
+      description: `Timer time base (seconds per count)`,
+      value: String(timerVal.timeBase)
+    })
+  }
+
+  for (const [address, counterVal] of programCounterValues) {
+    // Create counter preset tag
+    tags.push({
+      name: `${address}.PRE`,
+      dataType: 'INT',
+      scope: 'controller',
+      description: `Counter preset`,
+      value: String(counterVal.preset)
+    })
+    // Create counter accumulator tag
+    tags.push({
+      name: `${address}.ACC`,
+      dataType: 'INT',
+      scope: 'controller',
+      description: `Counter accumulator (initial: ${counterVal.accum})`,
+      value: String(counterVal.accum)
+    })
+  }
+
+  console.log(`[RSS Parser] Added ${programTimerValues.size} timer tags and ${programCounterValues.size} counter tags`)
+
   // Build routines from parsed ladder files
   const routines: PlcRoutine[] = []
 
@@ -812,6 +1324,28 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     localTags: []
   }
 
+  // Convert timer/counter Maps to arrays for export
+  const timerProgramValues: PlcTimerProgramValue[] = []
+  for (const [address, value] of programTimerValues) {
+    timerProgramValues.push({
+      address,
+      timeBase: value.timeBase,
+      preset: value.preset,
+      accum: value.accum
+    })
+  }
+
+  const counterProgramValues: PlcCounterProgramValue[] = []
+  for (const [address, value] of programCounterValues) {
+    counterProgramValues.push({
+      address,
+      preset: value.preset,
+      accum: value.accum
+    })
+  }
+
+  console.log(`[RSS Parser] Exporting ${timerProgramValues.length} timer values, ${counterProgramValues.length} counter values`)
+
   return {
     name: projectName,
     processorType,
@@ -820,7 +1354,9 @@ export async function parseRSS(buffer: ArrayBuffer): Promise<PlcProject> {
     programs: [mainProgram],
     tasks: [],
     modules: [],
-    dataTypes: []
+    dataTypes: [],
+    timerProgramValues: timerProgramValues.length > 0 ? timerProgramValues : undefined,
+    counterProgramValues: counterProgramValues.length > 0 ? counterProgramValues : undefined
   }
 }
 
@@ -1320,15 +1856,24 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             decoded = { type: 'XIC', operandCount: 1 }
           }
 
-          // For MOV instructions (timer/counter PRE/ACC), look for constant source value
+          // For MOV instructions (timer/counter PRE/ACC), look for source value
+          // Research finding: Source operands come AFTER the destination address
           let sourceConstant: string | undefined
           if (decoded.type === 'MOV' || addr.match(/\.(PRE|ACC)$/i)) {
-            // Search backwards from the address marker position for a constant
-            // The marker is at pos-5, so search before that
-            const markerPos = pos - 5
-            sourceConstant = extractConstantValue(data, markerPos) || undefined
+            // Calculate position after the address (pos is start of address, addr.length is its length)
+            const afterAddrPos = pos + addr.length
+
+            // First try: Search AFTER the destination address (correct per research)
+            sourceConstant = extractMovSourceAfterDest(data, text, afterAddrPos) || undefined
+
+            // Fallback: Search backwards (legacy method) if forward search fails
+            if (!sourceConstant) {
+              const markerPos = pos - 5
+              sourceConstant = extractConstantValue(data, markerPos) || undefined
+            }
+
             if (sourceConstant) {
-              console.log(`[RSS Parser] Found constant ${sourceConstant} for MOV -> ${addr}`)
+              console.log(`[RSS Parser] Found source ${sourceConstant} for MOV -> ${addr}`)
             }
           }
 
@@ -1338,22 +1883,45 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
           let sourceB: string | undefined
           const comparisonOpcodes = [0x10, 0x11, 0x12, 0x13, 0x14, 0x15]
           if (comparisonOpcodes.includes(opcode)) {
-            // Look backwards for Source A (either an address or constant)
-            sourceA = extractSourceAOperand(data, text, pos) || undefined
-            if (sourceA) {
-              console.log(`[RSS Parser] Found Source A "${sourceA}" for ${decoded.type}(${sourceA}, ${addr})`)
+            // Calculate position after the address
+            const afterAddrPos = pos + addr.length
+
+            // Try searching AFTER destination first (per research), then fallback to BEFORE
+            const afterOperands = extractMathOperandsAfterDest(data, text, afterAddrPos)
+            if (afterOperands.sourceA) {
+              sourceA = afterOperands.sourceA
+              console.log(`[RSS Parser] Found Source A "${sourceA}" AFTER dest for ${decoded.type}(${sourceA}, ${addr})`)
+            } else {
+              // Fallback: Look backwards for Source A
+              sourceA = extractSourceAOperand(data, text, pos) || undefined
+              if (sourceA) {
+                console.log(`[RSS Parser] Found Source A "${sourceA}" BEFORE dest for ${decoded.type}(${sourceA}, ${addr})`)
+              }
             }
           }
 
           // For math instructions (ADD, SUB, MUL, DIV), extract Source A and Source B
-          // These opcodes are 0x0A-0x0D
+          // Research finding: Source operands come AFTER the destination address
+          // Example: Dest="T4:5.ACC" Operands: [0, 10, 10, N14:0, 10] -> ADD(10, N14:0, T4:5.ACC)
           const mathOpcodes = [0x0A, 0x0B, 0x0C, 0x0D]
           if (mathOpcodes.includes(opcode)) {
-            const mathOperands = extractMathOperands(data, text, pos)
-            sourceA = mathOperands.sourceA || undefined
-            sourceB = mathOperands.sourceB || undefined
-            if (sourceA && sourceB) {
-              console.log(`[RSS Parser] Found operands for ${decoded.type}(${sourceA}, ${sourceB}, ${addr})`)
+            // Calculate position after the address
+            const afterAddrPos = pos + addr.length
+
+            // First try: Search AFTER the destination address (correct per research)
+            const afterOperands = extractMathOperandsAfterDest(data, text, afterAddrPos)
+            if (afterOperands.sourceA) {
+              sourceA = afterOperands.sourceA
+              sourceB = afterOperands.sourceB || sourceA  // Use sourceA if sourceB not found
+              console.log(`[RSS Parser] Found operands AFTER dest for ${decoded.type}(${sourceA}, ${sourceB}, ${addr})`)
+            } else {
+              // Fallback: Search before destination (legacy method)
+              const beforeOperands = extractMathOperands(data, text, pos)
+              sourceA = beforeOperands.sourceA || undefined
+              sourceB = beforeOperands.sourceB || undefined
+              if (sourceA && sourceB) {
+                console.log(`[RSS Parser] Found operands BEFORE dest for ${decoded.type}(${sourceA}, ${sourceB}, ${addr})`)
+              }
             }
           }
 
@@ -1363,6 +1931,27 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             timerParams = extractTimerParams(data, text, pos, addr.length)
             if (timerParams.preset) {
               console.log(`[RSS Parser] Timer ${addr}: timeBase=${timerParams.timeBase}, preset=${timerParams.preset}, accum=${timerParams.accum}`)
+
+              // Store in global programTimerValues map for simulation initialization
+              // Parse time base to numeric seconds (default to 1.0 if invalid)
+              let timeBaseSec = 1.0
+              if (timerParams.timeBase) {
+                const tb = parseFloat(timerParams.timeBase)
+                if (!isNaN(tb) && tb > 0) {
+                  timeBaseSec = tb
+                }
+              }
+
+              const presetNum = parseInt(timerParams.preset, 10)
+              const accumNum = timerParams.accum ? parseInt(timerParams.accum, 10) : 0
+
+              // Store using normalized address (e.g., "T4:14")
+              const normalAddr = normalizeAddress(addr)
+              programTimerValues.set(normalAddr, {
+                timeBase: timeBaseSec,
+                preset: presetNum,
+                accum: accumNum
+              })
             }
           }
 
@@ -1372,6 +1961,17 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
             counterParams = extractCounterParams(data, text, pos, addr.length)
             if (counterParams.preset) {
               console.log(`[RSS Parser] Counter ${addr}: preset=${counterParams.preset}, accum=${counterParams.accum}`)
+
+              // Store in global programCounterValues map for simulation initialization
+              const presetNum = parseInt(counterParams.preset, 10)
+              const accumNum = counterParams.accum ? parseInt(counterParams.accum, 10) : 0
+
+              // Store using normalized address (e.g., "C5:0")
+              const normalAddr = normalizeAddress(addr)
+              programCounterValues.set(normalAddr, {
+                preset: presetNum,
+                accum: accumNum
+              })
             }
           }
 
@@ -1999,6 +2599,29 @@ function parseBinaryLadder(data: Buffer, opcodeMap?: Map<string, number>): {
   const totalRungs = [...routineRungs.values()].reduce((sum, r) => sum + r.length, 0)
   console.log(`[RSS Parser] Created ${totalRungs} rungs across ${routineRungs.size} routines`)
 
+  // Log timer/counter extraction summary
+  if (programTimerValues.size > 0) {
+    console.log(`[RSS Parser] Extracted ${programTimerValues.size} timer values from PROGRAM FILES:`)
+    const timerSamples = [...programTimerValues.entries()].slice(0, 5)
+    for (const [addr, val] of timerSamples) {
+      console.log(`  ${addr}: timeBase=${val.timeBase}s, PRE=${val.preset}, ACC=${val.accum}`)
+    }
+    if (programTimerValues.size > 5) {
+      console.log(`  ... and ${programTimerValues.size - 5} more timers`)
+    }
+  }
+
+  if (programCounterValues.size > 0) {
+    console.log(`[RSS Parser] Extracted ${programCounterValues.size} counter values from PROGRAM FILES:`)
+    const counterSamples = [...programCounterValues.entries()].slice(0, 5)
+    for (const [addr, val] of counterSamples) {
+      console.log(`  ${addr}: PRE=${val.preset}, ACC=${val.accum}`)
+    }
+    if (programCounterValues.size > 5) {
+      console.log(`  ... and ${programCounterValues.size - 5} more counters`)
+    }
+  }
+
   return { routineRungs, addresses, ladderFiles }
 }
 
@@ -2363,12 +2986,20 @@ function addressToTag(address: string): PlcTag | null {
     description = symbol.description || symbol.symbol
   }
 
+  // Look up data value for this address
+  const dataValue = lookupDataValue(address)
+  let value: string | undefined
+  if (dataValue !== undefined) {
+    value = String(dataValue)
+  }
+
   return {
     name: symbol ? symbol.symbol : address,
     aliasFor: symbol ? address : undefined,  // Store address as aliasFor if we have a symbol
     dataType,
     scope: 'controller',
-    description
+    description,
+    value
   }
 }
 

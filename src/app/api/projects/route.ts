@@ -153,7 +153,8 @@ export async function POST(request: NextRequest) {
             data_type: t.dataType,
             scope: t.scope === 'controller' ? 'controller' : 'program',
             scope_name: t.scope === 'controller' ? undefined : t.scope,
-            description: t.description
+            description: t.description,
+            value: t.value  // Include initial value for simulation
           })),
           programs: parsedProject.programs.map(p => ({
             name: p.name,
@@ -163,7 +164,8 @@ export async function POST(request: NextRequest) {
             tags: p.localTags.map(t => ({
               name: t.name,
               data_type: t.dataType,
-              description: t.description
+              description: t.description,
+              value: t.value  // Include initial value for simulation
             })),
             routines: p.routines.map(r => ({
               name: r.name,
@@ -208,7 +210,105 @@ export async function POST(request: NextRequest) {
           add_on_instructions: [],
           alarms: [],
           messages: [],
-          trends: []
+          trends: [],
+          // RSS timer/counter programmed values for simulation initialization
+          timer_program_values: parsedProject.timerProgramValues?.map(t => ({
+            address: t.address,
+            time_base: t.timeBase,
+            preset: t.preset,
+            accum: t.accum
+          })) || [],
+          counter_program_values: parsedProject.counterProgramValues?.map(c => ({
+            address: c.address,
+            preset: c.preset,
+            accum: c.accum
+          })) || []
+        }
+
+        // Create synthetic tags for timer/counter program values from RSS files
+        // This ensures simulation initialization works the same way as L5X/ACD files
+        const rssSyntheticTags: Array<{
+          name: string
+          data_type: string
+          scope: string
+          scope_name?: string
+          description?: string
+          value?: string
+        }> = []
+
+        // Process timer program values for RSS
+        if (project.timer_program_values && Array.isArray(project.timer_program_values)) {
+          for (const timer of project.timer_program_values) {
+            if (timer.address) {
+              // Create .PRE tag (preset in milliseconds)
+              if (timer.preset !== undefined && timer.preset !== null) {
+                rssSyntheticTags.push({
+                  name: `${timer.address}.PRE`,
+                  data_type: 'INT',
+                  scope: 'controller',
+                  description: `Timer preset value (synthetic from program)`,
+                  value: String(timer.preset)
+                })
+              }
+              // Create .ACC tag (accumulated value)
+              if (timer.accum !== undefined && timer.accum !== null) {
+                rssSyntheticTags.push({
+                  name: `${timer.address}.ACC`,
+                  data_type: 'INT',
+                  scope: 'controller',
+                  description: `Timer accumulated value (synthetic from program)`,
+                  value: String(timer.accum)
+                })
+              }
+              // Create .TB tag (time base)
+              if (timer.time_base !== undefined && timer.time_base !== null) {
+                rssSyntheticTags.push({
+                  name: `${timer.address}.TB`,
+                  data_type: 'REAL',
+                  scope: 'controller',
+                  description: `Timer time base (synthetic from program)`,
+                  value: String(timer.time_base)
+                })
+              }
+            }
+          }
+          console.log(`[Upload] Created ${rssSyntheticTags.length} synthetic timer tags from RSS`)
+        }
+
+        // Process counter program values for RSS
+        if (project.counter_program_values && Array.isArray(project.counter_program_values)) {
+          const counterTagCount = rssSyntheticTags.length
+          for (const counter of project.counter_program_values) {
+            if (counter.address) {
+              // Create .PRE tag (preset)
+              if (counter.preset !== undefined && counter.preset !== null) {
+                rssSyntheticTags.push({
+                  name: `${counter.address}.PRE`,
+                  data_type: 'INT',
+                  scope: 'controller',
+                  description: `Counter preset value (synthetic from program)`,
+                  value: String(counter.preset)
+                })
+              }
+              // Create .ACC tag (accumulated value)
+              if (counter.accum !== undefined && counter.accum !== null) {
+                rssSyntheticTags.push({
+                  name: `${counter.address}.ACC`,
+                  data_type: 'INT',
+                  scope: 'controller',
+                  description: `Counter accumulated value (synthetic from program)`,
+                  value: String(counter.accum)
+                })
+              }
+            }
+          }
+          console.log(`[Upload] Created ${rssSyntheticTags.length - counterTagCount} synthetic counter tags from RSS`)
+        }
+
+        // Add synthetic tags to the project tags array
+        if (rssSyntheticTags.length > 0) {
+          project.tags.push(...rssSyntheticTags)
+          console.log(`[Upload] Total RSS tags after adding synthetic timer/counter tags: ${project.tags.length}`)
         }
 
         // Detailed logging for RSS parsing debug
@@ -263,6 +363,94 @@ export async function POST(request: NextRequest) {
       project = parseResult.project
       if (parseResult.warnings) {
         warnings.push(...parseResult.warnings)
+      }
+
+      // Create synthetic tags for timer/counter program values from L5X/ACD files
+      // This mirrors what we do for RSS files so simulation initialization works the same way
+      const syntheticTags: Array<{
+        name: string
+        data_type: string
+        scope: string
+        description?: string
+        value?: string
+      }> = []
+
+      // Process timer program values
+      if (project.timer_program_values && Array.isArray(project.timer_program_values)) {
+        for (const timer of project.timer_program_values) {
+          if (timer.address) {
+            // Create .PRE tag (preset in milliseconds)
+            if (timer.preset !== undefined && timer.preset !== null) {
+              syntheticTags.push({
+                name: `${timer.address}.PRE`,
+                data_type: 'DINT',
+                scope: 'controller',
+                description: `Timer preset value (synthetic from program)`,
+                value: String(timer.preset)
+              })
+            }
+            // Create .ACC tag (accumulated value)
+            if (timer.accum !== undefined && timer.accum !== null) {
+              syntheticTags.push({
+                name: `${timer.address}.ACC`,
+                data_type: 'DINT',
+                scope: 'controller',
+                description: `Timer accumulated value (synthetic from program)`,
+                value: String(timer.accum)
+              })
+            }
+            // Create .TB tag (time base)
+            if (timer.time_base !== undefined && timer.time_base !== null) {
+              syntheticTags.push({
+                name: `${timer.address}.TB`,
+                data_type: 'REAL',
+                scope: 'controller',
+                description: `Timer time base (synthetic from program)`,
+                value: String(timer.time_base)
+              })
+            }
+          }
+        }
+        console.log(`[Upload] Created ${syntheticTags.length} synthetic timer tags from L5X/ACD`)
+      }
+
+      // Process counter program values
+      if (project.counter_program_values && Array.isArray(project.counter_program_values)) {
+        const counterTagCount = syntheticTags.length
+        for (const counter of project.counter_program_values) {
+          if (counter.address) {
+            // Create .PRE tag (preset)
+            if (counter.preset !== undefined && counter.preset !== null) {
+              syntheticTags.push({
+                name: `${counter.address}.PRE`,
+                data_type: 'DINT',
+                scope: 'controller',
+                description: `Counter preset value (synthetic from program)`,
+                value: String(counter.preset)
+              })
+            }
+            // Create .ACC tag (accumulated value)
+            if (counter.accum !== undefined && counter.accum !== null) {
+              syntheticTags.push({
+                name: `${counter.address}.ACC`,
+                data_type: 'DINT',
+                scope: 'controller',
+                description: `Counter accumulated value (synthetic from program)`,
+                value: String(counter.accum)
+              })
+            }
+          }
+        }
+        console.log(`[Upload] Created ${syntheticTags.length - counterTagCount} synthetic counter tags from L5X/ACD`)
+      }
+
+      // Add synthetic tags to the project tags array
+      if (syntheticTags.length > 0) {
+        if (!project.tags) {
+          project.tags = []
+        }
+        project.tags.push(...syntheticTags)
+        console.log(`[Upload] Total tags after adding synthetic timer/counter tags: ${project.tags.length}`)
       }
     }
 

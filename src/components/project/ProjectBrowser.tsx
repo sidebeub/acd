@@ -11,6 +11,7 @@ import { IOVisualization } from '../IOVisualization'
 import { buildTagExportData, generateTagCSV, downloadCSV, generateCSVFilename } from '@/lib/csv-export'
 import { PDFExportModal } from '../export/PDFExportModal'
 import { ProgramDiff } from '../diff/ProgramDiff'
+import { useSimulation } from '../ladder/SimulationContext'
 
 interface Tag {
   id: string
@@ -18,6 +19,7 @@ interface Tag {
   dataType: string
   scope: string
   description: string | null
+  value: string | null  // Initial/default value from project
 }
 
 interface Rung {
@@ -472,6 +474,104 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
   // Ref for the main content scroll container (for mini-map)
   const ladderScrollRef = useRef<HTMLElement>(null)
 
+  // Simulation context for initializing tag values
+  const { enabled: simEnabled, initializeNumericValues, updateTimers, updateCounters } = useSimulation()
+
+  // Initialize numeric values and timer/counter states from project tags when simulation is enabled
+  useEffect(() => {
+    if (simEnabled) {
+      const numericValues: Record<string, number> = {}
+      const timerInits: Record<string, { PRE?: number; ACC?: number }> = {}
+      const counterInits: Record<string, { PRE?: number; ACC?: number }> = {}
+
+      // Extract initial values from project tags
+      for (const tag of project.tags) {
+        if (tag.value) {
+          // Try to parse the value as a number
+          const num = parseFloat(tag.value)
+          if (!isNaN(num)) {
+            numericValues[tag.name] = num
+
+            // Check if this is a timer/counter synthetic tag (T4:0.PRE, C5:1.ACC, etc.)
+            const timerMatch = tag.name.match(/^(T\d+:\d+)\.(PRE|ACC)$/i)
+            if (timerMatch) {
+              const timerAddr = timerMatch[1]
+              const field = timerMatch[2].toUpperCase()
+              if (!timerInits[timerAddr]) timerInits[timerAddr] = {}
+              if (field === 'PRE') timerInits[timerAddr].PRE = num
+              else if (field === 'ACC') timerInits[timerAddr].ACC = num
+            }
+
+            const counterMatch = tag.name.match(/^(C\d+:\d+)\.(PRE|ACC)$/i)
+            if (counterMatch) {
+              const counterAddr = counterMatch[1]
+              const field = counterMatch[2].toUpperCase()
+              if (!counterInits[counterAddr]) counterInits[counterAddr] = {}
+              if (field === 'PRE') counterInits[counterAddr].PRE = num
+              else if (field === 'ACC') counterInits[counterAddr].ACC = num
+            }
+          }
+        }
+      }
+
+      // Also include local tags from programs
+      for (const program of project.programs) {
+        const localTags = (program as unknown as { localTags?: Array<{ name: string; value?: string | null }> }).localTags
+        if (localTags) {
+          for (const tag of localTags) {
+            if (tag.value) {
+              const num = parseFloat(tag.value)
+              if (!isNaN(num)) {
+                numericValues[tag.name] = num
+              }
+            }
+          }
+        }
+      }
+
+      // Initialize the simulation with numeric values
+      if (Object.keys(numericValues).length > 0) {
+        initializeNumericValues(numericValues)
+      }
+
+      // Initialize timer states from synthetic PRE/ACC tags
+      if (Object.keys(timerInits).length > 0) {
+        const timerUpdates: Record<string, { PRE?: number; ACC?: number; EN?: boolean; TT?: boolean; DN?: boolean }> = {}
+        for (const [addr, vals] of Object.entries(timerInits)) {
+          timerUpdates[addr] = {
+            PRE: vals.PRE ?? 5000,
+            ACC: vals.ACC ?? 0,
+            EN: false,
+            TT: false,
+            DN: false
+          }
+        }
+        updateTimers(timerUpdates)
+        console.log(`[Simulation] Initialized ${Object.keys(timerUpdates).length} timers from project tags`)
+      }
+
+      // Initialize counter states from synthetic PRE/ACC tags
+      if (Object.keys(counterInits).length > 0) {
+        const counterUpdates: Record<string, { PRE?: number; ACC?: number; CU?: boolean; CD?: boolean; DN?: boolean; UN?: boolean; OV?: boolean }> = {}
+        for (const [addr, vals] of Object.entries(counterInits)) {
+          const pre = vals.PRE ?? 10
+          const acc = vals.ACC ?? 0
+          counterUpdates[addr] = {
+            PRE: pre,
+            ACC: acc,
+            CU: false,
+            CD: false,
+            DN: acc >= pre,
+            UN: acc < 0,
+            OV: false
+          }
+        }
+        updateCounters(counterUpdates)
+        console.log(`[Simulation] Initialized ${Object.keys(counterUpdates).length} counters from project tags`)
+      }
+    }
+  }, [simEnabled, project.tags, project.programs, initializeNumericValues, updateTimers, updateCounters])
+
   // Load bookmarks from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(`bookmarks_${project.id}`)
@@ -775,6 +875,54 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
     }
   }
 
+  // Generate explanations for all rungs in current routine
+  const handleGenerateAllExplanations = useCallback(async () => {
+    if (!currentRoutine) return []
+
+    const rungs = currentRoutine.rungs
+    const updatedExplanations: Record<string, RungExplanation> = { ...rungExplanations }
+
+    // Process rungs sequentially to avoid overwhelming the API
+    for (const rung of rungs) {
+      // Skip if already has explanation
+      if (updatedExplanations[rung.id]?.text || rung.explanation) {
+        continue
+      }
+
+      try {
+        const response = await fetch('/api/explain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rungId: rung.id })
+        })
+
+        if (response.ok) {
+          const data: ExplanationResponse = await response.json()
+          updatedExplanations[rung.id] = {
+            text: data.explanation,
+            source: data.source,
+            troubleshooting: data.troubleshooting,
+            deviceTypes: data.deviceTypes,
+            crossRefs: data.crossRefs,
+            ioMappings: data.ioMappings,
+            conditions: data.conditions
+          }
+        }
+      } catch (error) {
+        console.error(`Error explaining rung ${rung.id}:`, error)
+      }
+    }
+
+    // Update state with all new explanations
+    setRungExplanations(updatedExplanations)
+
+    // Return rungs with explanations merged in
+    return rungs.map(rung => ({
+      ...rung,
+      explanation: updatedExplanations[rung.id]?.text || rung.explanation
+    }))
+  }, [currentRoutine, rungExplanations])
+
   const filteredTags = project.tags.filter(
     tag =>
       tag.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -911,28 +1059,22 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
             </button>
           )}
 
-          {/* Back home link */}
+          {/* Logo / Back home link */}
           <a
             href="/"
-            className="flex items-center transition-colors"
-            style={{
-              color: 'var(--text-tertiary)',
-              padding: 'var(--space-2)',
-              minWidth: 'var(--touch-target-min)',
-              minHeight: 'var(--touch-target-min)',
-              justifyContent: 'center',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = 'var(--text-primary)'
-              e.currentTarget.style.background = 'var(--surface-3)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = 'var(--text-tertiary)'
-              e.currentTarget.style.background = 'transparent'
-            }}
+            className="flex items-center"
             aria-label="Back to home"
           >
-            <IconHome />
+            <img
+              src="/logplc2.svg"
+              alt="PLC Company"
+              style={{
+                height: '32px',
+                width: 'auto',
+                filter: 'brightness(0) invert(1)',
+                opacity: 0.9,
+              }}
+            />
           </a>
 
           {/* Divider - hidden on small screens */}
@@ -2969,10 +3111,14 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
       <PDFExportModal
         isOpen={pdfExportModalOpen}
         onClose={() => setPdfExportModalOpen(false)}
-        rungs={currentRoutine?.rungs || []}
+        rungs={(currentRoutine?.rungs || []).map(rung => ({
+          ...rung,
+          explanation: rungExplanations[rung.id]?.text || rung.explanation
+        }))}
         projectName={project.name}
         programName={currentProgram?.name}
         routineName={currentRoutine?.name}
+        onGenerateAllExplanations={handleGenerateAllExplanations}
       />
     </div>
   )

@@ -504,3 +504,16 @@ model RoutineAnalysis {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
+
+// ============================================
+// Waitlist Signups
+// ============================================
+
+model WaitlistEntry {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  source          String?   // Which page they signed up from
+  createdAt       DateTime  @default(now())
+
+  @@index([email])
+}

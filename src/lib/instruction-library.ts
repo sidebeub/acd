@@ -7645,9 +7645,9 @@ export function generateFullRungExplanation(
   // Detect rung purpose
   const purpose = detectRungPurpose(allInstructions, rungText)
 
-  // Main Function section
+  // Main Function section - start with "The purpose of this rung is to..."
   if (purpose) {
-    explanation = `## Main Function:\n${purpose.purpose}`
+    explanation = `**The purpose of this rung is to ${purpose.purpose.toLowerCase()}.**`
     if (purpose.details) {
       explanation += ` ${purpose.details}`
     }
@@ -7731,11 +7731,10 @@ export function generateFullRungExplanation(
     }
   }
 
-  // Purpose summary section
+  // Operational note section
   if (purpose?.operationalNote || purpose?.consequence) {
-    explanation += '## Purpose:\n'
     if (purpose?.operationalNote) {
-      explanation += `${purpose.operationalNote}`
+      explanation += `**Note:** ${purpose.operationalNote}`
     }
     if (purpose?.consequence) {
       explanation += ` If conditions are not met: ${purpose.consequence}`

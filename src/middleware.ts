@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server'
 
 export default withAuth(
   function middleware() {
-    // Allow authenticated requests to proceed
     return NextResponse.next()
   },
   {
@@ -19,14 +18,20 @@ export default withAuth(
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - /auth/* (login, signup pages)
-     * - /api/auth/* (NextAuth endpoints)
-     * - /_next/static (static files)
-     * - /_next/image (image optimization)
-     * - /favicon.ico
-     * - /images/* (public images)
+     * Only protect authenticated routes:
+     * - /project/* (viewing PLC projects)
+     * - /dashboard/* (user dashboard)
+     * - /settings/* (user settings)
+     *
+     * Public routes (NOT matched):
+     * - / (homepage)
+     * - /l5x-file, /acd-file, /rss-file (landing pages)
+     * - /auth/* (login, signup)
+     * - /api/* (API routes handle their own auth)
+     * - /_next/*, /favicon.ico, etc (static assets)
      */
-    '/((?!auth|api/auth|_next/static|_next/image|favicon.ico|images).*)'
+    '/project/:path*',
+    '/dashboard/:path*',
+    '/settings/:path*'
   ]
 }

@@ -46,6 +46,7 @@ export interface PDFExportOptions {
   // Content options
   includeComments: boolean
   includeRawText: boolean
+  includeExplanations: boolean
   includeLegend: boolean
   includePageNumbers: boolean
 
@@ -670,6 +671,31 @@ export function generatePDFStyles(options: PDFExportOptions): string {
       word-wrap: break-word;
     }
 
+    /* AI Explanation */
+    .rung-explanation {
+      margin-top: 10pt;
+      padding: 10pt 12pt;
+      background: ${isColor ? '#f0f9ff' : '#f9fafb'};
+      border-left: 3pt solid ${isColor ? '#0891b2' : '#6b7280'};
+      font-size: 9pt;
+      line-height: 1.5;
+      color: #374151;
+    }
+
+    .rung-explanation-label {
+      display: block;
+      font-size: 8pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: ${isColor ? '#0891b2' : '#6b7280'};
+      margin-bottom: 4pt;
+    }
+
+    .rung-explanation p {
+      margin: 0;
+    }
+
     /* Legend */
     .pdf-legend {
       page-break-inside: avoid;
@@ -1011,6 +1037,12 @@ export function generateRungHTML(
           <div class="power-rail${rungEnergized ? ' energized' : ''}"></div>
         </div>
         ${options.includeRawText ? `<div class="rung-raw-text">${escapeHtml(rung.rawText)}</div>` : ''}
+        ${options.includeExplanations && rung.explanation ? `
+          <div class="rung-explanation">
+            <span class="rung-explanation-label">AI Explanation</span>
+            <p>${escapeHtml(rung.explanation)}</p>
+          </div>
+        ` : ''}
       </div>
     </div>
   `
