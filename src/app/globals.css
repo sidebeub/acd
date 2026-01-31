@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Swiss 721 Black Extended - Logo font */
+@font-face {
+  font-family: 'Swiss 721 Black Extended';
+  src: url('/fonts/swiss-721-black-extended.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ================================================
    ACD VIEWER - Professional Industrial Design System
    ================================================ */

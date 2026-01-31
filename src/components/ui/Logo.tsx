@@ -17,10 +17,10 @@ export function Logo({ size = 'md', className, style }: LogoProps) {
     <div className={className} style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, ...style }}>
       <span
         style={{
-          fontFamily: 'var(--font-logo), Arial Black, sans-serif',
+          fontFamily: "'Swiss 721 Black Extended', Arial Black, sans-serif",
           fontSize: s.plc,
           fontWeight: 900,
-          letterSpacing: '0.05em',
+          letterSpacing: '0.02em',
           color: 'inherit',
         }}
       >
