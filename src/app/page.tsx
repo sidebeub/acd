@@ -5,7 +5,8 @@ import { CTASection } from '@/components/home/CTASection'
 import { Logo } from '@/components/ui/Logo'
 import {
   ScrollProgress,
-  GrainOverlay
+  GrainOverlay,
+  AnimatedCounter
 } from '@/components/home/Effects'
 
 export default function Home() {
@@ -316,13 +317,14 @@ export default function Home() {
               {/* Left column - Big number + title */}
               <div style={{ gridColumn: 'span 5' }}>
                 <span style={{
+                  fontFamily: 'var(--font-display)',
                   fontSize: 'clamp(6rem, 15vw, 12rem)',
-                  fontWeight: 800,
-                  color: 'var(--surface-3)',
+                  fontWeight: 700,
+                  color: 'var(--surface-4)',
                   lineHeight: 0.8,
                   display: 'block'
                 }}>
-                  215+
+                  <AnimatedCounter end={215} suffix="+" duration={2500} />
                 </span>
                 <h3 style={{
                   fontSize: 'clamp(1.5rem, 3vw, 2rem)',
@@ -639,7 +641,7 @@ export default function Home() {
                     display: 'block',
                     lineHeight: 1
                   }}>
-                    {stat.value}{stat.suffix}
+                    <AnimatedCounter end={stat.value} suffix={stat.suffix} duration={2000} />
                   </span>
                   <span style={{
                     fontSize: '0.875rem',

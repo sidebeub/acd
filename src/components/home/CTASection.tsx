@@ -117,157 +117,173 @@ export function CTASection() {
   // Render upload section for allowed user
   if (isAllowedUser) {
     return (
-      <section id="waitlist" className="py-fluid-20" style={{ background: 'var(--surface-1)', paddingBlock: 'var(--space-24)' }}>
-        <div className="container-narrow">
-          <div className="text-center" style={{ marginBlockEnd: 'var(--space-12)' }}>
-            <div
-              className="inline-flex items-center"
-              style={{
-                gap: 'var(--space-2)',
-                paddingInline: 'var(--space-4)',
-                paddingBlock: 'var(--space-2)',
-                marginBlockEnd: 'var(--space-6)',
-                background: 'var(--accent-emerald-muted)',
-                border: '1px solid var(--accent-emerald)',
-                borderRadius: 'var(--radius-sm)'
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
-                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                <path d="M22 4L12 14.01l-3-3" />
-              </svg>
-              <span className="text-fluid-sm font-medium" style={{ color: 'var(--accent-emerald)' }}>
-                Admin Access
-              </span>
-            </div>
-            <h2
-              className="text-fluid-4xl font-bold"
-              style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
-            >
-              Upload Your PLC File
+      <section id="waitlist" style={{
+        background: 'var(--surface-0)',
+        paddingBlock: 'clamp(80px, 15vh, 150px)'
+      }}>
+        <div style={{ maxWidth: '800px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBlockEnd: 'var(--space-10)' }}>
+            <h2 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(2rem, 5vw, 3rem)',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBlockEnd: 'var(--space-4)',
+              letterSpacing: '-0.02em'
+            }}>
+              Ready to view your code?
             </h2>
-            <p className="text-fluid-lg" style={{ color: 'var(--text-secondary)' }}>
-              Drop your L5X, ACD, or RSS file to start viewing.
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>
+              Drop your file and start exploring in seconds.
             </p>
           </div>
 
-          {/* Upload card */}
+          {/* Upload area */}
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            className={`relative transition-all duration-200 ${isUploading ? 'pointer-events-none' : ''}`}
             style={{
-              padding: 'var(--space-10)',
-              background: isDragging ? 'var(--accent-blue-muted)' : 'var(--surface-2)',
-              border: `2px dashed ${isDragging ? 'var(--accent-blue)' : 'var(--border-default)'}`,
-              borderRadius: 'var(--radius-md)'
+              position: 'relative',
+              padding: 'clamp(48px, 8vw, 80px) clamp(24px, 4vw, 48px)',
+              background: isDragging ? 'var(--accent-muted)' : 'var(--surface-1)',
+              border: `2px dashed ${isDragging ? 'var(--accent)' : 'var(--border-default)'}`,
+              borderRadius: '8px',
+              textAlign: 'center',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer'
             }}
           >
             <input
               type="file"
               accept=".l5x,.acd,.rss"
               onChange={handleInputChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               disabled={isUploading}
-              style={{ minHeight: 'var(--touch-target-min)' }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0,
+                cursor: 'pointer'
+              }}
             />
 
             {isUploading ? (
-              <div className="text-center" style={{ paddingBlock: 'var(--space-4)' }}>
-                <div style={{ marginBlockEnd: 'var(--space-4)' }}>
-                  <svg className="animate-pulse-subtle" style={{ width: '48px', height: '48px', marginInline: 'auto' }} viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
-                    <path d="M12 3v12M12 3l4 4M12 3L8 7" />
-                    <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
-                  </svg>
-                </div>
-                <p
-                  className="text-fluid-base font-medium"
-                  style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
-                >
-                  Processing file...
+              <div>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  margin: '0 auto var(--space-6)',
+                  border: '3px solid var(--border-subtle)',
+                  borderTopColor: 'var(--accent)',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                <p style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBlockEnd: 'var(--space-4)'
+                }}>
+                  Parsing your program...
                 </p>
-                <div
-                  className="overflow-hidden"
-                  style={{
-                    width: 'clamp(200px, 50vw, 288px)',
-                    height: '6px',
-                    marginInline: 'auto',
-                    background: 'var(--surface-4)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}
-                >
-                  <div
-                    className="transition-all duration-200"
-                    style={{
-                      height: '100%',
-                      background: 'var(--accent-blue)',
-                      width: `${uploadProgress}%`,
-                      borderRadius: 'var(--radius-sm)'
-                    }}
-                  />
+                <div style={{
+                  width: '200px',
+                  height: '4px',
+                  margin: '0 auto',
+                  background: 'var(--surface-3)',
+                  borderRadius: '2px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${uploadProgress}%`,
+                    background: 'var(--accent)',
+                    transition: 'width 0.2s ease'
+                  }} />
                 </div>
-                <p
-                  className="text-fluid-sm"
-                  style={{ color: 'var(--text-muted)', marginBlockStart: 'var(--space-3)' }}
-                >
-                  Parsing program structure...
-                </p>
               </div>
             ) : (
-              <div className="text-center" style={{ paddingBlock: 'var(--space-4)' }}>
-                <div style={{ marginBlockEnd: 'var(--space-5)' }}>
+              <div>
+                {/* File icon */}
+                <div style={{
+                  width: '80px',
+                  height: '80px',
+                  margin: '0 auto var(--space-6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--surface-2)',
+                  borderRadius: '16px',
+                  transition: 'transform 0.2s ease'
+                }}>
                   <svg
-                    className="transition-colors"
-                    style={{ width: 'clamp(48px, 8vw, 56px)', height: 'clamp(48px, 8vw, 56px)', marginInline: 'auto' }}
+                    width="40"
+                    height="40"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke={isDragging ? 'var(--accent-blue)' : 'var(--text-muted)'}
+                    stroke={isDragging ? 'var(--accent)' : 'var(--text-muted)'}
                     strokeWidth="1.5"
+                    style={{ transition: 'stroke 0.2s ease' }}
                   >
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <path d="M14 2v6h6" />
+                    <path d="M12 18v-6M9 15l3-3 3 3" />
                   </svg>
                 </div>
-                <p
-                  className="text-fluid-lg font-medium"
-                  style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-2)' }}
-                >
-                  {isDragging ? 'Drop to upload' : 'Drop your file here'}
+
+                <p style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBlockEnd: 'var(--space-2)'
+                }}>
+                  {isDragging ? 'Drop it!' : 'Drag & drop your PLC file'}
                 </p>
-                <p
-                  className="text-fluid-sm"
-                  style={{ color: 'var(--text-muted)', marginBlockEnd: 'var(--space-4)' }}
-                >
-                  or <span style={{ color: 'var(--accent-blue)' }} className="cursor-pointer font-medium">browse</span> to select a file
+                <p style={{ color: 'var(--text-tertiary)', marginBlockEnd: 'var(--space-6)' }}>
+                  or click to browse
                 </p>
-                <div className="flex items-center justify-center" style={{ gap: 'var(--space-4)' }}>
-                  <span className="tech-badge">.L5X</span>
-                  <span className="tech-badge">.ACD</span>
-                  <span className="tech-badge">.RSS</span>
+
+                {/* File types */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--space-3)' }}>
+                  {['.L5X', '.ACD', '.RSS'].map(ext => (
+                    <span
+                      key={ext}
+                      style={{
+                        padding: '6px 16px',
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '20px',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      {ext}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Error message */}
+          {/* Error */}
           {uploadError && (
-            <div
-              className="flex items-center"
-              style={{
-                marginBlockStart: 'var(--space-4)',
-                paddingInline: 'var(--space-4)',
-                paddingBlock: 'var(--space-3)',
-                gap: 'var(--space-3)',
-                background: 'var(--accent-red-muted)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: 'var(--radius-sm)'
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M15 9l-6 6M9 9l6 6" />
-              </svg>
-              <span className="text-fluid-sm" style={{ color: 'var(--accent-red)' }}>{uploadError}</span>
+            <div style={{
+              marginTop: 'var(--space-4)',
+              padding: 'var(--space-4)',
+              background: 'var(--accent-red-muted)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '8px',
+              textAlign: 'center',
+              color: 'var(--accent-red)'
+            }}>
+              {uploadError}
             </div>
           )}
         </div>
@@ -277,162 +293,129 @@ export function CTASection() {
 
   // Render waitlist section for everyone else
   return (
-    <section id="waitlist" className="py-fluid-20" style={{ background: 'var(--surface-1)', paddingBlock: 'var(--space-24)' }}>
-      <div className="container-narrow">
-        <div className="text-center" style={{ marginBlockEnd: 'var(--space-12)' }}>
-          <div
-            className="inline-flex items-center"
-            style={{
-              gap: 'var(--space-2)',
-              paddingInline: 'var(--space-4)',
-              paddingBlock: 'var(--space-2)',
-              marginBlockEnd: 'var(--space-6)',
-              background: 'var(--accent-amber-muted)',
-              border: '1px solid var(--accent-amber)',
-              borderRadius: 'var(--radius-sm)'
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
-            </svg>
-            <span className="text-fluid-sm font-medium" style={{ color: 'var(--accent-amber)' }}>
-              Coming Soon
-            </span>
-          </div>
-          <h2
-            className="text-fluid-4xl font-bold"
-            style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
-          >
-            Be the first to know
-          </h2>
-          <p className="text-fluid-lg" style={{ color: 'var(--text-secondary)' }}>
-            PLC Viewer is launching soon. Sign up to get notified when we go live.
-          </p>
-        </div>
+    <section id="waitlist" style={{
+      background: 'linear-gradient(to bottom, var(--surface-0), var(--surface-1))',
+      paddingBlock: 'clamp(100px, 20vh, 180px)'
+    }}>
+      <div style={{ maxWidth: '600px', marginInline: 'auto', paddingInline: 'var(--space-6)', textAlign: 'center' }}>
+        {/* Big headline */}
+        <h2 style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 'clamp(2.5rem, 6vw, 4rem)',
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          marginBlockEnd: 'var(--space-4)',
+          letterSpacing: '-0.02em',
+          lineHeight: 1.1
+        }}>
+          Get early access
+        </h2>
+        <p style={{
+          fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+          color: 'var(--text-secondary)',
+          marginBlockEnd: 'var(--space-8)',
+          lineHeight: 1.6
+        }}>
+          Be the first to know when PLC Viewer launches.
+          No spam, just one email when we're ready.
+        </p>
 
-        {/* Waitlist signup card */}
-        <div
-          style={{
+        {waitlistStatus === 'success' ? (
+          <div style={{
             padding: 'var(--space-8)',
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            maxWidth: '500px',
-            marginInline: 'auto'
-          }}
-        >
-          {waitlistStatus === 'success' ? (
-            <div className="text-center" style={{ padding: 'var(--space-4)' }}>
-              <div
-                className="flex items-center justify-center"
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  marginInline: 'auto',
-                  marginBlockEnd: 'var(--space-4)',
-                  background: 'var(--accent-emerald-muted)',
-                  borderRadius: '50%'
-                }}
-              >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                  <path d="M22 4L12 14.01l-3-3" />
-                </svg>
-              </div>
-              <p className="text-fluid-lg font-semibold" style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-2)' }}>
-                You're on the list!
-              </p>
-              <p className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>
-                {waitlistMessage}
-              </p>
+            background: 'var(--surface-1)',
+            border: '1px solid var(--accent)',
+            borderRadius: '12px'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              margin: '0 auto var(--space-4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--accent-muted)',
+              borderRadius: '50%'
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
             </div>
-          ) : (
-            <form onSubmit={handleWaitlistSubmit} className="stack" style={{ gap: 'var(--space-4)' }}>
-              <div>
-                <label
-                  htmlFor="email"
-                  className="text-fluid-sm font-medium block"
-                  style={{ color: 'var(--text-secondary)', marginBlockEnd: 'var(--space-2)' }}
-                >
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="you@company.com"
-                  className="w-full text-fluid-base"
-                  style={{
-                    padding: 'var(--space-3) var(--space-4)',
-                    background: 'var(--surface-0)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-primary)',
-                    minHeight: 'var(--touch-target-min)'
-                  }}
-                  disabled={waitlistStatus === 'loading'}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={waitlistStatus === 'loading'}
-                className="btn btn-primary text-fluid-base w-full inline-flex items-center justify-center"
-                style={{
-                  paddingBlock: 'var(--space-3)',
-                  gap: 'var(--space-2)',
-                  minHeight: 'var(--touch-target-min)',
-                  borderRadius: 'var(--radius-sm)',
-                  opacity: waitlistStatus === 'loading' ? 0.7 : 1
-                }}
-              >
-                {waitlistStatus === 'loading' ? (
-                  <>
-                    <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 12a9 9 0 11-6.219-8.56" />
-                    </svg>
-                    Joining...
-                  </>
-                ) : (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                    </svg>
-                    Notify Me When It Launches
-                  </>
-                )}
-              </button>
-              {waitlistStatus === 'error' && (
-                <p className="text-fluid-sm text-center" style={{ color: 'var(--accent-red)' }}>
-                  {waitlistMessage}
-                </p>
-              )}
-            </form>
-          )}
-          {waitlistStatus !== 'success' && (
-            <p
-              className="text-fluid-xs text-center"
-              style={{ color: 'var(--text-muted)', marginBlockStart: 'var(--space-4)' }}
-            >
-              No spam. We'll only email you when PLC Viewer is ready.
+            <p style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBlockEnd: 'var(--space-2)'
+            }}>
+              You're in!
             </p>
-          )}
-        </div>
-
-        {/* Supported formats reminder */}
-        <div className="text-center" style={{ marginBlockStart: 'var(--space-8)' }}>
-          <p className="text-fluid-sm" style={{ color: 'var(--text-muted)', marginBlockEnd: 'var(--space-3)' }}>
-            Will support all major Allen-Bradley formats
-          </p>
-          <div className="flex items-center justify-center" style={{ gap: 'var(--space-3)' }}>
-            <span className="tech-badge">.L5X</span>
-            <span className="tech-badge">.ACD</span>
-            <span className="tech-badge">.RSS</span>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              {waitlistMessage}
+            </p>
           </div>
-        </div>
+        ) : (
+          <form onSubmit={handleWaitlistSubmit} style={{
+            display: 'flex',
+            gap: 'var(--space-3)',
+            maxWidth: '480px',
+            marginInline: 'auto'
+          }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="Enter your email"
+              disabled={waitlistStatus === 'loading'}
+              style={{
+                flex: 1,
+                padding: 'var(--space-4)',
+                background: 'var(--surface-1)',
+                border: '1px solid var(--border-default)',
+                borderRadius: '8px',
+                color: 'var(--text-primary)',
+                fontSize: '1rem'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={waitlistStatus === 'loading'}
+              style={{
+                padding: 'var(--space-4) var(--space-6)',
+                background: 'var(--accent)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '1rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                opacity: waitlistStatus === 'loading' ? 0.7 : 1,
+                transition: 'opacity 0.2s ease'
+              }}
+            >
+              {waitlistStatus === 'loading' ? 'Joining...' : 'Notify Me'}
+            </button>
+          </form>
+        )}
+
+        {waitlistStatus === 'error' && (
+          <p style={{ color: 'var(--accent-red)', marginTop: 'var(--space-4)' }}>
+            {waitlistMessage}
+          </p>
+        )}
+
+        {/* Trust signal */}
+        {waitlistStatus !== 'success' && (
+          <p style={{
+            color: 'var(--text-muted)',
+            fontSize: '0.875rem',
+            marginTop: 'var(--space-6)'
+          }}>
+            Join 200+ engineers already on the waitlist
+          </p>
+        )}
       </div>
     </section>
   )
