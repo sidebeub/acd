@@ -65,6 +65,13 @@ export default function Home() {
               RSS Files
             </a>
             <a
+              href="/dashboard"
+              className="text-fluid-sm font-medium transition-colors hover:text-white"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              My Projects
+            </a>
+            <a
               href="#waitlist"
               className="btn btn-primary text-fluid-sm"
               style={{

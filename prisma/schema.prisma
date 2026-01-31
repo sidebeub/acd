@@ -92,6 +92,7 @@ model Project {
   alarms            AlarmDefinition[]
   messages          MessageConfig[]
   trends            TrendConfig[]
+  fileUploads       FileUpload[]
 
   @@index([userId])
   @@index([fileHash])
@@ -516,4 +517,32 @@ model WaitlistEntry {
   createdAt       DateTime  @default(now())
 
   @@index([email])
+}
+
+// ============================================
+// File Uploads (for ML training)
+// ============================================
+
+model FileUpload {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // S3 storage info
+  s3Key           String    // Full S3 key path
+  fileHash        String    // SHA256 hash for deduplication
+  fileName        String    // Original filename
+  fileType        String    // "l5x", "acd", "rss"
+  fileSize        Int       // Size in bytes
+
+  // ML training consent
+  allowTraining   Boolean   @default(false)
+  anonymized      Boolean   @default(false)
+  trainedOn       DateTime? // When used for training (if ever)
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([projectId])  // One file per project
+  @@index([fileHash])    // Index for dedup queries, not unique (same file can be uploaded by multiple users)
+  @@index([allowTraining, fileType])
 }

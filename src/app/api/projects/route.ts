@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { analyzeProject } from '@/lib/project-analysis'
 import { requireAuth } from '@/lib/auth'
 import { parseRSS } from '@/lib/rss-parser'
+import { uploadFile } from '@/lib/s3'
 
 // Parser API URL - set in environment
 const PARSER_API_URL = process.env.PARSER_API_URL || 'http://localhost:8000'
@@ -39,6 +40,7 @@ export async function GET() {
         id: true,
         name: true,
         fileName: true,
+        fileSize: true,
         processorType: true,
         createdAt: true,
         _count: {
@@ -832,6 +834,39 @@ export async function POST(request: NextRequest) {
     // Log any warnings from parsing
     if (warnings.length > 0) {
       console.log('Parse warnings:', warnings)
+    }
+
+    // Upload raw file to S3 for potential ML training (if S3 is configured)
+    if (process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID) {
+      try {
+        const fileBuffer = Buffer.from(await file.arrayBuffer())
+        const fileType = fileName.endsWith('.l5x') ? 'l5x' : fileName.endsWith('.acd') ? 'acd' : 'rss'
+
+        const { key } = await uploadFile(
+          dbProject.id,
+          file.name,
+          fileBuffer,
+          'application/octet-stream'
+        )
+
+        // Create FileUpload record
+        await prisma.fileUpload.create({
+          data: {
+            projectId: dbProject.id,
+            s3Key: key,
+            fileHash: fileHash,
+            fileName: file.name,
+            fileType: fileType,
+            fileSize: fileSize,
+            allowTraining: false, // User must explicitly opt-in later
+          }
+        })
+
+        console.log(`[S3] Uploaded file for project ${dbProject.id}: ${key}`)
+      } catch (s3Error) {
+        // Log but don't fail the upload - S3 is optional for ML training
+        console.error('[S3] Failed to upload file for ML training:', s3Error)
+      }
     }
 
     // Start project analysis in background (for cost-optimized chat)
