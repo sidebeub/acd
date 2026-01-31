@@ -8,27 +8,27 @@ import Link from 'next/link'
 const faqs = [
   {
     question: "Can I view L5X files without Studio 5000?",
-    answer: "Yes! PLC Viewer is a free L5X viewer that runs entirely in your browser. You can open and view L5X files without needing Studio 5000 installed. Browse programs, routines, tags, ladder logic, and get AI-powered explanations - all without any Rockwell software license."
+    answer: "Yes! PLC Viewer lets you open and view L5X files without needing Studio 5000 installed. Browse programs, routines, tags, ladder logic, and get AI-powered explanations - all without expensive Rockwell software licenses."
   },
   {
-    question: "Is there a free L5X viewer?",
-    answer: "PLC Viewer is a completely free L5X viewer. There's no software to install, no license required, and no account needed. Simply upload your L5X file and instantly view your ControlLogix or CompactLogix program in your browser."
+    question: "Is there an affordable L5X viewer?",
+    answer: "PLC Viewer offers L5X viewing at a fraction of Studio 5000's cost. There's no software to install and it works entirely in your browser. Simply upload your L5X file and instantly view your ControlLogix or CompactLogix program."
   },
   {
     question: "How do I open L5X files without Rockwell software?",
-    answer: "Upload your L5X file to PLC Viewer at plcviewer.com. The file is processed entirely in your browser for security. You'll be able to browse the complete program structure, view ladder logic rungs, examine tags and data types, and understand the code with AI explanations."
+    answer: "Upload your L5X file to PLC Viewer at plc.company. The file is processed securely. You'll be able to browse the complete program structure, view ladder logic rungs, examine tags and data types, and understand the code with AI explanations."
   },
   {
     question: "What can I see in an L5X file without Studio 5000?",
-    answer: "With our free L5X viewer, you can see everything in the export: controller configuration, all programs and routines, ladder logic with color-coded instructions, function block diagrams, structured text, controller and program tags, User-Defined Types (UDTs), and Add-On Instructions (AOIs)."
+    answer: "With PLC Viewer, you can see everything in the export: controller configuration, all programs and routines, ladder logic with color-coded instructions, function block diagrams, structured text, controller and program tags, User-Defined Types (UDTs), and Add-On Instructions (AOIs)."
   },
   {
     question: "Is my L5X file secure when viewing online?",
-    answer: "Absolutely. Your L5X file is processed entirely in your browser - it never gets uploaded to any server. Your proprietary PLC programs and control logic stay completely private on your computer."
+    answer: "Absolutely. Your L5X file is processed securely and your proprietary PLC programs and control logic stay protected."
   },
   {
-    question: "Does the free viewer work with all ControlLogix versions?",
-    answer: "Yes, our free L5X viewer supports L5X exports from all Studio 5000 versions and all Logix controller families including ControlLogix 5570/5580, CompactLogix 5370/5380/5480, and GuardLogix safety controllers."
+    question: "Does the viewer work with all ControlLogix versions?",
+    answer: "Yes, PLC Viewer supports L5X exports from all Studio 5000 versions and all Logix controller families including ControlLogix 5570/5580, CompactLogix 5370/5380/5480, and GuardLogix safety controllers."
   }
 ]
 
@@ -196,7 +196,7 @@ export default function ViewL5xWithoutStudio5000Page() {
                 borderRadius: 'var(--radius-md)'
               }}
             >
-              Open L5X Free
+              View L5X Now
             </a>
           </nav>
         </div>
@@ -251,7 +251,7 @@ export default function ViewL5xWithoutStudio5000Page() {
               }}
             >
               Need to view L5X files but don't have a Studio 5000 license? You're not alone.
-              PLC Viewer is a <strong style={{ color: 'var(--text-primary)' }}>free L5X viewer</strong> that
+              PLC Viewer is a <strong style={{ color: 'var(--text-primary)' }}>online L5X viewer</strong> that
               lets you open L5X files online, right in your browser - no Rockwell software required.
             </p>
 
@@ -270,7 +270,7 @@ export default function ViewL5xWithoutStudio5000Page() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                 </svg>
-                Open L5X File Free
+                View L5X File
               </a>
               <a
                 href="#how-to"
@@ -339,7 +339,7 @@ export default function ViewL5xWithoutStudio5000Page() {
                   <path d="M22 4L12 14.01l-3-3" />
                 </svg>
                 <div>
-                  <p className="text-fluid-base font-medium" style={{ color: 'var(--text-primary)' }}>PLC Viewer: Free</p>
+                  <p className="text-fluid-base font-medium" style={{ color: 'var(--text-primary)' }}>PLC Viewer: Affordable</p>
                   <p className="text-fluid-sm" style={{ color: 'var(--text-tertiary)' }}>No license, no install</p>
                 </div>
               </div>
@@ -388,7 +388,7 @@ export default function ViewL5xWithoutStudio5000Page() {
                   className="text-fluid-4xl font-bold"
                   style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-6)' }}
                 >
-                  Free ControlLogix Viewer
+                  Online ControlLogix Viewer
                 </h2>
                 <div className="stack" style={{ color: 'var(--text-secondary)', gap: 'var(--space-4)' }}>
                   <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
@@ -403,7 +403,7 @@ export default function ViewL5xWithoutStudio5000Page() {
                     <li className="text-fluid-base" style={{ lineHeight: '1.7' }}>Anyone who needs to open L5X files online</li>
                   </ul>
                   <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
-                    Our free L5X viewer supports all ControlLogix, CompactLogix, and GuardLogix exports.
+                    Our online L5X viewer supports all ControlLogix, CompactLogix, and GuardLogix exports.
                     View ladder logic, function blocks, structured text, tags, UDTs, and AOIs instantly.
                   </p>
                 </div>
@@ -557,7 +557,7 @@ export default function ViewL5xWithoutStudio5000Page() {
                   marginInline: 'auto'
                 }}
               >
-                Our free L5X viewer works with all Allen-Bradley Logix controllers
+                Our online L5X viewer works with all Allen-Bradley Logix controllers
               </p>
             </div>
 
@@ -642,7 +642,7 @@ export default function ViewL5xWithoutStudio5000Page() {
                 View Your L5X File Now
               </h2>
               <p className="text-fluid-lg" style={{ color: 'var(--text-secondary)' }}>
-                Free L5X viewer - no Studio 5000 required
+                Online L5X viewer - no Studio 5000 required
               </p>
             </div>
 
@@ -737,7 +737,7 @@ export default function ViewL5xWithoutStudio5000Page() {
                   </p>
                   <div className="flex items-center justify-center" style={{ gap: 'var(--space-4)' }}>
                     <span className="tech-badge">.L5X</span>
-                    <span className="text-fluid-sm" style={{ color: 'var(--text-muted)' }}>100% Free</span>
+                    <span className="text-fluid-sm" style={{ color: 'var(--text-muted)' }}>No Studio 5000 Required</span>
                   </div>
                 </div>
               )}
@@ -891,7 +891,7 @@ export default function ViewL5xWithoutStudio5000Page() {
             "@context": "https://schema.org",
             "@type": "HowTo",
             "name": "How to View L5X Files Without Studio 5000",
-            "description": "Learn how to open and view L5X files without expensive Studio 5000 software using our free online L5X viewer.",
+            "description": "Learn how to open and view L5X files without expensive Studio 5000 software using our online L5X viewer.",
             "step": howToSteps.map((step, idx) => ({
               "@type": "HowToStep",
               "position": idx + 1,

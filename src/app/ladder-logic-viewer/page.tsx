@@ -249,7 +249,7 @@ export default function LadderLogicViewerPage() {
                 }}
               />
               <span className="text-fluid-sm font-medium" style={{ color: 'var(--accent-emerald)' }}>
-                Free Online Viewer
+                Online Viewer
               </span>
             </div>
 
@@ -263,7 +263,7 @@ export default function LadderLogicViewerPage() {
             >
               Online Ladder Logic Viewer
               <br />
-              <span style={{ color: 'var(--accent-blue)' }}>View PLC Diagrams Free</span>
+              <span style={{ color: 'var(--accent-blue)' }}>View PLC Diagrams Online</span>
             </h1>
 
             <p
@@ -295,7 +295,7 @@ export default function LadderLogicViewerPage() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                 </svg>
-                View Ladder Logic Free
+                View Ladder Logic Now
               </a>
               <a
                 href="#what-is-ladder-logic"
@@ -1114,13 +1114,17 @@ export default function LadderLogicViewerPage() {
             "@context": "https://schema.org",
             "@type": "WebApplication",
             "name": "Online Ladder Logic Viewer",
-            "description": "Free online ladder logic viewer for Allen-Bradley PLC programs. View L5X, ACD, and RSS files with color-coded visualization and AI-powered explanations.",
+            "description": "Online ladder logic viewer for Allen-Bradley PLC programs. View L5X, ACD, and RSS files with color-coded visualization and AI-powered explanations.",
             "applicationCategory": "DeveloperApplication",
             "operatingSystem": "Any",
             "offers": {
               "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "USD"
+              "priceSpecification": {
+                "@type": "PriceSpecification",
+                "priceCurrency": "USD",
+                "description": "Affordable subscription plans"
+              },
+              "availability": "https://schema.org/OnlineOnly"
             },
             "featureList": [
               "View ladder logic diagrams online",

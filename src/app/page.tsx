@@ -1160,7 +1160,7 @@ export default function Home() {
                   <a href="/ladder-logic-viewer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Ladder Logic Viewer</a>
                   <a href="/view-l5x-without-studio-5000" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>View L5X Without Studio 5000</a>
                   <a href="/studio-5000-alternative" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Studio 5000 Alternative</a>
-                  <a href="/free-allen-bradley-plc-viewer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Free Allen-Bradley Viewer</a>
+                  <a href="/free-allen-bradley-plc-viewer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Allen-Bradley Viewer</a>
                 </div>
               </div>
             </div>

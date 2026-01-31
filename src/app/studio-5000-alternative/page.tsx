@@ -96,7 +96,7 @@ export default function Studio5000AlternativePage() {
                 borderRadius: 'var(--radius-md)'
               }}
             >
-              Try Free
+              Try It Now
             </a>
           </nav>
         </div>
@@ -128,7 +128,7 @@ export default function Studio5000AlternativePage() {
                 }}
               />
               <span className="text-fluid-sm font-medium" style={{ color: 'var(--accent-emerald)' }}>
-                Free PLC Program Viewer
+                Affordable PLC Program Viewer
               </span>
             </div>
 
@@ -142,7 +142,7 @@ export default function Studio5000AlternativePage() {
             >
               Studio 5000 Alternative:
               <br />
-              <span style={{ color: 'var(--accent-blue)' }}>View PLC Programs Free</span>
+              <span style={{ color: 'var(--accent-blue)' }}>View PLC Programs Online</span>
             </h1>
 
             <p
@@ -379,7 +379,7 @@ export default function Studio5000AlternativePage() {
                 { feature: 'Mac/Linux/tablet support', studio: false, viewer: true },
                 { feature: 'No installation required', studio: false, viewer: true },
                 { feature: 'Opens any version instantly', studio: false, viewer: true },
-                { feature: 'Cost', studio: '$5,000+', viewer: 'Free tier available', isText: true }
+                { feature: 'Cost', studio: '$5,000+', viewer: 'Affordable plans', isText: true }
               ].map((row, idx) => (
                 <div
                   key={idx}

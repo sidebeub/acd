@@ -14,9 +14,11 @@ export function JsonLd() {
     url: siteUrl,
     offers: {
       "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-      description: "Free to use - no Studio 5000 license required",
+      priceSpecification: {
+        "@type": "PriceSpecification",
+        priceCurrency: "USD",
+        description: "Affordable subscription - fraction of Studio 5000 cost"
+      },
       availability: "https://schema.org/OnlineOnly"
     },
     featureList: [

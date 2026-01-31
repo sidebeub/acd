@@ -7,12 +7,12 @@ import Link from 'next/link'
 // FAQ data for schema markup - SEO optimized questions
 const faqs = [
   {
-    question: "Is there a free Allen-Bradley PLC viewer?",
-    answer: "Yes! PLC Viewer is a completely free online tool that lets you view Allen-Bradley PLC programs directly in your browser. You can open ACD, L5X, and RSS files without purchasing expensive Rockwell software licenses. Simply upload your file and instantly browse ladder logic, tags, and program structure."
+    question: "Is there an affordable Allen-Bradley PLC viewer?",
+    answer: "Yes! PLC Viewer lets you view Allen-Bradley PLC programs at a fraction of the cost of Studio 5000. You can open ACD, L5X, and RSS files without purchasing expensive Rockwell software licenses. Simply upload your file and instantly browse ladder logic, tags, and program structure."
   },
   {
-    question: "Can I view ControlLogix programs for free?",
-    answer: "Absolutely. PLC Viewer supports all ControlLogix controllers including the 5580, 5570, 5560, and 5550 series. Upload your ACD or L5X file and view all programs, routines, and tags at no cost. You'll also get AI-powered explanations to help you understand complex logic."
+    question: "Can I view ControlLogix programs without Studio 5000?",
+    answer: "Absolutely. PLC Viewer supports all ControlLogix controllers including the 5580, 5570, 5560, and 5550 series. Upload your ACD or L5X file and view all programs, routines, and tags without needing a $5,000+ Studio 5000 license. You'll also get AI-powered explanations to help you understand complex logic."
   },
   {
     question: "What Allen-Bradley controllers are supported?",
@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     question: "Do I need a Rockwell license to view PLC files?",
-    answer: "No, you do not need any Rockwell software license to use PLC Viewer. Our free online viewer works entirely in your browser and doesn't require Studio 5000, RSLogix 5000, or RSLogix 500. It's the perfect solution for maintenance technicians, contractors, and engineers who need to view programs without license access."
+    answer: "No, you do not need any Rockwell software license to use PLC Viewer. Our online viewer works entirely in your browser and doesn't require Studio 5000, RSLogix 5000, or RSLogix 500. It's an affordable solution for maintenance technicians, contractors, and engineers who need to view programs without expensive license access."
   }
 ]
 
@@ -168,7 +168,7 @@ export default function FreeAllenBradleyViewerPage() {
                 borderRadius: 'var(--radius-md)'
               }}
             >
-              Upload Free
+              Upload Now
             </a>
           </nav>
         </div>
@@ -194,7 +194,7 @@ export default function FreeAllenBradleyViewerPage() {
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
               </svg>
               <span className="text-fluid-sm font-medium" style={{ color: 'var(--accent-emerald)' }}>
-                100% Free - No License Required
+                No Studio 5000 License Required
               </span>
             </div>
 
@@ -206,7 +206,7 @@ export default function FreeAllenBradleyViewerPage() {
                 lineHeight: '1.1'
               }}
             >
-              Free Allen-Bradley
+              Allen-Bradley
               <br />
               <span style={{ color: 'var(--accent-blue)' }}>PLC Viewer</span>
             </h1>
@@ -221,9 +221,9 @@ export default function FreeAllenBradleyViewerPage() {
                 marginBlockEnd: 'var(--space-10)'
               }}
             >
-              View Allen-Bradley PLC programs online without Rockwell software licenses.
+              View Allen-Bradley PLC programs online without expensive Rockwell software licenses.
               Open ControlLogix, CompactLogix, SLC 500, and MicroLogix files instantly in your browser.
-              No installation, no cost, no restrictions.
+              No installation required. A fraction of the cost of Studio 5000.
             </p>
 
             <div className="stack-to-row justify-center" style={{ gap: 'var(--space-4)' }}>
@@ -241,10 +241,10 @@ export default function FreeAllenBradleyViewerPage() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                 </svg>
-                Upload Your PLC File Free
+                Upload Your PLC File
               </a>
               <a
-                href="#why-free"
+                href="#pricing"
                 className="btn btn-secondary text-fluid-base inline-flex items-center justify-center"
                 style={{
                   paddingInline: 'var(--space-8)',
@@ -253,7 +253,7 @@ export default function FreeAllenBradleyViewerPage() {
                   borderRadius: 'var(--radius-md)'
                 }}
               >
-                Why It's Free
+                See Pricing
               </a>
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function FreeAllenBradleyViewerPage() {
                   marginInline: 'auto'
                 }}
               >
-                Our free PLC viewer supports all major Allen-Bradley program file formats
+                Our PLC viewer supports all major Allen-Bradley program file formats
               </p>
             </div>
 
@@ -388,7 +388,7 @@ export default function FreeAllenBradleyViewerPage() {
                 className="text-fluid-4xl font-bold"
                 style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
               >
-                Professional PLC Viewing - Free
+                Professional PLC Viewing - Affordable
               </h2>
               <p
                 className="text-fluid-lg"
@@ -522,8 +522,8 @@ export default function FreeAllenBradleyViewerPage() {
           </div>
         </section>
 
-        {/* Why Free Section */}
-        <section id="why-free" className="py-fluid-20" style={{ background: 'var(--surface-0)', paddingBlock: 'var(--space-24)' }}>
+        {/* Why Affordable Section */}
+        <section id="pricing" className="py-fluid-20" style={{ background: 'var(--surface-0)', paddingBlock: 'var(--space-24)' }}>
           <div className="container-default">
             <div
               className="grid items-start"
@@ -543,12 +543,12 @@ export default function FreeAllenBradleyViewerPage() {
                   className="text-fluid-4xl font-bold"
                   style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-6)' }}
                 >
-                  Why Is This Free?
+                  Affordable PLC Viewing
                 </h2>
                 <div className="stack" style={{ color: 'var(--text-secondary)', gap: 'var(--space-4)' }}>
                   <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
                     We believe everyone should be able to understand their PLC programs - not just those with
-                    access to expensive software licenses. PLC Viewer democratizes access to industrial automation knowledge.
+                    access to expensive software licenses. PLC Viewer makes industrial automation knowledge accessible.
                   </p>
                   <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
                     Maintenance technicians troubleshooting at 2 AM shouldn't need to track down a license.
@@ -556,7 +556,7 @@ export default function FreeAllenBradleyViewerPage() {
                     Engineers collaborating across companies shouldn't face artificial barriers.
                   </p>
                   <p className="text-fluid-base" style={{ lineHeight: '1.7' }}>
-                    That's why PLC Viewer will always have a free tier for viewing programs.
+                    That's why PLC Viewer offers affordable subscription plans at a fraction of Studio 5000's cost.
                   </p>
                 </div>
               </div>
@@ -708,7 +708,7 @@ export default function FreeAllenBradleyViewerPage() {
                 className="text-fluid-4xl font-bold"
                 style={{ color: 'var(--text-primary)', marginBlockEnd: 'var(--space-4)' }}
               >
-                Start Viewing Free
+                Start Viewing Now
               </h2>
               <p className="text-fluid-lg" style={{ color: 'var(--text-secondary)' }}>
                 Upload your Allen-Bradley PLC file and start exploring immediately
@@ -960,15 +960,19 @@ export default function FreeAllenBradleyViewerPage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            "name": "PLC Viewer - Free Allen-Bradley PLC Viewer",
+            "name": "PLC Viewer - Affordable Allen-Bradley PLC Viewer",
             "applicationCategory": "DeveloperApplication",
             "operatingSystem": "Web Browser",
             "offers": {
               "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "USD"
+              "priceSpecification": {
+                "@type": "PriceSpecification",
+                "priceCurrency": "USD",
+                "description": "Affordable subscription plans"
+              },
+              "availability": "https://schema.org/OnlineOnly"
             },
-            "description": "Free online viewer for Allen-Bradley PLC programs. View ControlLogix, CompactLogix, SLC 500, and MicroLogix files without Rockwell software licenses.",
+            "description": "Affordable online viewer for Allen-Bradley PLC programs. View ControlLogix, CompactLogix, SLC 500, and MicroLogix files without Rockwell software licenses.",
             "featureList": [
               "View ACD, L5X, and RSS files",
               "AI-powered code explanations",
