@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
+import { Geist, Geist_Mono, DM_Serif_Display, Archivo_Black } from "next/font/google";
 import { AuthProvider } from "@/components/providers/SessionProvider";
 import { SimulationProvider } from "@/components/ladder/SimulationContext";
 import { GlobalWatchWindow } from "@/components/simulation/GlobalWatchWindow";
@@ -17,6 +17,12 @@ const geistMono = Geist_Mono({
 
 const dmSerifDisplay = DM_Serif_Display({
   variable: "--font-display",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const archivoBlack = Archivo_Black({
+  variable: "--font-logo",
   subsets: ["latin"],
   weight: "400",
 });
@@ -111,7 +117,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${dmSerifDisplay.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${dmSerifDisplay.variable} ${archivoBlack.variable} antialiased`}
       >
         <AuthProvider>
           <SimulationProvider>

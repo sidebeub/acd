@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Logo } from '@/components/ui/Logo'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -93,15 +94,10 @@ export default function SignupPage() {
           textAlign: 'center',
           marginBottom: 'var(--space-8)'
         }}>
-          <h1 style={{
-            fontSize: 'var(--text-2xl)',
-            fontWeight: 700,
-            color: 'var(--text-primary)'
-          }}>
-            PLC Viewer
-          </h1>
+          <Link href="/" style={{ display: 'inline-block', color: 'white', textDecoration: 'none', marginBottom: 'var(--space-4)' }}>
+            <Logo size="md" />
+          </Link>
           <p style={{
-            marginTop: 'var(--space-2)',
             fontSize: 'var(--text-base)',
             color: 'var(--text-secondary)'
           }}>

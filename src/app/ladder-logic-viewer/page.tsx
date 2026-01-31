@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Logo } from '@/components/ui/Logo'
 
 // FAQ data for schema markup
 const faqs = [
@@ -162,27 +163,8 @@ export default function LadderLogicViewerPage() {
         }}
       >
         <div className="container-default flex items-center justify-between" style={{ height: 'clamp(56px, 8vw, 64px)' }}>
-          <Link href="/" className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-            <div
-              className="flex items-center justify-center"
-              style={{
-                width: 'clamp(36px, 5vw, 40px)',
-                height: 'clamp(36px, 5vw, 40px)',
-                background: 'var(--accent-blue-muted)',
-                border: '1px solid var(--accent-blue)',
-                borderRadius: 'var(--radius-sm)'
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2.5">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-                <circle cx="8" cy="6" r="1" fill="currentColor" />
-                <circle cx="16" cy="12" r="1" fill="currentColor" />
-                <circle cx="12" cy="18" r="1" fill="currentColor" />
-              </svg>
-            </div>
-            <span className="text-fluid-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-              PLC Viewer
-            </span>
+          <Link href="/" style={{ color: 'white', textDecoration: 'none' }}>
+            <Logo size="sm" />
           </Link>
 
           <nav className="hide-mobile flex items-center" style={{ gap: 'var(--space-8)' }}>
@@ -1054,27 +1036,8 @@ export default function LadderLogicViewerPage() {
         >
           <div className="container-default">
             <div className="stack-to-row justify-between" style={{ gap: 'var(--space-6)' }}>
-              <Link href="/" className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-                <div
-                  className="flex items-center justify-center"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    background: 'var(--accent-blue-muted)',
-                    border: '1px solid var(--accent-blue)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2.5">
-                    <path d="M4 6h16M4 12h16M4 18h16" />
-                    <circle cx="8" cy="6" r="1" fill="currentColor" />
-                    <circle cx="16" cy="12" r="1" fill="currentColor" />
-                    <circle cx="12" cy="18" r="1" fill="currentColor" />
-                  </svg>
-                </div>
-                <span className="text-fluid-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  PLC Viewer
-                </span>
+              <Link href="/" style={{ color: 'white', textDecoration: 'none' }}>
+                <Logo size="sm" />
               </Link>
 
               <div className="flex items-center" style={{ gap: 'var(--space-6)' }}>

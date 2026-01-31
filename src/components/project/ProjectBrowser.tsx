@@ -12,6 +12,7 @@ import { buildTagExportData, generateTagCSV, downloadCSV, generateCSVFilename } 
 import { PDFExportModal } from '../export/PDFExportModal'
 import { ProgramDiff } from '../diff/ProgramDiff'
 import { useSimulation } from '../ladder/SimulationContext'
+import { Logo } from '../ui/Logo'
 
 interface Tag {
   id: string
@@ -1064,17 +1065,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
             href="/"
             className="flex items-center"
             aria-label="Back to home"
+            style={{ color: 'white', textDecoration: 'none' }}
           >
-            <img
-              src="/logplc2.svg"
-              alt="PLC Company"
-              style={{
-                height: '32px',
-                width: 'auto',
-                filter: 'brightness(0) invert(1)',
-                opacity: 0.9,
-              }}
-            />
+            <Logo size="sm" />
           </a>
 
           {/* Divider - hidden on small screens */}

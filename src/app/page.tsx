@@ -2,6 +2,7 @@
 
 import { JsonLd } from '@/components/seo/JsonLd'
 import { CTASection } from '@/components/home/CTASection'
+import { Logo } from '@/components/ui/Logo'
 import {
   ScrollProgress,
   AnimatedCounter,
@@ -37,16 +38,8 @@ export default function Home() {
         }}
       >
         <div className="container-default flex items-center justify-between" style={{ height: 'clamp(56px, 8vw, 64px)' }}>
-          <a href="/" className="flex items-center">
-            <img
-              src="/logplc2.svg"
-              alt="PLC Company"
-              style={{
-                height: 'clamp(44px, 7vw, 56px)',
-                width: 'auto',
-                filter: 'brightness(0) invert(1)'
-              }}
-            />
+          <a href="/" className="flex items-center" style={{ color: 'white', textDecoration: 'none' }}>
+            <Logo size="sm" />
           </a>
 
           <nav className="hide-mobile flex items-center" style={{ gap: 'var(--space-8)' }}>
@@ -1125,18 +1118,8 @@ export default function Home() {
             }}>
               {/* Logo column */}
               <div>
-                <a href="/">
-                  <img
-                    src="/logplc2.svg"
-                    alt="PLC Company"
-                    style={{
-                      height: '40px',
-                      width: 'auto',
-                      filter: 'brightness(0) invert(1)',
-                      opacity: 0.8,
-                      marginBlockEnd: 'var(--space-3)'
-                    }}
-                  />
+                <a href="/" style={{ color: 'white', textDecoration: 'none', display: 'inline-block', marginBlockEnd: 'var(--space-3)' }}>
+                  <Logo size="sm" style={{ opacity: 0.8 }} />
                 </a>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                   View PLC programs without expensive licenses.
