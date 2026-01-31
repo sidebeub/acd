@@ -5,11 +5,6 @@ import { CTASection } from '@/components/home/CTASection'
 import { Logo } from '@/components/ui/Logo'
 import {
   ScrollProgress,
-  AnimatedCounter,
-  ScrambleText,
-  Typewriter,
-  TiltCard,
-  FloatingElements,
   GrainOverlay
 } from '@/components/home/Effects'
 
@@ -88,11 +83,8 @@ export default function Home() {
       </header>
 
       <main className="relative z-10">
-        {/* ==================== HERO SECTION - Full-width video background ==================== */}
+        {/* ==================== HERO SECTION ==================== */}
         <section className="relative overflow-hidden" style={{ minHeight: '100vh' }}>
-          {/* Floating decorative elements */}
-          <FloatingElements />
-
           {/* Video Background */}
           <div className="absolute inset-0 z-0">
             <video
@@ -118,82 +110,35 @@ export default function Home() {
             className="relative z-10 flex flex-col items-center justify-center text-center"
             style={{ minHeight: '100vh', padding: 'var(--space-8)' }}
           >
-            <div
-              className="inline-flex items-center"
-              style={{
-                gap: 'var(--space-2)',
-                paddingInline: 'var(--space-3)',
-                paddingBlock: 'var(--space-1)',
-                marginBlockEnd: 'var(--space-6)',
-                border: '1px solid var(--accent-amber)'
-              }}
-            >
-              <span
-                className="animate-pulse-subtle"
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  background: 'var(--accent-amber)'
-                }}
-              />
-              <span style={{
-                color: 'var(--accent-amber)',
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase'
-              }}>
-                Launching Soon
-              </span>
-            </div>
-
             <h1
               style={{
-                fontSize: 'clamp(3rem, 10vw, 7rem)',
-                fontWeight: 700,
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(3rem, 10vw, 6rem)',
+                fontWeight: 600,
                 color: '#ffffff',
                 marginBlockEnd: 'var(--space-4)',
-                lineHeight: '1',
-                letterSpacing: '-0.03em',
+                lineHeight: '1.1',
+                letterSpacing: '-0.02em',
                 textShadow: '0 4px 30px rgba(0,0,0,0.5)'
               }}
             >
-              <ScrambleText text="PLC VIEWER" />
+              STOP PAYING $5,000<br />
+              <span style={{ color: 'var(--accent)' }}>FOR SOFTWARE YOU BARELY USE</span>
             </h1>
 
             <p
               style={{
-                fontSize: 'clamp(1.25rem, 3vw, 1.75rem)',
-                fontWeight: 500,
-                color: 'rgba(255,255,255,0.9)',
+                fontSize: 'clamp(1.125rem, 2.5vw, 1.5rem)',
+                fontWeight: 400,
+                color: 'rgba(255,255,255,0.8)',
                 marginBlockEnd: 'var(--space-8)',
                 textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-                minHeight: '2em'
+                maxWidth: '40rem',
+                lineHeight: 1.6
               }}
             >
-              <Typewriter
-                texts={[
-                  'No Studio 5000 Required',
-                  'View L5X, ACD, RSS Files',
-                  'AI-Powered Explanations',
-                  'Works in Your Browser'
-                ]}
-                speed={80}
-                pauseTime={2500}
-              />
-            </p>
-
-            <p
-              className="text-fluid-lg"
-              style={{
-                color: 'rgba(255,255,255,0.7)',
-                lineHeight: '1.6',
-                maxWidth: '36rem',
-                marginBlockEnd: 'var(--space-8)'
-              }}
-            >
-              View L5X, ACD, and RSS files in your browser.
-              AI-powered explanations for Allen-Bradley ladder logic.
+              View Allen-Bradley PLC programs without Studio 5000.
+              Upload your L5X, ACD, or RSS files. Get AI-powered explanations in seconds.
             </p>
 
             <div className="flex flex-wrap justify-center" style={{ gap: 'var(--space-4)' }}>
@@ -246,58 +191,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ==================== SCROLLING MARQUEE ==================== */}
-        <div style={{
-          borderBlock: '1px solid var(--border-subtle)',
-          background: 'var(--surface-1)',
-          paddingBlock: 'var(--space-4)',
-          overflow: 'hidden'
-        }}>
-          <div className="marquee">
-            {[0, 1].map((i) => (
-              <div key={i} className="marquee-content" style={{ gap: 'var(--space-8)' }}>
-                {['XIC', 'XIO', 'OTE', 'OTL', 'OTU', 'TON', 'TOF', 'CTU', 'CTD', 'ADD', 'SUB', 'MUL', 'DIV', 'MOV', 'COP', 'JSR', 'RET', 'EQU', 'NEQ', 'GRT', 'LES', 'GEQ', 'LEQ', 'ONS', 'OSR', 'OSF', 'RTO', 'RES', 'CPT', 'FLL', 'MSG', 'GSV', 'SSV', 'ABL', 'ABS', 'ACB', 'ACS', 'AFI'].map((inst) => (
-                  <span
-                    key={`${i}-${inst}`}
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: 'var(--text-muted)',
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '0.05em'
-                    }}
-                  >
-                    {inst}
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ==================== MASSIVE STATEMENT ==================== */}
-        <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(80px, 15vh, 150px)' }}>
-          <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
-            <h2 style={{
-              fontSize: 'clamp(2.5rem, 8vw, 6rem)',
-              fontWeight: 300,
-              color: 'var(--text-primary)',
-              lineHeight: 1.1,
-              letterSpacing: '-0.03em',
-              maxWidth: '1200px'
-            }}>
-              <ScrambleText
-                text="STOP PAYING"
-                style={{ display: 'inline' }}
-              />{' '}
-              <span style={{ color: 'var(--text-muted)' }}>$5,000</span> just to{' '}
-              <em style={{ fontStyle: 'italic', color: 'var(--accent-emerald)' }}>look</em> at your code.
-            </h2>
-          </div>
-        </section>
-
-        {/* ==================== FILE FORMATS - Horizontal Scroll ==================== */}
+        {/* ==================== FILE FORMATS ==================== */}
         <section style={{
           background: 'var(--surface-1)',
           borderBlock: '1px solid var(--border-subtle)',
@@ -348,25 +242,22 @@ export default function Home() {
                   ext: '.L5X',
                   name: 'Studio 5000 Export',
                   desc: 'ControlLogix, CompactLogix, GuardLogix',
-                  controllers: '1756-L8x, 1769-L3x',
-                  color: 'var(--accent-emerald)'
+                  controllers: '1756-L8x, 1769-L3x'
                 },
                 {
                   ext: '.ACD',
                   name: 'Native Project',
                   desc: 'Full Studio 5000 project files',
-                  controllers: 'All Logix controllers',
-                  color: 'var(--accent-blue)'
+                  controllers: 'All Logix controllers'
                 },
                 {
                   ext: '.RSS',
                   name: 'RSLogix 500',
                   desc: 'SLC 500, MicroLogix, PLC-5',
-                  controllers: 'SLC 5/01-5/05, ML1000-1400',
-                  color: 'var(--accent-amber)'
+                  controllers: 'SLC 5/01-5/05, ML1000-1400'
                 }
               ].map((format) => (
-                <TiltCard
+                <div
                   key={format.ext}
                   className="format-card"
                   style={{
@@ -375,18 +266,15 @@ export default function Home() {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 'var(--space-4)',
-                    transition: 'background 0.3s ease',
-                    cursor: 'default',
                     position: 'relative'
                   }}
                 >
-                  <span className="format-ext" style={{
-                    fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                  <span style={{
+                    fontSize: 'clamp(2rem, 5vw, 3rem)',
                     fontWeight: 700,
                     fontFamily: 'var(--font-mono)',
-                    color: 'var(--text-primary)',
-                    letterSpacing: '-0.02em',
-                    transition: 'color 0.3s ease'
+                    color: 'var(--accent)',
+                    letterSpacing: '-0.02em'
                   }}>
                     {format.ext}
                   </span>
@@ -411,22 +299,7 @@ export default function Home() {
                   }}>
                     {format.controllers}
                   </p>
-                  {/* Hover accent line */}
-                  <div
-                    className="format-accent"
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: '2px',
-                      background: format.color,
-                      transform: 'scaleX(0)',
-                      transformOrigin: 'left',
-                      transition: 'transform 0.3s ease'
-                    }}
-                  />
-                </TiltCard>
+                </div>
               ))}
             </div>
           </div>
@@ -449,7 +322,7 @@ export default function Home() {
                   lineHeight: 0.8,
                   display: 'block'
                 }}>
-                  <AnimatedCounter end={215} suffix="+" duration={2500} />
+                  215+
                 </span>
                 <h3 style={{
                   fontSize: 'clamp(1.5rem, 3vw, 2rem)',
@@ -523,7 +396,7 @@ export default function Home() {
                 { num: '02', title: 'Browse', desc: 'Navigate programs, routines, tags' },
                 { num: '03', title: 'Understand', desc: 'Get AI explanations in plain English' },
               ].map((step) => (
-                <TiltCard
+                <div
                   key={step.num}
                   style={{
                     background: 'var(--surface-0)',
@@ -534,11 +407,12 @@ export default function Home() {
                     fontSize: '11px',
                     fontWeight: 600,
                     letterSpacing: '0.1em',
-                    color: 'var(--text-muted)'
+                    color: 'var(--accent)'
                   }}>
                     {step.num}
                   </span>
                   <h3 style={{
+                    fontFamily: 'var(--font-display)',
                     fontSize: 'clamp(1.5rem, 3vw, 2rem)',
                     fontWeight: 600,
                     color: 'var(--text-primary)',
@@ -549,7 +423,7 @@ export default function Home() {
                   <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                     {step.desc}
                   </p>
-                </TiltCard>
+                </div>
               ))}
             </div>
           </div>
@@ -692,7 +566,7 @@ export default function Home() {
                   <span style={{
                     width: '12px',
                     height: '12px',
-                    background: 'var(--accent-emerald)'
+                    background: 'var(--accent)'
                   }} />
                   <h3 style={{
                     fontSize: '1.25rem',
@@ -722,7 +596,7 @@ export default function Home() {
                         gap: 'var(--space-3)'
                       }}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
                       {item}
@@ -758,13 +632,14 @@ export default function Home() {
                   }}
                 >
                   <span style={{
+                    fontFamily: 'var(--font-display)',
                     fontSize: 'clamp(2.5rem, 6vw, 4rem)',
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: 'var(--text-primary)',
                     display: 'block',
                     lineHeight: 1
                   }}>
-                    <AnimatedCounter end={stat.value} suffix={stat.suffix} duration={2000} />
+                    {stat.value}{stat.suffix}
                   </span>
                   <span style={{
                     fontSize: '0.875rem',
@@ -818,7 +693,7 @@ export default function Home() {
                 {
                   title: 'AI-Powered Explanations',
                   desc: 'Click any rung and get an instant explanation in plain English. Choose from three modes: Friendly (for beginners), Technical (for engineers), or Operator (for floor personnel). Chat with AI about your entire program.',
-                  accent: 'var(--accent-emerald)'
+                  accent: 'var(--accent)'
                 },
                 {
                   title: 'Interactive Simulation',
@@ -833,7 +708,7 @@ export default function Home() {
                 {
                   title: 'Trend Charts & Watch Window',
                   desc: 'Monitor multiple tags in real-time with a floating watch window. Graph tag values over time with trend charts. Perfect for understanding timing and sequence behavior.',
-                  accent: 'var(--accent-emerald)'
+                  accent: 'var(--accent)'
                 },
                 {
                   title: 'Safety & Alarm Analysis',
@@ -848,7 +723,7 @@ export default function Home() {
                 {
                   title: '215+ Instructions Supported',
                   desc: 'Full support for ladder logic, timers, counters, math, compare, motion control (25+ servo instructions), sequencers, string operations, and more. Plus structured text viewing.',
-                  accent: 'var(--accent-emerald)'
+                  accent: 'var(--accent)'
                 },
                 {
                   title: 'Export & Documentation',
@@ -856,22 +731,17 @@ export default function Home() {
                   accent: 'var(--accent-blue)'
                 }
               ].map((feature, idx) => (
-                <TiltCard
+                <div
                   key={idx}
                   style={{
                     background: 'var(--surface-0)',
                     padding: 'clamp(24px, 4vw, 40px)',
-                    border: '1px solid var(--border-subtle)'
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '4px'
                   }}
                 >
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    marginBlockEnd: 'var(--space-4)',
-                    background: feature.accent,
-                    opacity: 0.15
-                  }} />
                   <h3 style={{
+                    fontFamily: 'var(--font-display)',
                     fontSize: '1.25rem',
                     fontWeight: 600,
                     color: 'var(--text-primary)',
@@ -886,7 +756,7 @@ export default function Home() {
                   }}>
                     {feature.desc}
                   </p>
-                </TiltCard>
+                </div>
               ))}
             </div>
           </div>
