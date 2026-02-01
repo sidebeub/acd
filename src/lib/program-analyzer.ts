@@ -72,6 +72,18 @@ export type PatternType =
   | 'status_monitoring'         // Monitors multiple subsystem statuses
   | 'zone_control'              // Controls multiple zones/areas
   | 'code_concern'              // Potential code quality issue
+  | 'data_scaling'              // MUL/DIV used for scaling analog values
+  | 'permissive_chain'          // Multiple XIC in series forming permissive logic
+  | 'alarm_annunciation'        // Alarm/warning output patterns
+  | 'mode_selection'            // AUTO/MANUAL mode switching logic
+  | 'jog_control'               // Jog/inch control patterns
+  | 'hmi_write'                 // Writing to HMI display tags
+
+export interface BranchGroup {
+  name: string
+  branches: number[]  // branch indices
+  tags: string[]
+}
 
 export interface RungContext {
   rungNumber: number
@@ -89,6 +101,7 @@ export interface RungContext {
   keyPoints?: string[]          // Auto-generated key observations (safety, conditional logic, etc.)
   branchCount?: number          // Number of parallel branches in this rung
   hasOptionBits?: boolean       // Uses N15:x/y style option bits for conditional equipment
+  branchGroups?: BranchGroup[]  // Grouped parallel branches by function (like API benchmark)
 }
 
 export type RungCategory =
@@ -574,6 +587,319 @@ const PATTERN_RULES: PatternRule[] = [
       return null
     }
   },
+
+  // Data Scaling Pattern - MUL/DIV used for analog value scaling (not boolean misuse)
+  {
+    type: 'data_scaling',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      const tags = extractTagNames(text)
+
+      // Check for MUL or DIV instructions
+      const hasMul = /MUL\s*\(/i.test(text)
+      const hasDiv = /DIV\s*\(/i.test(text)
+
+      if (!hasMul && !hasDiv) return null
+
+      // Look for scaling indicators: analog-type tags or scaling constants
+      const hasAnalogTag = tags.some(t =>
+        /ANALOG|AI|AO|SCALE|RAW|ENG|COUNTS|PERCENT|PCT|4_20|0_10|LEVEL|TEMP|PRESSURE|FLOW|SPEED|VELOCITY|POSITION|PV|CV|SP|SETPOINT/i.test(t)
+      )
+
+      // Check for scaling constants (decimals like 0.001, 0.01, or large divisors like 4096, 32767)
+      const hasScalingConstant = /[\(,]\s*(0\.\d+|32767|4096|16383|65535|1000|100|10)\s*[,\)]/i.test(text)
+
+      // Exclude boolean-looking operands (those would be code_concern)
+      const mathMatch = text.match(/(?:MUL|DIV)\s*\(([^)]+)\)/gi)
+      let hasBooleanOperands = false
+      if (mathMatch) {
+        for (const match of mathMatch) {
+          const operands = match.match(/\(([^)]+)\)/)?.[1]?.split(',') || []
+          const booleanOperands = operands.filter(op =>
+            /STOPPED|RUNNING|OK|READY|ACTIVE|ENABLE|DISABLE|ON|OFF|TRUE|FALSE/i.test(op.trim())
+          )
+          if (booleanOperands.length >= 2) {
+            hasBooleanOperands = true
+            break
+          }
+        }
+      }
+
+      // Only detect as scaling if it looks like analog scaling, not boolean misuse
+      if ((hasAnalogTag || hasScalingConstant) && !hasBooleanOperands) {
+        // Try to determine scaling direction
+        let description = 'Analog value scaling calculation'
+        if (hasDiv && /RAW|COUNTS|4096|32767|16383/i.test(text)) {
+          description = 'Converts raw analog counts to engineering units'
+        } else if (hasMul && /PERCENT|PCT|100/i.test(text)) {
+          description = 'Converts value to percentage scale'
+        } else if (/4_20|0_10/i.test(text)) {
+          description = 'Scales 4-20mA or 0-10V analog signal'
+        }
+
+        return {
+          type: 'data_scaling',
+          confidence: hasAnalogTag ? 0.9 : 0.75,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: hasMul ? 'MUL' : 'DIV', usage: 'read' }],
+          tags: tags.filter(t => /ANALOG|AI|AO|SCALE|RAW|ENG|COUNTS|PERCENT|PCT|LEVEL|TEMP|PRESSURE|FLOW|SPEED|PV|CV|SP/i.test(t)),
+          description
+        }
+      }
+      return null
+    }
+  },
+
+  // Permissive Chain Pattern - Multiple XIC in series forming permissive logic
+  {
+    type: 'permissive_chain',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+
+      // Count consecutive XIC instructions (series logic)
+      const xicMatches = text.match(/XIC\s*\(/gi) || []
+      const xicCount = xicMatches.length
+
+      // Permissive chains typically have 4+ conditions in series
+      if (xicCount < 4) return null
+
+      // Check for permissive-related tag names
+      const tags = extractTagNames(text)
+      const hasPermissiveTags = tags.some(t =>
+        /PERMIT|PERMISSIVE|ENABLE|READY|INTERLOCK|ALLOW|OK|SAFE|CONDITION|PREREQ|PREREQUISITE/i.test(t)
+      )
+
+      // Check that there's an output (OTE/OTL) - typical of permissive chains
+      const hasOutput = /OTE\s*\(|OTL\s*\(/i.test(text)
+
+      // Higher confidence if tags look like permissives
+      if (xicCount >= 4 && hasOutput) {
+        const outputMatch = text.match(/OTE\s*\(\s*([^)]+)\)|OTL\s*\(\s*([^)]+)\)/i)
+        const outputTag = outputMatch ? (outputMatch[1] || outputMatch[2]).trim() : ''
+
+        let description = `Permissive chain with ${xicCount} conditions that must all be true`
+        if (/ENABLE|PERMIT|ALLOW|READY/i.test(outputTag)) {
+          description = `${xicCount} permissive conditions required to enable ${formatTagName(outputTag)}`
+        }
+
+        return {
+          type: 'permissive_chain',
+          confidence: hasPermissiveTags ? 0.9 : 0.8,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'XIC chain', usage: 'read' }],
+          tags,
+          description
+        }
+      }
+      return null
+    }
+  },
+
+  // Alarm Annunciation Pattern - Alarm/warning output patterns
+  {
+    type: 'alarm_annunciation',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      const tags = extractTagNames(text)
+
+      // Look for alarm/warning output tags
+      const alarmOutputTags = tags.filter(t =>
+        /ALARM|ALM|WARNING|WARN|HORN|BEACON|LIGHT|LAMP|STROBE|ANNUNCIATOR|ANNUNC|ALERT|NOTIFY|SIREN|BUZZER/i.test(t)
+      )
+
+      // Check if there's an output instruction driving the alarm
+      const hasAlarmOutput = alarmOutputTags.some(t => {
+        const escapedTag = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const regex = new RegExp(`OTE\\s*\\(\\s*${escapedTag}|OTL\\s*\\(\\s*${escapedTag}`, 'i')
+        return regex.test(text)
+      })
+
+      // Also check for alarm-related patterns in outputs
+      const outputMatch = text.match(/OTE\s*\(\s*([^)]+)\)|OTL\s*\(\s*([^)]+)\)/gi)
+      const outputTags = outputMatch ? outputMatch.map(m => {
+        const match = m.match(/\(\s*([^)]+)\)/)
+        return match ? match[1].trim() : ''
+      }) : []
+
+      const isAlarmOutput = outputTags.some(t =>
+        /ALARM|ALM|WARNING|WARN|HORN|BEACON|LIGHT|LAMP|STROBE|ANNUNCIATOR|ANNUNC|ALERT|SIREN|BUZZER/i.test(t)
+      )
+
+      if (hasAlarmOutput || (isAlarmOutput && alarmOutputTags.length > 0)) {
+        // Determine the type of alarm
+        let description = 'Alarm annunciation output control'
+        if (/HORN|SIREN|BUZZER/i.test(text)) {
+          description = 'Audible alarm/horn control'
+        } else if (/BEACON|STROBE|LIGHT|LAMP/i.test(text)) {
+          description = 'Visual alarm indicator (beacon/light) control'
+        } else if (/WARNING|WARN/i.test(text)) {
+          description = 'Warning condition annunciation'
+        }
+
+        return {
+          type: 'alarm_annunciation',
+          confidence: 0.85,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'alarm output', usage: 'write' }],
+          tags: alarmOutputTags.length > 0 ? alarmOutputTags : outputTags.filter(t => /ALARM|ALM|WARNING|WARN|HORN|BEACON|LIGHT/i.test(t)),
+          description
+        }
+      }
+      return null
+    }
+  },
+
+  // Mode Selection Pattern - AUTO/MANUAL mode switching logic
+  {
+    type: 'mode_selection',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      const tags = extractTagNames(text)
+
+      // Look for mode-related tags
+      const hasAutoManual = /AUTO|MANUAL|MAN|SEMI|SEMIAUTO|SEMI_AUTO|LOCAL|REMOTE|HAND|OFF|HOA/i.test(text)
+      const hasModeTag = tags.some(t =>
+        /MODE|AUTO|MANUAL|MAN|SEMI|LOCAL|REMOTE|HAND|HOA|SELECTOR|SELECT/i.test(t)
+      )
+
+      // Look for mode selection patterns: typically EQU comparisons or XIC checks on mode bits
+      const hasModeCompare = /EQU\s*\([^,]*MODE/i.test(text) || /EQU\s*\([^,]+,\s*[012]\s*\)/i.test(text)
+      const hasModeXIC = /XIC\s*\([^)]*(?:AUTO|MANUAL|MAN|LOCAL|REMOTE|HAND)/i.test(text)
+
+      // Check for mode output
+      const hasModeOutput = /OTE\s*\([^)]*(?:AUTO|MANUAL|MAN|MODE|LOCAL|REMOTE)/i.test(text) ||
+                           /OTL\s*\([^)]*(?:AUTO|MANUAL|MAN|MODE|LOCAL|REMOTE)/i.test(text)
+
+      if ((hasAutoManual || hasModeTag) && (hasModeCompare || hasModeXIC || hasModeOutput)) {
+        // Determine mode type
+        let description = 'Mode selection logic'
+        if (/AUTO.*MANUAL|MANUAL.*AUTO/i.test(text)) {
+          description = 'AUTO/MANUAL mode selection and switching'
+        } else if (/LOCAL.*REMOTE|REMOTE.*LOCAL/i.test(text)) {
+          description = 'LOCAL/REMOTE mode selection'
+        } else if (/HOA|HAND.*OFF.*AUTO/i.test(text)) {
+          description = 'HAND-OFF-AUTO (HOA) selector logic'
+        } else if (/SEMI/i.test(text)) {
+          description = 'SEMI-AUTO mode selection'
+        }
+
+        return {
+          type: 'mode_selection',
+          confidence: hasModeCompare ? 0.9 : 0.8,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'mode select', usage: 'read' }],
+          tags: tags.filter(t => /MODE|AUTO|MANUAL|MAN|SEMI|LOCAL|REMOTE|HAND|HOA|SELECT/i.test(t)),
+          description
+        }
+      }
+      return null
+    }
+  },
+
+  // Jog Control Pattern - Jog/inch control patterns
+  {
+    type: 'jog_control',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      const tags = extractTagNames(text)
+
+      // Look for jog/inch related tags
+      const hasJogTag = tags.some(t =>
+        /JOG|INCH|PULSE|STEP|NUDGE|CREEP|CRAWL|SLOW|IMPULSE/i.test(t)
+      )
+
+      // Check for jog button inputs (typically XIC)
+      const hasJogInput = /XIC\s*\([^)]*(?:JOG|INCH|PULSE|STEP|PB)/i.test(text)
+
+      // Check for jog output or motor output with jog condition
+      const hasJogOutput = /OTE\s*\([^)]*(?:JOG|INCH|MOTOR|MTR|DRIVE|RUN|FWD|REV)/i.test(text)
+
+      // Look for typical jog patterns: momentary (no seal-in), often with timer
+      const hasTimer = /TON\s*\(|TOF\s*\(/i.test(text)
+      const hasMotorTag = tags.some(t => /MOTOR|MTR|DRIVE|DRV|VFD|CONV/i.test(t))
+
+      if (hasJogTag && (hasJogInput || hasJogOutput)) {
+        let description = 'Jog/inch control for momentary operation'
+        if (/FWD|FORWARD/i.test(text) && /REV|REVERSE/i.test(text)) {
+          description = 'Jog control with forward/reverse selection'
+        } else if (hasTimer) {
+          description = 'Timed jog/pulse operation'
+        } else if (/INCH/i.test(text)) {
+          description = 'Inch mode control for precise positioning'
+        }
+
+        return {
+          type: 'jog_control',
+          confidence: hasJogInput && hasJogOutput ? 0.9 : 0.8,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'jog', usage: 'read' }],
+          tags: tags.filter(t => /JOG|INCH|PULSE|STEP|MOTOR|MTR|DRIVE/i.test(t)),
+          description
+        }
+      }
+
+      // Also detect jog if motor control with jog mode
+      if (hasMotorTag && /JOG.*MODE|MODE.*JOG/i.test(text)) {
+        return {
+          type: 'jog_control',
+          confidence: 0.85,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'jog mode', usage: 'read' }],
+          tags: tags.filter(t => /JOG|MOTOR|MTR|DRIVE|MODE/i.test(t)),
+          description: 'Motor jog mode activation'
+        }
+      }
+      return null
+    }
+  },
+
+  // HMI Write Pattern - Writing to HMI display tags
+  {
+    type: 'hmi_write',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      const tags = extractTagNames(text)
+
+      // Look for HMI-related destination tags
+      const hmiTags = tags.filter(t =>
+        /HMI|DISPLAY|SCREEN|PV|PANELVIEW|PANEL|OPERATOR|OP_|SCADA|DCS|MSG|MESSAGE|STATUS_MSG|STATUS_TEXT|TEXT|DISP/i.test(t)
+      )
+
+      // Check for MOV/COP instructions writing to HMI tags
+      const movMatch = text.match(/MOV\s*\([^,]+,\s*([^)]+)\)|COP\s*\([^,]+,\s*([^)]+)/gi)
+      const destinations = movMatch ? movMatch.map(m => {
+        const match = m.match(/,\s*([^)]+)\)/)
+        return match ? match[1].trim() : ''
+      }) : []
+
+      const isHmiDestination = destinations.some(d =>
+        /HMI|DISPLAY|SCREEN|PV|PANELVIEW|PANEL|OPERATOR|OP_|SCADA|MSG|MESSAGE|STATUS_MSG|TEXT|DISP/i.test(d)
+      )
+
+      // Also check OTE/OTL to HMI status bits
+      const hmiOutputMatch = text.match(/OTE\s*\([^)]*HMI|OTL\s*\([^)]*HMI|OTE\s*\([^)]*DISPLAY|OTE\s*\([^)]*SCREEN/gi)
+
+      if ((isHmiDestination || hmiOutputMatch) && (hmiTags.length > 0 || destinations.length > 0)) {
+        let description = 'Writing data to HMI display'
+        if (/MSG|MESSAGE|TEXT/i.test(text)) {
+          description = 'Updating HMI message/text display'
+        } else if (/STATUS/i.test(text)) {
+          description = 'Updating HMI status indicator'
+        } else if (/SETPOINT|SP|TARGET/i.test(text)) {
+          description = 'Transferring setpoint value to HMI'
+        } else if (/PV|ACTUAL|FEEDBACK/i.test(text)) {
+          description = 'Updating HMI with process value/feedback'
+        }
+
+        const relevantTags = hmiTags.length > 0 ? hmiTags : destinations.filter(d =>
+          /HMI|DISPLAY|SCREEN|PV|PANEL|MSG|MESSAGE|TEXT/i.test(d)
+        )
+
+        return {
+          type: 'hmi_write',
+          confidence: isHmiDestination ? 0.9 : 0.8,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'MOV/HMI', usage: 'write' }],
+          tags: relevantTags,
+          description
+        }
+      }
+      return null
+    }
+  },
 ]
 
 // Detect subsystem groups from tag names
@@ -610,6 +936,163 @@ function detectSubsystems(tags: string[]): string[] {
   }
 
   return subsystems
+}
+
+// ============================================================================
+// BRANCH GROUPING - Groups parallel branches by function (like API benchmark)
+// ============================================================================
+
+// Branch grouping configuration - groups parallel branches by function like API benchmark
+interface BranchGroupConfig {
+  name: string
+  patterns: RegExp[]
+}
+
+const BRANCH_GROUP_CONFIGS: BranchGroupConfig[] = [
+  // Core Motion Systems (ROTATION, MPS, CUTTER, CARRIAGE, CLAMP, STABILIZER, HOTWIRE)
+  {
+    name: 'Core Motion Systems',
+    patterns: [
+      /ROTATION|ROTATE/i,
+      /MPS/i,
+      /CUTTER|CUT/i,
+      /CARRIAGE/i,
+      /CLAMP/i,
+      /STABILIZER/i,
+      /HOTWIRE|HOT_WIRE/i
+    ]
+  },
+  // Conveyor Systems (INFEED1-3, WRAPZONE, EXIT1-3)
+  {
+    name: 'Conveyor Systems',
+    patterns: [
+      /INFEED\d*/i,
+      /WRAPZONE|WRAP_ZONE/i,
+      /EXIT\d*/i,
+      /OUTFEED\d*/i,
+      /CONV|CONVEYOR/i
+    ]
+  },
+  // Optional Equipment (LOADLIFT, TSD/DISPENSE)
+  {
+    name: 'Optional Equipment',
+    patterns: [
+      /LOADLIFT|LOAD_LIFT|LIFT/i,
+      /TSD/i,
+      /DISPENSE|DISPENSER/i
+    ]
+  }
+]
+
+/**
+ * Detect branch groups from parallel branches in a rung
+ * Groups branches by subsystem type (Core Motion, Conveyors, Optional Equipment)
+ *
+ * @param rung - The rung to analyze
+ * @returns Array of branch groups with friendly names, branch indices, and tags
+ */
+function detectBranchGroups(rung: PlcRung): BranchGroup[] {
+  // Parse branches from raw text - branches are separated by | in ladder logic
+  const branchTexts = rung.rawText.split('|')
+
+  if (branchTexts.length < 2) {
+    // No parallel branches to group
+    return []
+  }
+
+  // Map to track which group each branch belongs to
+  const groupMap = new Map<string, { branches: number[], tags: string[] }>()
+
+  // Analyze each branch
+  for (let branchIndex = 0; branchIndex < branchTexts.length; branchIndex++) {
+    const branchText = branchTexts[branchIndex]
+    const branchTags = extractTagNames(branchText)
+
+    if (branchTags.length === 0) continue
+
+    // Find which group this branch belongs to
+    let matchedGroup: string | null = null
+
+    for (const config of BRANCH_GROUP_CONFIGS) {
+      const hasMatch = branchTags.some(tag =>
+        config.patterns.some(pattern => pattern.test(tag))
+      )
+
+      if (hasMatch) {
+        matchedGroup = config.name
+        break
+      }
+    }
+
+    // If no specific group matched, check for generic subsystem detection
+    if (!matchedGroup) {
+      const subsystems = detectSubsystems(branchTags)
+      if (subsystems.length > 0) {
+        // Use the first detected subsystem as a fallback group
+        matchedGroup = subsystems[0]
+      }
+    }
+
+    // Only group if we found a matching subsystem
+    if (matchedGroup) {
+      const existing = groupMap.get(matchedGroup)
+      if (existing) {
+        existing.branches.push(branchIndex)
+        // Add unique tags
+        for (const tag of branchTags) {
+          if (!existing.tags.includes(tag)) {
+            existing.tags.push(tag)
+          }
+        }
+      } else {
+        groupMap.set(matchedGroup, {
+          branches: [branchIndex],
+          tags: [...branchTags]
+        })
+      }
+    }
+  }
+
+  // Convert map to array of BranchGroup
+  const branchGroups: BranchGroup[] = []
+
+  // Sort groups by predefined order (Core Motion first, then Conveyors, then Optional)
+  const groupOrder = BRANCH_GROUP_CONFIGS.map(c => c.name)
+
+  const sortedGroupNames = Array.from(groupMap.keys()).sort((a, b) => {
+    const aIndex = groupOrder.indexOf(a)
+    const bIndex = groupOrder.indexOf(b)
+    // Predefined groups come first, sorted by config order
+    // Unknown groups come after
+    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex
+    if (aIndex !== -1) return -1
+    if (bIndex !== -1) return 1
+    return a.localeCompare(b)
+  })
+
+  for (const groupName of sortedGroupNames) {
+    const data = groupMap.get(groupName)!
+    // Only include groups with at least one branch
+    if (data.branches.length > 0) {
+      branchGroups.push({
+        name: groupName,
+        branches: data.branches.sort((a, b) => a - b),
+        tags: data.tags
+      })
+    }
+  }
+
+  // Only return groups if we found meaningful groupings (at least 2 branches grouped OR multiple groups)
+  if (branchGroups.length === 0) {
+    return []
+  }
+
+  const totalGroupedBranches = branchGroups.reduce((sum, g) => sum + g.branches.length, 0)
+  if (totalGroupedBranches < 2 && branchGroups.length < 2) {
+    return []
+  }
+
+  return branchGroups
 }
 
 // ============================================================================
@@ -806,12 +1289,136 @@ function categorizeRung(rung: PlcRung, patterns: PatternType[], inputTags: strin
   return 'general_logic'
 }
 
+// Analyze output tag to determine the action/intent of the rung
+function analyzeOutputIntent(outputTag: string): { intent: string; statusType: string | null } {
+  const upper = outputTag.toUpperCase()
+
+  // Status type detection from tag name suffix/content
+  if (/STOPPED|_STOP$|\.STOP$|ALLSTOPPED/i.test(upper)) {
+    return { intent: 'stopped', statusType: 'STOPPED' }
+  }
+  if (/RUNNING|_RUN$|\.RUN$|ALLRUNNING/i.test(upper)) {
+    return { intent: 'running', statusType: 'RUNNING' }
+  }
+  if (/READY|_RDY$|\.RDY$|ALLREADY/i.test(upper)) {
+    return { intent: 'ready', statusType: 'READY' }
+  }
+  if (/FAULT|_FLT$|\.FLT$|ALLFAULT|ERROR|ALARM/i.test(upper)) {
+    return { intent: 'fault', statusType: 'FAULT' }
+  }
+  if (/OK$|_OK$|\.OK$/i.test(upper)) {
+    return { intent: 'ok', statusType: 'OK' }
+  }
+  if (/ENABLE|_ENB$|\.ENB$|ALLOWED|PERMIT/i.test(upper)) {
+    return { intent: 'enable', statusType: 'ENABLED' }
+  }
+  if (/COMPLETE|DONE|FINISHED/i.test(upper)) {
+    return { intent: 'complete', statusType: 'COMPLETE' }
+  }
+  if (/ACTIVE|INUSE|BUSY/i.test(upper)) {
+    return { intent: 'active', statusType: 'ACTIVE' }
+  }
+
+  return { intent: 'unknown', statusType: null }
+}
+
+// Generate action-oriented purpose statement based on output intent and inputs
+function generateActionPurpose(
+  primaryOutput: string,
+  cleanInputs: string[],
+  subsystems: string[]
+): string {
+  const { intent, statusType } = analyzeOutputIntent(primaryOutput)
+
+  // Detect what the inputs represent
+  const hasSafetyInputs = cleanInputs.some(t => /ESTOP|GUARD|GATE|SAFETY|INTERLOCK/i.test(t))
+
+  // Build descriptive input list
+  let inputDescription = ''
+  if (subsystems.length > 0) {
+    inputDescription = subsystems.join(', ')
+  } else if (cleanInputs.length > 0) {
+    // Take up to 3 meaningful input tags
+    const meaningfulInputs = cleanInputs
+      .filter(t => !isNumericConstant(t))
+      .slice(0, 3)
+      .map(t => formatTagName(t))
+    inputDescription = meaningfulInputs.join(', ')
+  }
+
+  // Generate action-oriented statement based on intent
+  switch (intent) {
+    case 'stopped':
+      if (inputDescription) {
+        return `Determines when ${inputDescription} have stopped - sets ${statusType} status`
+      }
+      return `Determines when all components have stopped - sets ${statusType} status`
+
+    case 'running':
+      if (inputDescription) {
+        return `Confirms ${inputDescription} are running - sets ${statusType} status`
+      }
+      return `Confirms all components are running - sets ${statusType} status`
+
+    case 'ready':
+      if (inputDescription) {
+        return `Verifies ${inputDescription} are ready for operation - sets ${statusType} status`
+      }
+      return `Verifies system is ready for operation - sets ${statusType} status`
+
+    case 'fault':
+      if (inputDescription) {
+        return `Detects fault conditions in ${inputDescription} - sets ${statusType} status`
+      }
+      return `Detects fault conditions - sets ${statusType} status`
+
+    case 'ok':
+      if (inputDescription) {
+        return `Confirms ${inputDescription} are in normal state - sets ${statusType} status`
+      }
+      return `Confirms normal operating state - sets ${statusType} status`
+
+    case 'enable':
+      if (hasSafetyInputs) {
+        return `Enables operation when all safety conditions are met - sets ${statusType}`
+      }
+      if (inputDescription) {
+        return `Enables operation when ${inputDescription} conditions are met - sets ${statusType}`
+      }
+      return `Enables operation when all conditions are met - sets ${statusType}`
+
+    case 'complete':
+      if (inputDescription) {
+        return `Signals completion when ${inputDescription} finish - sets ${statusType} status`
+      }
+      return `Signals operation completion - sets ${statusType} status`
+
+    case 'active':
+      if (inputDescription) {
+        return `Indicates ${inputDescription} are active - sets ${statusType} status`
+      }
+      return `Indicates active operation - sets ${statusType} status`
+
+    default:
+      // Fall back to formatted output tag name
+      return `Controls ${formatTagName(primaryOutput)}`
+  }
+}
+
 function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: RungCategory, inputTags: string[], outputTags: string[]): string {
   const text = rung.rawText.toUpperCase()
 
   // Filter out numeric constants from tags
   const cleanInputs = inputTags.filter(t => !isNumericConstant(t))
   const cleanOutputs = outputTags.filter(t => !isNumericConstant(t))
+
+  // Detect subsystems from all tags
+  const allTags = [...cleanInputs, ...cleanOutputs]
+  const subsystems = detectSubsystems(allTags)
+
+  // Get primary output tag for intent analysis
+  const primaryOutput = cleanOutputs[0] || ''
+  const { intent, statusType } = analyzeOutputIntent(primaryOutput)
 
   // Pattern-based inference with enrichment
   // Prioritize certain patterns over others
@@ -820,12 +1427,7 @@ function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: 
     // This is the hallmark of a "track all zone statuses" rung
     const statusMonitoringPattern = patterns.find(p => p.type === 'status_monitoring')
     if (statusMonitoringPattern && cleanOutputs.length >= 5) {
-      const allTags = [...cleanInputs, ...cleanOutputs]
-      const subsystems = detectSubsystems(allTags)
-      if (subsystems.length > 0) {
-        return `Monitors operational status of ${subsystems.join(', ')} for system readiness`
-      }
-      return 'Monitors operational status of multiple subsystems for system readiness'
+      return generateActionPurpose(primaryOutput, cleanInputs, subsystems)
     }
 
     // Priority order for patterns (when status_monitoring doesn't dominate)
@@ -855,73 +1457,116 @@ function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: 
       }
     }
 
-    // Special handling for status_monitoring - generate API-quality description
+    // Special handling for status_monitoring - generate action-oriented description
     if (mainPattern.type === 'status_monitoring') {
-      const allTags = [...cleanInputs, ...cleanOutputs]
-      const subsystems = detectSubsystems(allTags)
-      if (subsystems.length > 0) {
-        return `Monitors operational status of ${subsystems.join(', ')} for system readiness`
-      }
-      return 'Monitors operational status of multiple subsystems for system readiness'
+      return generateActionPurpose(primaryOutput, cleanInputs, subsystems)
     }
 
-    // Special handling for zone_control
+    // Special handling for zone_control - action-oriented
     if (mainPattern.type === 'zone_control') {
-      const allTags = [...cleanInputs, ...cleanOutputs]
-      const subsystems = detectSubsystems(allTags)
+      if (intent !== 'unknown' && statusType) {
+        const zoneList = subsystems.length > 0 ? subsystems.join(', ') : 'zones'
+        return `Controls ${zoneList} - sets ${statusType} when conditions met`
+      }
       if (subsystems.length > 0) {
         return `Controls ${subsystems.join(', ')} zone operations`
       }
       return 'Controls multiple zone operations'
     }
 
+    // Special handling for safety_interlock - action-oriented
+    if (mainPattern.type === 'safety_interlock') {
+      if (primaryOutput) {
+        const hasSafetyInputs = cleanInputs.some(t => /ESTOP|GUARD|GATE|SAFETY/i.test(t))
+        if (hasSafetyInputs) {
+          return `Enables ${formatTagName(primaryOutput)} when all safety conditions (guards, E-stops) are met`
+        }
+        return `Enables ${formatTagName(primaryOutput)} when all safety conditions are met`
+      }
+      return 'Enables output when all safety conditions are met'
+    }
+
+    // Special handling for start_stop_circuit - action-oriented
+    if (mainPattern.type === 'start_stop_circuit') {
+      const motorTag = [...cleanOutputs, ...cleanInputs].find(t => /MOTOR|MTR|DRIVE|VFD|CONV/i.test(t))
+      const hasInterlocks = cleanInputs.some(t => /INTERLOCK|SAFETY|GUARD|ESTOP/i.test(t))
+      if (motorTag) {
+        const motorName = formatTagName(motorTag)
+        if (hasInterlocks) {
+          return `Controls ${motorName} start/stop with safety interlocks`
+        }
+        return `Controls ${motorName} start/stop sequence`
+      }
+      return 'Controls motor start/stop sequence'
+    }
+
     let purpose = mainPattern.description
 
-    // Enrich with specific tag info if available
+    // Enrich with specific tag info if available - use action-oriented language
     if (cleanOutputs.length > 0 && !purpose.includes(cleanOutputs[0])) {
-      purpose += ` → ${formatTagName(cleanOutputs[0])}`
+      purpose += ` - sets ${formatTagName(cleanOutputs[0])}`
     }
 
     return purpose
   }
 
-  // Smart purpose generation based on category
+  // Smart purpose generation based on category - now action-oriented
   switch (category) {
     case 'safety': {
       const safetyOutput = cleanOutputs.find(t => inferSemanticType(t) === 'safety' || inferSemanticType(t) === 'status')
-      return safetyOutput
-        ? `Safety interlock controlling ${formatTagName(safetyOutput)}`
-        : 'Safety interlock logic'
+      if (safetyOutput) {
+        const hasSafetyInputs = cleanInputs.some(t => /ESTOP|GUARD|GATE|SAFETY/i.test(t))
+        if (hasSafetyInputs) {
+          return `Enables ${formatTagName(safetyOutput)} when all safety conditions (guards, E-stops) are met`
+        }
+        return `Enables ${formatTagName(safetyOutput)} when all safety conditions are met`
+      }
+      return 'Enables operation when all safety conditions are met'
     }
 
     case 'motor_control': {
       const motorTag = [...cleanOutputs, ...cleanInputs].find(t => inferSemanticType(t) === 'motor')
-      return motorTag
-        ? `Motor control for ${formatTagName(motorTag)}`
-        : 'Motor control logic'
+      const hasInterlocks = cleanInputs.some(t => /INTERLOCK|SAFETY|GUARD|ESTOP/i.test(t))
+      if (motorTag) {
+        const motorName = formatTagName(motorTag)
+        if (hasInterlocks) {
+          return `Controls ${motorName} start/stop with safety interlocks`
+        }
+        return `Controls ${motorName} start/stop sequence`
+      }
+      return 'Controls motor start/stop sequence'
     }
 
     case 'valve_control': {
       const valveTag = [...cleanOutputs, ...cleanInputs].find(t => inferSemanticType(t) === 'valve')
-      return valveTag
-        ? `Valve/actuator control for ${formatTagName(valveTag)}`
-        : 'Valve/actuator control logic'
+      if (valveTag) {
+        return `Actuates ${formatTagName(valveTag)} when conditions are met`
+      }
+      return 'Controls valve/actuator operation'
     }
 
     case 'timer_logic': {
       const timerMatch = text.match(/T(?:ON|OF|RTO)\s*\(\s*([^,)]+)/i)
       const timerTag = timerMatch ? timerMatch[1].trim() : null
-      return timerTag
-        ? `Timer logic using ${formatTagName(timerTag)}`
-        : 'Timer-based logic'
+      if (cleanOutputs.length > 0) {
+        return `Delays activation of ${formatTagName(cleanOutputs[0])} using timer`
+      }
+      if (timerTag) {
+        return `Implements timed delay using ${formatTagName(timerTag)}`
+      }
+      return 'Implements timed delay'
     }
 
     case 'counter_logic': {
       const counterMatch = text.match(/CT[UD]\s*\(\s*([^,)]+)/i)
       const counterTag = counterMatch ? counterMatch[1].trim() : null
-      return counterTag
-        ? `Counter logic using ${formatTagName(counterTag)}`
-        : 'Counter-based logic'
+      if (cleanOutputs.length > 0) {
+        return `Triggers ${formatTagName(cleanOutputs[0])} based on count`
+      }
+      if (counterTag) {
+        return `Accumulates count using ${formatTagName(counterTag)}`
+      }
+      return 'Accumulates count for triggering action'
     }
 
     case 'sequence_control': {
@@ -929,19 +1574,22 @@ function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: 
       const stateMatch = text.match(/EQU\s*\([^,]+,\s*(\d+)/i)
       const stepNum = stateMatch ? stateMatch[1] : null
 
-      if (stepNum && stateTag) {
-        return `Sequence step ${stepNum}: ${formatTagName(stateTag)} transition`
+      if (stepNum && cleanOutputs.length > 0) {
+        return `Executes step ${stepNum} - activates ${formatTagName(cleanOutputs[0])}`
+      } else if (stepNum) {
+        return `Executes step ${stepNum} actions`
       } else if (stateTag) {
-        return `Sequence control for ${formatTagName(stateTag)}`
+        return `Advances sequence based on ${formatTagName(stateTag)}`
       }
-      return 'Sequence/state machine logic'
+      return 'Advances sequence to next step'
     }
 
     case 'fault_handling': {
       const faultTag = cleanOutputs.find(t => inferSemanticType(t) === 'fault')
-      return faultTag
-        ? `Fault handling for ${formatTagName(faultTag)}`
-        : 'Fault detection/handling logic'
+      if (faultTag) {
+        return `Detects fault condition - sets ${formatTagName(faultTag)}`
+      }
+      return 'Detects fault condition and sets alarm'
     }
 
     case 'calculation': {
@@ -951,60 +1599,62 @@ function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: 
         const destMatch = text.match(/(?:MUL|DIV|ADD|SUB)\s*\([^,]+,[^,]+,\s*([^)\s]+)/i)
         const dest = destMatch ? destMatch[1] : cleanOutputs[0]
         return dest
-          ? `Scaling/conversion calculation → ${formatTagName(dest)}`
-          : 'Scaling/conversion calculation'
+          ? `Scales value and stores result in ${formatTagName(dest)}`
+          : 'Scales/converts value'
       }
       if (cleanOutputs.length > 0) {
-        return `Calculate ${formatTagName(cleanOutputs[0])}`
+        return `Calculates and updates ${formatTagName(cleanOutputs[0])}`
       }
-      return 'Mathematical calculation'
+      return 'Performs calculation'
     }
 
     case 'data_move': {
       if (cleanOutputs.length > 0) {
         const hmiDest = cleanOutputs.find(t => /HMI|DISPLAY|SCREEN/i.test(t))
         if (hmiDest) {
-          return `Update HMI display: ${formatTagName(hmiDest)}`
+          return `Updates HMI display - writes to ${formatTagName(hmiDest)}`
         }
-        return `Data transfer to ${formatTagName(cleanOutputs[0])}`
+        return `Transfers data to ${formatTagName(cleanOutputs[0])}`
       }
-      return 'Data move/copy operation'
+      return 'Transfers data between locations'
     }
 
     case 'hmi_interface': {
       const hmiTag = cleanOutputs.find(t => inferSemanticType(t) === 'hmi') || cleanInputs.find(t => inferSemanticType(t) === 'hmi')
-      return hmiTag
-        ? `HMI interface: ${formatTagName(hmiTag)}`
-        : 'HMI/operator interface logic'
+      if (hmiTag) {
+        return `Handles HMI interaction - ${formatTagName(hmiTag)}`
+      }
+      return 'Handles operator interface interaction'
     }
 
     case 'status_monitoring': {
-      const allTags = [...cleanInputs, ...cleanOutputs]
-      const subsystems = detectSubsystems(allTags)
-      if (subsystems.length > 0) {
-        return `Monitors operational status of ${subsystems.join(', ')} for system readiness`
-      }
-      return 'Monitors operational status of multiple subsystems for system readiness'
+      return generateActionPurpose(primaryOutput, cleanInputs, subsystems)
     }
 
     case 'zone_control': {
-      const allTags = [...cleanInputs, ...cleanOutputs]
-      const subsystems = detectSubsystems(allTags)
+      if (intent !== 'unknown' && statusType) {
+        const zoneList = subsystems.length > 0 ? subsystems.join(', ') : 'zones'
+        return `Controls ${zoneList} - sets ${statusType} when conditions met`
+      }
       if (subsystems.length > 0) {
         return `Controls ${subsystems.join(', ')} zone operations`
       }
-      return 'Controls multiple zone operations'
+      return 'Controls zone operations'
     }
 
     default: {
-      // General logic - try to make something useful
+      // General logic - try to make something useful with action orientation
       if (cleanOutputs.length > 0) {
-        return `Control logic for ${formatTagName(cleanOutputs[0])}`
+        const { intent: outIntent, statusType: outStatus } = analyzeOutputIntent(cleanOutputs[0])
+        if (outIntent !== 'unknown' && outStatus) {
+          return `Sets ${outStatus} status for ${formatTagName(cleanOutputs[0])}`
+        }
+        return `Controls ${formatTagName(cleanOutputs[0])}`
       }
       if (cleanInputs.length > 0) {
-        return `Logic based on ${formatTagName(cleanInputs[0])}`
+        return `Responds to ${formatTagName(cleanInputs[0])} conditions`
       }
-      return 'General control logic'
+      return 'Executes control logic'
     }
   }
 }
@@ -1200,6 +1850,9 @@ export function analyzeProgram(project: PlcProject): ProgramAnalysis {
           inputTags, outputTags, branchCount, hasOptionBits, subsystems
         )
 
+        // Detect branch groups for parallel branches (like API benchmark)
+        const branchGroups = detectBranchGroups(rung)
+
         // Store rung context
         const key = `${program.name}/${routine.name}:${rung.number}`
         rungContexts.set(key, {
@@ -1217,7 +1870,8 @@ export function analyzeProgram(project: PlcProject): ProgramAnalysis {
           subsystems: subsystems.length > 0 ? subsystems : undefined,
           keyPoints: keyPoints.length > 0 ? keyPoints : undefined,
           branchCount: branchCount > 1 ? branchCount : undefined,
-          hasOptionBits: hasOptionBits || undefined
+          hasOptionBits: hasOptionBits || undefined,
+          branchGroups: branchGroups.length > 0 ? branchGroups : undefined
         })
       }
     }
@@ -1351,6 +2005,24 @@ export function generateSmartExplanation(
     lines.push('**Subsystems:** ' + rungContext.subsystems.join(', '))
   }
 
+  // Branch groups - parallel branches grouped by function (like API benchmark)
+  if (rungContext.branchGroups && rungContext.branchGroups.length > 0) {
+    lines.push('')
+    lines.push('**Branch Groups:**')
+    for (const group of rungContext.branchGroups) {
+      const branchList = group.branches.length <= 3
+        ? group.branches.map(b => `Branch ${b}`).join(', ')
+        : `${group.branches.length} branches`
+      lines.push(`- **${group.name}:** ${branchList}`)
+      // Show key tags for this group (up to 5)
+      if (group.tags.length > 0) {
+        const displayTags = group.tags.slice(0, 5).map(formatTagName).join(', ')
+        const suffix = group.tags.length > 5 ? ` (+${group.tags.length - 5} more)` : ''
+        lines.push(`  Tags: ${displayTags}${suffix}`)
+      }
+    }
+  }
+
   // Key points (auto-generated insights)
   if (rungContext.keyPoints && rungContext.keyPoints.length > 0) {
     lines.push('')
@@ -1447,7 +2119,13 @@ function formatPatternName(pattern: PatternType): string {
     'fault_detection': 'Fault Detection',
     'status_monitoring': 'Status Monitoring',
     'zone_control': 'Zone Control',
-    'code_concern': 'Code Quality Concern'
+    'code_concern': 'Code Quality Concern',
+    'data_scaling': 'Data Scaling',
+    'permissive_chain': 'Permissive Chain',
+    'alarm_annunciation': 'Alarm Annunciation',
+    'mode_selection': 'Mode Selection',
+    'jog_control': 'Jog Control',
+    'hmi_write': 'HMI Write'
   }
   return names[pattern] || pattern
 }
