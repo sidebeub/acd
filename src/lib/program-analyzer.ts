@@ -2110,9 +2110,21 @@ export function generateSmartExplanation(
 function generateNarrativePurpose(ctx: RungContext): string {
   if (!ctx.purpose) return ''
 
-  // For complex status monitoring rungs, generate a cleaner summary
+  const inputUpper = ctx.inputTags.map(t => t.toUpperCase())
+  const outputUpper = ctx.outputTags.map(t => t.toUpperCase())
+
+  // For power/safety validation rungs
+  const hasPowerInputs = inputUpper.filter(t => t.includes('POWER')).length >= 2
+  const hasGateOutput = outputUpper.some(t => t.includes('GATE') || t.includes('SHUTDOWN'))
+  const hasCpuOutput = outputUpper.some(t => t.includes('CPUOK') || t.includes('CPU_OK'))
+
+  if (hasPowerInputs && (hasGateOutput || hasCpuOutput)) {
+    return 'This rung implements system power and safety status monitoring with component enable logic.'
+  }
+
+  // For complex status monitoring rungs
   if (ctx.category === 'status_monitoring' && ctx.subsystems && ctx.subsystems.length > 5) {
-    const hasStoppedOutput = ctx.outputTags.some(t => t.toUpperCase().includes('STOPPED'))
+    const hasStoppedOutput = outputUpper.some(t => t.includes('STOPPED'))
     if (hasStoppedOutput) {
       return `This rung monitors the operational status of all major machine subsystems and sets the overall STOPPED condition when all systems are not running.`
     }
@@ -2122,8 +2134,7 @@ function generateNarrativePurpose(ctx: RungContext): string {
   let purpose = ctx.purpose
 
   // If it already starts with a verb, convert to narrative
-  if (/^(Determines|Monitors|Controls|Sets|Manages|Handles|Checks)/i.test(purpose)) {
-    // Good action verb - make it more narrative
+  if (/^(Determines|Monitors|Controls|Sets|Manages|Handles|Checks|Enables)/i.test(purpose)) {
     purpose = `This rung ${purpose.charAt(0).toLowerCase() + purpose.slice(1)}`
   } else if (/^(When|If|On)/i.test(purpose)) {
     purpose = `This rung activates ${purpose.charAt(0).toLowerCase() + purpose.slice(1)}`
@@ -2137,6 +2148,26 @@ function generateNarrativePurpose(ctx: RungContext): string {
  */
 function generateKeyFunctionality(ctx: RungContext, tagUsage: Map<string, TagUsageInfo>): string[] {
   const functionality: string[] = []
+  const inputUpper = ctx.inputTags.map(t => t.toUpperCase())
+  const outputUpper = ctx.outputTags.map(t => t.toUpperCase())
+
+  // Power verification (check inputs for power-related tags)
+  const hasPowerInputs = inputUpper.some(t => t.includes('POWER') || t.includes('INPUTPOWER') || t.includes('OUTPUTPOWER') || t.includes('SAFETYPOWER'))
+  if (hasPowerInputs) {
+    functionality.push('**Power Verification:** Checks that input, output, and safety power are all present')
+  }
+
+  // CPU/PLC health monitoring
+  const hasCpuOutput = outputUpper.some(t => t.includes('CPUOK') || t.includes('PLCOK') || t.includes('CPU_OK'))
+  if (hasCpuOutput) {
+    functionality.push('**CPU Health:** Sets CPU/PLC OK status when all conditions are satisfied')
+  }
+
+  // Safety gate/shutdown control
+  const hasGateOutput = outputUpper.some(t => t.includes('GATE') || t.includes('SHUTDOWN'))
+  if (hasGateOutput) {
+    functionality.push('**Safety Gate Control:** Manages gate shutdown and safety interlock states')
+  }
 
   // System-wide monitoring
   if (ctx.subsystems && ctx.subsystems.length >= 5) {
@@ -2149,18 +2180,25 @@ function generateKeyFunctionality(ctx: RungContext, tagUsage: Map<string, TagUsa
   }
 
   // Blocked state detection
-  if (ctx.outputTags.some(t => t.toUpperCase().includes('BLOCKED'))) {
+  if (outputUpper.some(t => t.includes('BLOCKED'))) {
     functionality.push('**Blocked State:** Sets BLOCKED condition when load is detected but machine cannot process')
   }
 
-  // Film handling
-  if (ctx.outputTags.some(t => t.toUpperCase().includes('FILM'))) {
+  // Film handling (be specific - not UNLOCK tags)
+  const hasFilmOutput = outputUpper.some(t => t.includes('FILMBREAK') && !t.includes('UNLOCK'))
+  if (hasFilmOutput) {
     functionality.push('**Film Handling:** Monitors film system conditions and break detection')
   }
 
   // Fault detection
-  if (ctx.patterns.includes('fault_detection') || ctx.outputTags.some(t => t.toUpperCase().includes('FAULT'))) {
+  if (ctx.patterns.includes('fault_detection') || outputUpper.some(t => t.includes('FAULT'))) {
     functionality.push('**Fault Detection:** Monitors for error conditions and sets fault flags')
+  }
+
+  // Hoist/lift operations
+  const hasHoistInput = inputUpper.some(t => t.includes('HOIST') || t.includes('HOISTCLEAR'))
+  if (hasHoistInput) {
+    functionality.push('**Hoist Clearance:** Verifies hoist/lift is in safe position before proceeding')
   }
 
   // Sequence control
@@ -2191,6 +2229,26 @@ function generateKeyFunctionality(ctx: RungContext, tagUsage: Map<string, TagUsa
  */
 function generateSafetyImplications(ctx: RungContext): string[] {
   const implications: string[] = []
+  const inputUpper = ctx.inputTags.map(t => t.toUpperCase())
+  const outputUpper = ctx.outputTags.map(t => t.toUpperCase())
+
+  // Power redundancy check
+  const powerInputs = inputUpper.filter(t => t.includes('POWER'))
+  if (powerInputs.length >= 3) {
+    implications.push('**Triple Power Redundancy:** Requires input, output, AND safety power circuits to be active')
+  } else if (powerInputs.length >= 2) {
+    implications.push('**Power Validation:** Multiple power circuits must be validated before operation')
+  }
+
+  // Gate safety
+  if (outputUpper.some(t => t.includes('GATE'))) {
+    implications.push('**Gate Safety:** Only allows gate operations when safety conditions are validated')
+  }
+
+  // Hoist safety
+  if (inputUpper.some(t => t.includes('HOIST'))) {
+    implications.push('**Hoist Safety:** Includes hoist clearance as an additional safety condition')
+  }
 
   if (ctx.patterns.includes('safety_interlock')) {
     implications.push('Prevents machine startup until all safety conditions are satisfied')
@@ -2204,11 +2262,11 @@ function generateSafetyImplications(ctx: RungContext): string[] {
     implications.push('Coordinates system-wide shutdowns across multiple subsystems')
   }
 
-  if (ctx.outputTags.some(t => t.toUpperCase().includes('BLOCKED'))) {
+  if (outputUpper.some(t => t.includes('BLOCKED'))) {
     implications.push('Manages blocked conditions that could cause material jams')
   }
 
-  if (ctx.outputTags.some(t => t.toUpperCase().includes('FAULT') || t.toUpperCase().includes('ALARM'))) {
+  if (outputUpper.some(t => t.includes('FAULT') || t.includes('ALARM'))) {
     implications.push('Triggers fault/alarm conditions requiring operator intervention')
   }
 
@@ -2221,7 +2279,7 @@ function generateSafetyImplications(ctx: RungContext): string[] {
     implications.push('This rung affects safety-related functions - changes require careful review')
   }
 
-  return implications.slice(0, 4) // Max 4 items
+  return implications.slice(0, 5) // Max 5 items
 }
 
 function formatPatternName(pattern: PatternType): string {

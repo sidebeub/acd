@@ -7713,6 +7713,29 @@ export function generateFullRungExplanation(
     if (tagUpper.includes('BLOCKED')) return 'Blocked Status'
     if (tagUpper.includes('FILMBREAK')) return 'Film Break Detection'
 
+    // CPU/PLC status
+    if (tagUpper.includes('CPUOK') || tagUpper.includes('CPU_OK')) return 'CPU Status'
+    if (tagUpper.includes('PLCOK') || tagUpper.includes('PLC_OK')) return 'PLC Status'
+    if (tagUpper.includes('COMMOK') || tagUpper.includes('COMM_OK')) return 'Communication Status'
+
+    // Safety/Gate control
+    if (tagUpper.includes('GATESHUTDOWN') || tagUpper.includes('GATE_SHUTDOWN')) return 'Gate Shutdown Control'
+    if (tagUpper.includes('GATEOPEN') || tagUpper.includes('GATE_OPEN')) return 'Gate Open Control'
+    if (tagUpper.includes('SHUTDOWN')) return 'Shutdown Control'
+    if (tagUpper.includes('ESTOP') || tagUpper.includes('E_STOP')) return 'E-Stop Control'
+
+    // Power status
+    if (tagUpper.includes('POWERON') || tagUpper.includes('POWER_ON')) return 'Power Status'
+    if (tagUpper.includes('POWEROK') || tagUpper.includes('POWER_OK')) return 'Power Status'
+
+    // Hoist/Lift
+    if (tagUpper.includes('HOIST')) return 'Hoist Control'
+    if (tagUpper.includes('LIFT')) return 'Lift Control'
+
+    // Unlock/Enable
+    if (tagUpper.includes('UNLOCK')) return 'Unlock Control'
+    if (tagUpper.includes('ENABLE')) return 'Enable Control'
+
     // Subsystem STOPPED status patterns
     if (tagUpper.includes('STOPPED')) {
       if (tagUpper.includes('ROTATION')) return 'Rotation Stopped Status'
