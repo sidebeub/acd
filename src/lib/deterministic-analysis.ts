@@ -219,7 +219,10 @@ async function updateRungContexts(projectId: string, analysis: ProgramAnalysis):
             relatedRungs: JSON.stringify(context.relatedRungs),
             safetyRelevant: context.safetyRelevant,
             concernsJson: context.concerns ? JSON.stringify(context.concerns) : null,
-            subsystemsJson: context.subsystems ? JSON.stringify(context.subsystems) : null
+            subsystemsJson: context.subsystems ? JSON.stringify(context.subsystems) : null,
+            keyPointsJson: context.keyPoints ? JSON.stringify(context.keyPoints) : null,
+            branchCount: context.branchCount || null,
+            hasOptionBits: context.hasOptionBits || null
           }
         })
       )
@@ -253,6 +256,9 @@ export async function getRungContext(rungId: string): Promise<RungContext | null
       safetyRelevant: true,
       concernsJson: true,
       subsystemsJson: true,
+      keyPointsJson: true,
+      branchCount: true,
+      hasOptionBits: true,
       routine: {
         select: {
           name: true,
@@ -284,7 +290,10 @@ export async function getRungContext(rungId: string): Promise<RungContext | null
     inputTags: rung.inputTagsJson ? JSON.parse(rung.inputTagsJson) : [],
     outputTags: rung.outputTagsJson ? JSON.parse(rung.outputTagsJson) : [],
     concerns: rung.concernsJson ? JSON.parse(rung.concernsJson) : undefined,
-    subsystems: rung.subsystemsJson ? JSON.parse(rung.subsystemsJson) : undefined
+    subsystems: rung.subsystemsJson ? JSON.parse(rung.subsystemsJson) : undefined,
+    keyPoints: rung.keyPointsJson ? JSON.parse(rung.keyPointsJson) : undefined,
+    branchCount: rung.branchCount || undefined,
+    hasOptionBits: rung.hasOptionBits || undefined
   }
 }
 

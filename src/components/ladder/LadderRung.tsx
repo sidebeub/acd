@@ -92,6 +92,9 @@ interface LadderRungProps {
     outputTags?: string[]
     concerns?: string[]
     subsystems?: string[]
+    keyPoints?: string[]
+    branchCount?: number
+    hasOptionBits?: boolean
   }
   smartExplanation?: string
 }
@@ -2754,6 +2757,18 @@ export function LadderRung({
             </p>
           )}
 
+          {/* Key Points (auto-generated insights) */}
+          {smartContext.keyPoints && smartContext.keyPoints.length > 0 && (
+            <div className="mb-3 p-2 rounded" style={{ background: 'var(--accent-blue-muted)', border: '1px solid var(--accent-blue)' }}>
+              <p className="text-xs font-medium mb-1" style={{ color: 'var(--accent-blue)' }}>Key Points:</p>
+              {smartContext.keyPoints.map((point, i) => (
+                <p key={i} className="text-xs ml-2" style={{ color: 'var(--text-secondary)' }}>
+                  {point}
+                </p>
+              ))}
+            </div>
+          )}
+
           {/* Code Concerns (warnings) */}
           {smartContext.concerns && smartContext.concerns.length > 0 && (
             <div className="mb-3 p-2 rounded" style={{ background: 'var(--accent-amber-muted)', border: '1px solid var(--accent-amber)' }}>
@@ -2789,8 +2804,9 @@ export function LadderRung({
 
                 // Skip lines that duplicate what we already showed above
                 if (line.startsWith('**Purpose:**') || line.startsWith('**Subsystems:**')) return null
-                if (line.startsWith('**Code Concerns:**')) return null
+                if (line.startsWith('**Code Concerns:**') || line.startsWith('**Key Points:**')) return null
                 if (smartContext?.concerns && smartContext.concerns.some(c => line.includes(c))) return null
+                if (smartContext?.keyPoints && smartContext.keyPoints.some(p => line.includes(p))) return null
 
                 // Handle section headers like **Header:** or **Header**
                 const headerMatch = line.match(/^\*\*([^*]+)\*\*(.*)$/)

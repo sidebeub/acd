@@ -189,6 +189,9 @@ model Rung {
   safetyRelevant  Boolean   @default(false)
   concernsJson    String?   // JSON: Code quality concerns (e.g., MUL/DIV with booleans)
   subsystemsJson  String?   // JSON: Detected subsystems (e.g., Infeed Conveyors, Rotation)
+  keyPointsJson   String?   // JSON: Auto-generated key observations
+  branchCount     Int?      // Number of parallel branches
+  hasOptionBits   Boolean?  // Uses N15:x/y style option bits
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

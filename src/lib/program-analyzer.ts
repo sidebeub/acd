@@ -86,6 +86,9 @@ export interface RungContext {
   outputTags: string[]          // Tags written by this rung
   concerns?: string[]           // Code quality concerns
   subsystems?: string[]         // Detected subsystem groups (e.g., "Infeed Conveyors", "Exit Zones")
+  keyPoints?: string[]          // Auto-generated key observations (safety, conditional logic, etc.)
+  branchCount?: number          // Number of parallel branches in this rung
+  hasOptionBits?: boolean       // Uses N15:x/y style option bits for conditional equipment
 }
 
 export type RungCategory =
@@ -651,6 +654,97 @@ function isWriteInstruction(instruction: string): boolean {
   return writeInstructions.includes(instruction.toUpperCase())
 }
 
+// Generate key points based on rung analysis
+function generateKeyPoints(
+  rung: PlcRung,
+  patterns: PatternType[],
+  category: RungCategory,
+  safetyRelevant: boolean,
+  inputTags: string[],
+  outputTags: string[],
+  branchCount: number,
+  hasOptionBits: boolean,
+  subsystems: string[]
+): string[] {
+  const points: string[] = []
+  const text = rung.rawText.toUpperCase()
+
+  // Safety logic observation
+  if (safetyRelevant) {
+    if (patterns.includes('safety_interlock')) {
+      points.push('Safety interlock - machine will stop if any safety condition fails')
+    } else {
+      points.push('Safety-related logic - affects machine safety functions')
+    }
+  }
+
+  // AND-logic detection (multiple XIC in series means ALL must be true)
+  const xicCount = (text.match(/XIC\s*\(/gi) || []).length
+  if (xicCount >= 3 && outputTags.length <= 2) {
+    points.push(`All ${xicCount} conditions must be TRUE for output to energize`)
+  }
+
+  // Conditional equipment / option bits
+  if (hasOptionBits) {
+    points.push('Uses option bits - disabled equipment sections are bypassed')
+  }
+
+  // Multi-branch complexity
+  if (branchCount >= 5) {
+    points.push(`Complex rung with ${branchCount} parallel branches - multiple subsystems controlled`)
+  }
+
+  // Status aggregation pattern
+  if (category === 'status_monitoring' && subsystems.length >= 3) {
+    points.push(`Aggregates status from ${subsystems.length} subsystems into single status bit`)
+  }
+
+  // Latch logic observation
+  if (patterns.includes('latch_unlatch')) {
+    const hasOTL = /OTL\s*\(/i.test(text)
+    const hasOTU = /OTU\s*\(/i.test(text)
+    if (hasOTL && hasOTU) {
+      points.push('Latching logic - output stays ON until explicitly unlatched')
+    } else if (hasOTL) {
+      points.push('Latch ON - output remains ON until reset elsewhere')
+    } else if (hasOTU) {
+      points.push('Unlatch - clears a latched output')
+    }
+  }
+
+  // Timer usage
+  if (patterns.includes('timer_delay')) {
+    const timerMatch = text.match(/TON|TOF|RTO/i)
+    if (timerMatch) {
+      const timerType = timerMatch[0].toUpperCase()
+      if (timerType === 'TON') points.push('On-delay timer - output energizes after time expires')
+      else if (timerType === 'TOF') points.push('Off-delay timer - output stays on for delay after input drops')
+      else if (timerType === 'RTO') points.push('Retentive timer - accumulates time across power cycles')
+    }
+  }
+
+  // Fault integration
+  if (patterns.includes('fault_detection')) {
+    points.push('Includes fault monitoring - abnormal conditions will affect output')
+  }
+
+  // Output tag name insights
+  for (const tag of outputTags.slice(0, 1)) {
+    const upperTag = tag.toUpperCase()
+    if (upperTag.includes('STOPPED') || upperTag.includes('STOP')) {
+      points.push('Sets STOPPED status when all conditions are met')
+    } else if (upperTag.includes('RUNNING') || upperTag.includes('RUN')) {
+      points.push('Enables RUN status when all conditions are met')
+    } else if (upperTag.includes('READY') || upperTag.includes('RDY')) {
+      points.push('Sets READY status indicating system is prepared')
+    } else if (upperTag.includes('FAULT') || upperTag.includes('FLT') || upperTag.includes('ALARM')) {
+      points.push('Sets fault/alarm condition when triggered')
+    }
+  }
+
+  return points
+}
+
 function isReadInstruction(instruction: string): boolean {
   const readInstructions = ['XIC', 'XIO', 'EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ', 'LIM', 'ONS', 'OSR', 'OSF']
   return readInstructions.includes(instruction.toUpperCase())
@@ -1094,6 +1188,18 @@ export function analyzeProgram(project: PlcProject): ProgramAnalysis {
         const allRungTagsForSubsystems = [...inputTags, ...outputTags].filter(t => !isNumericConstant(t))
         const subsystems = detectSubsystems(allRungTagsForSubsystems)
 
+        // Count branches (commas indicate parallel branches in raw text)
+        const branchCount = (rung.rawText.match(/\|/g) || []).length + 1
+
+        // Detect option bits (N15:x/y style conditional equipment)
+        const hasOptionBits = /N\d+:\d+\/\d+/i.test(rung.rawText)
+
+        // Generate key points based on analysis
+        const keyPoints = generateKeyPoints(
+          rung, patternTypes, category, safetyRelevant,
+          inputTags, outputTags, branchCount, hasOptionBits, subsystems
+        )
+
         // Store rung context
         const key = `${program.name}/${routine.name}:${rung.number}`
         rungContexts.set(key, {
@@ -1108,7 +1214,10 @@ export function analyzeProgram(project: PlcProject): ProgramAnalysis {
           inputTags,
           outputTags,
           concerns: concerns.length > 0 ? concerns : undefined,
-          subsystems: subsystems.length > 0 ? subsystems : undefined
+          subsystems: subsystems.length > 0 ? subsystems : undefined,
+          keyPoints: keyPoints.length > 0 ? keyPoints : undefined,
+          branchCount: branchCount > 1 ? branchCount : undefined,
+          hasOptionBits: hasOptionBits || undefined
         })
       }
     }
@@ -1242,8 +1351,17 @@ export function generateSmartExplanation(
     lines.push('**Subsystems:** ' + rungContext.subsystems.join(', '))
   }
 
-  // Safety warning if relevant
-  if (rungContext.safetyRelevant) {
+  // Key points (auto-generated insights)
+  if (rungContext.keyPoints && rungContext.keyPoints.length > 0) {
+    lines.push('')
+    lines.push('**Key Points:**')
+    for (const point of rungContext.keyPoints) {
+      lines.push(`- ${point}`)
+    }
+  }
+
+  // Safety warning if relevant (only if not already covered in key points)
+  if (rungContext.safetyRelevant && (!rungContext.keyPoints || !rungContext.keyPoints.some(p => p.includes('Safety')))) {
     lines.push('')
     lines.push('**Safety-Related Logic** - This rung affects safety functions. Changes require careful review.')
   }

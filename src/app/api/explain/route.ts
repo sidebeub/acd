@@ -173,7 +173,10 @@ export async function POST(request: NextRequest) {
         inputTags: rungContext.inputTags,
         outputTags: rungContext.outputTags,
         concerns: rungContext.concerns,
-        subsystems: rungContext.subsystems
+        subsystems: rungContext.subsystems,
+        keyPoints: rungContext.keyPoints,
+        branchCount: rungContext.branchCount,
+        hasOptionBits: rungContext.hasOptionBits
       } : undefined
       console.log(`[Explain API] Returning smartContext:`, JSON.stringify(smartContextResponse)?.substring(0, 200))
 
@@ -493,7 +496,10 @@ export async function POST(request: NextRequest) {
         inputTags: rungContext.inputTags,
         outputTags: rungContext.outputTags,
         concerns: rungContext.concerns,
-        subsystems: rungContext.subsystems
+        subsystems: rungContext.subsystems,
+        keyPoints: rungContext.keyPoints,
+        branchCount: rungContext.branchCount,
+        hasOptionBits: rungContext.hasOptionBits
       } : undefined,
       smartExplanation
     })
