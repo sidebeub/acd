@@ -217,7 +217,9 @@ async function updateRungContexts(projectId: string, analysis: ProgramAnalysis):
             inputTagsJson: JSON.stringify(context.inputTags),
             outputTagsJson: JSON.stringify(context.outputTags),
             relatedRungs: JSON.stringify(context.relatedRungs),
-            safetyRelevant: context.safetyRelevant
+            safetyRelevant: context.safetyRelevant,
+            concernsJson: context.concerns ? JSON.stringify(context.concerns) : null,
+            subsystemsJson: context.subsystems ? JSON.stringify(context.subsystems) : null
           }
         })
       )
@@ -249,6 +251,8 @@ export async function getRungContext(rungId: string): Promise<RungContext | null
       outputTagsJson: true,
       relatedRungs: true,
       safetyRelevant: true,
+      concernsJson: true,
+      subsystemsJson: true,
       routine: {
         select: {
           name: true,
@@ -278,7 +282,9 @@ export async function getRungContext(rungId: string): Promise<RungContext | null
     safetyRelevant: rung.safetyRelevant,
     category: rung.category as RungContext['category'],
     inputTags: rung.inputTagsJson ? JSON.parse(rung.inputTagsJson) : [],
-    outputTags: rung.outputTagsJson ? JSON.parse(rung.outputTagsJson) : []
+    outputTags: rung.outputTagsJson ? JSON.parse(rung.outputTagsJson) : [],
+    concerns: rung.concernsJson ? JSON.parse(rung.concernsJson) : undefined,
+    subsystems: rung.subsystemsJson ? JSON.parse(rung.subsystemsJson) : undefined
   }
 }
 

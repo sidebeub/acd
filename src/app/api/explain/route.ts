@@ -171,7 +171,9 @@ export async function POST(request: NextRequest) {
         safetyRelevant: rungContext.safetyRelevant,
         relatedRungs: rungContext.relatedRungs,
         inputTags: rungContext.inputTags,
-        outputTags: rungContext.outputTags
+        outputTags: rungContext.outputTags,
+        concerns: rungContext.concerns,
+        subsystems: rungContext.subsystems
       } : undefined
       console.log(`[Explain API] Returning smartContext:`, JSON.stringify(smartContextResponse)?.substring(0, 200))
 
@@ -489,7 +491,9 @@ export async function POST(request: NextRequest) {
         safetyRelevant: rungContext.safetyRelevant,
         relatedRungs: rungContext.relatedRungs,
         inputTags: rungContext.inputTags,
-        outputTags: rungContext.outputTags
+        outputTags: rungContext.outputTags,
+        concerns: rungContext.concerns,
+        subsystems: rungContext.subsystems
       } : undefined,
       smartExplanation
     })

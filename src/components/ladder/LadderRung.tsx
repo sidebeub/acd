@@ -90,6 +90,8 @@ interface LadderRungProps {
     relatedRungs?: number[]
     inputTags?: string[]
     outputTags?: string[]
+    concerns?: string[]
+    subsystems?: string[]
   }
   smartExplanation?: string
 }
@@ -2726,6 +2728,7 @@ export function LadderRung({
       {/* Smart Context */}
       {smartContext && (
         <div className="px-fluid-4 py-3 border-t" style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-1)' }}>
+          {/* Category & Pattern Badges */}
           <div className="flex flex-wrap gap-2 mb-3">
             {smartContext.category && (
               <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--accent-blue-muted)', color: 'var(--accent-blue)' }}>
@@ -2734,24 +2737,71 @@ export function LadderRung({
             )}
             {smartContext.safetyRelevant && (
               <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--accent-red-muted)', color: 'var(--accent-red)' }}>
-                ⚠️ Safety Critical
+                Safety Critical
               </span>
             )}
-            {smartContext.patterns?.map(p => (
+            {smartContext.patterns?.filter(p => p !== 'code_concern').map(p => (
               <span key={p} className="text-xs px-2 py-1 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-secondary)' }}>
                 {p.replace(/_/g, ' ')}
               </span>
             ))}
           </div>
+
+          {/* Purpose */}
           {smartContext.purpose && (
-            <p className="text-sm mb-2" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+            <p className="text-sm mb-3" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
               {smartContext.purpose}
             </p>
           )}
+
+          {/* Code Concerns (warnings) */}
+          {smartContext.concerns && smartContext.concerns.length > 0 && (
+            <div className="mb-3 p-2 rounded" style={{ background: 'var(--accent-amber-muted)', border: '1px solid var(--accent-amber)' }}>
+              <p className="text-xs font-medium mb-1" style={{ color: 'var(--accent-amber)' }}>Code Concerns:</p>
+              {smartContext.concerns.map((concern, i) => (
+                <p key={i} className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  {concern}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Subsystems */}
+          {smartContext.subsystems && smartContext.subsystems.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Subsystems:</p>
+              <div className="flex flex-wrap gap-1">
+                {smartContext.subsystems.map(s => (
+                  <span key={s} className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-secondary)' }}>
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full Smart Explanation (with proper formatting) */}
           {smartExplanation && (
-            <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              {smartExplanation}
-            </p>
+            <div className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              {smartExplanation.split('\n').map((line, i) => {
+                // Skip lines that duplicate what we already showed above
+                if (line.startsWith('**Purpose:**') || line.startsWith('**Subsystems:**')) return null
+                if (line.startsWith('**Code Concerns:**') || (smartContext.concerns && smartContext.concerns.some(c => line.includes(c)))) return null
+
+                // Handle section headers
+                if (line.startsWith('**') && line.endsWith('**')) {
+                  return <p key={i} className="font-medium mt-3 mb-1" style={{ color: 'var(--text-primary)' }}>{line.replace(/\*\*/g, '')}</p>
+                }
+                // Handle bullet points
+                if (line.startsWith('- ')) {
+                  return <p key={i} className="ml-2 text-xs">{line}</p>
+                }
+                // Empty lines
+                if (!line.trim()) return <br key={i} />
+                // Regular lines
+                return <p key={i}>{line}</p>
+              })}
+            </div>
           )}
         </div>
       )}

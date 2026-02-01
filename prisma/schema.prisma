@@ -187,6 +187,8 @@ model Rung {
   outputTagsJson  String?   // JSON: Tags written by this rung
   relatedRungs    String?   // JSON: Array of related rung numbers
   safetyRelevant  Boolean   @default(false)
+  concernsJson    String?   // JSON: Code quality concerns (e.g., MUL/DIV with booleans)
+  subsystemsJson  String?   // JSON: Detected subsystems (e.g., Infeed Conveyors, Rotation)
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
