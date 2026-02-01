@@ -1994,67 +1994,66 @@ export function generateSmartExplanation(
 ): string {
   const lines: string[] = []
 
-  // Main purpose
-  if (rungContext.purpose) {
-    lines.push(`**Purpose:** ${rungContext.purpose}`)
+  // Generate narrative purpose (like AI chat: "This rung monitors... and sets...")
+  const narrativePurpose = generateNarrativePurpose(rungContext)
+  if (narrativePurpose) {
+    lines.push(`**Purpose:** ${narrativePurpose}`)
   }
 
-  // Subsystems involved (grouped by functional area like the API benchmark)
+  // Key Functionality section (like AI chat's bullet points)
+  const keyFunctionality = generateKeyFunctionality(rungContext, tagUsage)
+  if (keyFunctionality.length > 0) {
+    lines.push('')
+    lines.push('**Key Functionality:**')
+    for (const func of keyFunctionality) {
+      lines.push(`- ${func}`)
+    }
+  }
+
+  // Subsystems involved
   if (rungContext.subsystems && rungContext.subsystems.length > 0) {
     lines.push('')
-    lines.push('**Subsystems:** ' + rungContext.subsystems.join(', '))
+    if (rungContext.subsystems.length <= 5) {
+      lines.push('**Subsystems:** ' + rungContext.subsystems.join(', '))
+    } else {
+      lines.push(`**Subsystems:** ${rungContext.subsystems.length} systems monitored (${rungContext.subsystems.slice(0, 4).join(', ')}, and ${rungContext.subsystems.length - 4} more)`)
+    }
   }
 
-  // Branch groups - parallel branches grouped by function (like API benchmark)
-  if (rungContext.branchGroups && rungContext.branchGroups.length > 0) {
-    lines.push('')
-    lines.push('**Branch Groups:**')
-    for (const group of rungContext.branchGroups) {
-      const branchList = group.branches.length <= 3
-        ? group.branches.map(b => `Branch ${b}`).join(', ')
-        : `${group.branches.length} branches`
-      lines.push(`- **${group.name}:** ${branchList}`)
-      // Show key tags for this group (up to 5)
-      if (group.tags.length > 0) {
-        const displayTags = group.tags.slice(0, 5).map(formatTagName).join(', ')
-        const suffix = group.tags.length > 5 ? ` (+${group.tags.length - 5} more)` : ''
-        lines.push(`  Tags: ${displayTags}${suffix}`)
+  // Safety Implications section (like AI chat)
+  if (rungContext.safetyRelevant) {
+    const safetyImplications = generateSafetyImplications(rungContext)
+    if (safetyImplications.length > 0) {
+      lines.push('')
+      lines.push('**Safety Implications:**')
+      for (const imp of safetyImplications) {
+        lines.push(`- ${imp}`)
       }
     }
   }
 
-  // Key points (auto-generated insights)
-  if (rungContext.keyPoints && rungContext.keyPoints.length > 0) {
-    lines.push('')
-    lines.push('**Key Points:**')
-    for (const point of rungContext.keyPoints) {
-      lines.push(`- ${point}`)
-    }
-  }
-
-  // Safety warning if relevant (only if not already covered in key points)
-  if (rungContext.safetyRelevant && (!rungContext.keyPoints || !rungContext.keyPoints.some(p => p.includes('Safety')))) {
-    lines.push('')
-    lines.push('**Safety-Related Logic** - This rung affects safety functions. Changes require careful review.')
-  }
-
-  // Code concerns/anomalies (like API benchmark detecting improper MUL/DIV use)
+  // Code concerns with contextual insight (like AI chat noting unusual patterns)
   if (rungContext.concerns && rungContext.concerns.length > 0) {
     lines.push('')
-    lines.push('**Code Concerns:**')
+    lines.push('**Code Analysis:**')
     for (const concern of rungContext.concerns) {
       lines.push(`- ${concern}`)
     }
+    // Add contextual insight like AI chat does
+    if (rungContext.concerns.some(c => c.includes('MUL') || c.includes('DIV'))) {
+      lines.push('- *Note: Using math operations for boolean logic is unusual - may indicate code converted from another platform or non-standard programming approach*')
+    }
   }
 
-  // Patterns detected (filter out code_concern as it's shown separately)
+  // Patterns - only show if we have few other sections (simpler rungs)
   const displayPatterns = rungContext.patterns.filter(p => p !== 'code_concern')
-  if (displayPatterns.length > 0) {
+  const hasDetailedSections = (rungContext.subsystems?.length || 0) > 3 || rungContext.safetyRelevant
+  if (displayPatterns.length > 0 && !hasDetailedSections) {
     lines.push('')
     lines.push('**Patterns:** ' + displayPatterns.map(formatPatternName).join(', '))
   }
 
-  // Input conditions
+  // Input conditions (condensed)
   if (rungContext.inputTags.length > 0) {
     lines.push('')
     lines.push('**Depends on:**')
@@ -2075,7 +2074,7 @@ export function generateSmartExplanation(
     }
   }
 
-  // Output effects
+  // Output effects (condensed)
   if (rungContext.outputTags.length > 0) {
     lines.push('')
     lines.push('**Controls:**')
@@ -2103,6 +2102,126 @@ export function generateSmartExplanation(
   }
 
   return lines.join('\n')
+}
+
+/**
+ * Generate a narrative purpose statement like the AI chat does
+ */
+function generateNarrativePurpose(ctx: RungContext): string {
+  if (!ctx.purpose) return ''
+
+  // For complex status monitoring rungs, generate a cleaner summary
+  if (ctx.category === 'status_monitoring' && ctx.subsystems && ctx.subsystems.length > 5) {
+    const hasStoppedOutput = ctx.outputTags.some(t => t.toUpperCase().includes('STOPPED'))
+    if (hasStoppedOutput) {
+      return `This rung monitors the operational status of all major machine subsystems and sets the overall STOPPED condition when all systems are not running.`
+    }
+  }
+
+  // Convert action-oriented purpose to narrative
+  let purpose = ctx.purpose
+
+  // If it already starts with a verb, convert to narrative
+  if (/^(Determines|Monitors|Controls|Sets|Manages|Handles|Checks)/i.test(purpose)) {
+    // Good action verb - make it more narrative
+    purpose = `This rung ${purpose.charAt(0).toLowerCase() + purpose.slice(1)}`
+  } else if (/^(When|If|On)/i.test(purpose)) {
+    purpose = `This rung activates ${purpose.charAt(0).toLowerCase() + purpose.slice(1)}`
+  }
+
+  return purpose
+}
+
+/**
+ * Generate Key Functionality bullets like AI chat does
+ */
+function generateKeyFunctionality(ctx: RungContext, tagUsage: Map<string, TagUsageInfo>): string[] {
+  const functionality: string[] = []
+
+  // System-wide monitoring
+  if (ctx.subsystems && ctx.subsystems.length >= 5) {
+    functionality.push(`**System-Wide Status:** Monitors ${ctx.subsystems.length} major subsystems to determine overall machine state`)
+  }
+
+  // Optional equipment handling
+  if (ctx.hasOptionBits) {
+    functionality.push('**Optional Equipment:** Only checks systems that are installed (via option bits)')
+  }
+
+  // Blocked state detection
+  if (ctx.outputTags.some(t => t.toUpperCase().includes('BLOCKED'))) {
+    functionality.push('**Blocked State:** Sets BLOCKED condition when load is detected but machine cannot process')
+  }
+
+  // Film handling
+  if (ctx.outputTags.some(t => t.toUpperCase().includes('FILM'))) {
+    functionality.push('**Film Handling:** Monitors film system conditions and break detection')
+  }
+
+  // Fault detection
+  if (ctx.patterns.includes('fault_detection') || ctx.outputTags.some(t => t.toUpperCase().includes('FAULT'))) {
+    functionality.push('**Fault Detection:** Monitors for error conditions and sets fault flags')
+  }
+
+  // Sequence control
+  if (ctx.patterns.includes('sequencer')) {
+    functionality.push('**Sequence Control:** Manages step-by-step operation sequence')
+  }
+
+  // Timer-based logic
+  if (ctx.patterns.includes('timer_delay')) {
+    functionality.push('**Time-Based Logic:** Uses timers for delayed actions or monitoring')
+  }
+
+  // Latch/unlatch behavior
+  if (ctx.patterns.includes('latch_unlatch')) {
+    functionality.push('**Latched Output:** Output remains set until explicitly reset elsewhere')
+  }
+
+  // Zone coordination
+  if (ctx.patterns.includes('zone_control') && ctx.branchCount && ctx.branchCount > 3) {
+    functionality.push(`**Zone Coordination:** Manages ${ctx.branchCount} parallel zones/conveyors`)
+  }
+
+  return functionality.slice(0, 5) // Max 5 items
+}
+
+/**
+ * Generate Safety Implications section like AI chat does
+ */
+function generateSafetyImplications(ctx: RungContext): string[] {
+  const implications: string[] = []
+
+  if (ctx.patterns.includes('safety_interlock')) {
+    implications.push('Prevents machine startup until all safety conditions are satisfied')
+  }
+
+  if (ctx.patterns.includes('permissive_chain')) {
+    implications.push('Part of permissive chain - all upstream conditions must be met')
+  }
+
+  if (ctx.category === 'status_monitoring' && ctx.subsystems && ctx.subsystems.length > 3) {
+    implications.push('Coordinates system-wide shutdowns across multiple subsystems')
+  }
+
+  if (ctx.outputTags.some(t => t.toUpperCase().includes('BLOCKED'))) {
+    implications.push('Manages blocked conditions that could cause material jams')
+  }
+
+  if (ctx.outputTags.some(t => t.toUpperCase().includes('FAULT') || t.toUpperCase().includes('ALARM'))) {
+    implications.push('Triggers fault/alarm conditions requiring operator intervention')
+  }
+
+  if (ctx.patterns.includes('latch_unlatch')) {
+    implications.push('Latched output requires explicit reset - verify reset logic exists')
+  }
+
+  // Default if nothing specific found
+  if (implications.length === 0) {
+    implications.push('This rung affects safety-related functions - changes require careful review')
+  }
+
+  return implications.slice(0, 4) // Max 4 items
 }
 
 function formatPatternName(pattern: PatternType): string {
