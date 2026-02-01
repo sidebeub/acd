@@ -163,6 +163,18 @@ export async function POST(request: NextRequest) {
       // Generate condition breakdown
       const conditions = generateConditionBreakdown(rung.rawText)
 
+      // Log what we're returning for smartContext
+      const smartContextResponse = rungContext ? {
+        purpose: rungContext.purpose,
+        category: rungContext.category,
+        patterns: rungContext.patterns,
+        safetyRelevant: rungContext.safetyRelevant,
+        relatedRungs: rungContext.relatedRungs,
+        inputTags: rungContext.inputTags,
+        outputTags: rungContext.outputTags
+      } : undefined
+      console.log(`[Explain API] Returning smartContext:`, JSON.stringify(smartContextResponse)?.substring(0, 200))
+
       return NextResponse.json({
         explanation: cachedRung[modeField],
         source: cachedRung.source,
@@ -172,15 +184,7 @@ export async function POST(request: NextRequest) {
         deviceTypes: deviceTypes.length > 0 ? deviceTypes : undefined,
         conditions: conditions.length > 0 ? conditions : undefined,
         // Smart context from deterministic analysis
-        smartContext: rungContext ? {
-          purpose: rungContext.purpose,
-          category: rungContext.category,
-          patterns: rungContext.patterns,
-          safetyRelevant: rungContext.safetyRelevant,
-          relatedRungs: rungContext.relatedRungs,
-          inputTags: rungContext.inputTags,
-          outputTags: rungContext.outputTags
-        } : undefined,
+        smartContext: smartContextResponse,
         smartExplanation
       })
     }
