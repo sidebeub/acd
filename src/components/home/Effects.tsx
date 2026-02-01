@@ -102,3 +102,123 @@ export function GrainOverlay() {
     />
   )
 }
+
+// ============================================
+// TYPEWRITER EFFECT - Types out text character by character
+// ============================================
+export function Typewriter({
+  text,
+  speed = 80,
+  delay = 0,
+  className = ''
+}: {
+  text: string
+  speed?: number
+  delay?: number
+  className?: string
+}) {
+  const [displayText, setDisplayText] = useState('')
+  const [showCursor, setShowCursor] = useState(true)
+  const [isComplete, setIsComplete] = useState(false)
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout
+    let charIndex = 0
+
+    const startTyping = () => {
+      const type = () => {
+        if (charIndex < text.length) {
+          setDisplayText(text.slice(0, charIndex + 1))
+          charIndex++
+          timeout = setTimeout(type, speed)
+        } else {
+          setIsComplete(true)
+        }
+      }
+      type()
+    }
+
+    timeout = setTimeout(startTyping, delay)
+
+    return () => clearTimeout(timeout)
+  }, [text, speed, delay])
+
+  // Blink cursor after typing completes
+  useEffect(() => {
+    if (!isComplete) return
+    const interval = setInterval(() => {
+      setShowCursor(prev => !prev)
+    }, 530)
+    return () => clearInterval(interval)
+  }, [isComplete])
+
+  return (
+    <span className={className}>
+      {displayText}
+      <span
+        style={{
+          opacity: showCursor ? 1 : 0,
+          color: 'var(--accent)',
+          fontWeight: 400,
+          marginLeft: '2px',
+          transition: 'opacity 0.1s ease'
+        }}
+      >
+        |
+      </span>
+    </span>
+  )
+}
+
+// ============================================
+// FADE IN ON SCROLL - Reveals content when visible
+// ============================================
+export function FadeInOnScroll({
+  children,
+  delay = 0,
+  direction = 'up'
+}: {
+  children: React.ReactNode
+  delay?: number
+  direction?: 'up' | 'down' | 'left' | 'right'
+}) {
+  const [isVisible, setIsVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  const transforms = {
+    up: 'translateY(30px)',
+    down: 'translateY(-30px)',
+    left: 'translateX(30px)',
+    right: 'translateX(-30px)'
+  }
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'translate(0)' : transforms[direction],
+        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`
+      }}
+    >
+      {children}
+    </div>
+  )
+}

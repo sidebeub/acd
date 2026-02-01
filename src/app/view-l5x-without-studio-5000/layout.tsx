@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     type: 'website',
   },
   alternates: {
-    canonical: 'https://www.plc.company/view-l5x-without-studio-5000',
+    canonical: '/view-l5x-without-studio-5000',
   },
 }
 

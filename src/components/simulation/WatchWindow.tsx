@@ -88,6 +88,7 @@ export function WatchWindow({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isMobile, setIsMobile] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isHidden, setIsHidden] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Section collapse state
@@ -247,6 +248,38 @@ export function WatchWindow({
   // Don't render if simulation is not enabled
   if (!enabled) return null
 
+  // Show small toggle button when hidden
+  if (isHidden) {
+    return (
+      <button
+        onClick={() => setIsHidden(false)}
+        className="watch-window-toggle"
+        title="Show Watch Window"
+        aria-label="Show watch window"
+        style={{
+          position: 'fixed',
+          bottom: isMobile ? '80px' : '20px',
+          right: '20px',
+          width: '48px',
+          height: '48px',
+          borderRadius: '50%',
+          background: 'var(--surface-3)',
+          border: '1px solid var(--border-default)',
+          color: 'var(--text-secondary)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          boxShadow: 'var(--shadow-md)',
+          transition: 'all 0.2s ease'
+        }}
+      >
+        <IconClock />
+      </button>
+    )
+  }
+
   return (
     <div
       ref={panelRef}
@@ -281,6 +314,14 @@ export function WatchWindow({
             aria-label={isCollapsed ? 'Expand watch window' : 'Collapse watch window'}
           >
             <IconChevron collapsed={isCollapsed} />
+          </button>
+          <button
+            className="watch-window-btn touch-target"
+            onClick={() => setIsHidden(true)}
+            title="Hide Watch Window"
+            aria-label="Hide watch window"
+          >
+            <IconX />
           </button>
         </div>
       </div>

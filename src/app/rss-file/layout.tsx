@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     description: 'View RSLogix 500 programs without expensive software. Upload RSS files and instantly browse ladder logic for SLC 500 and MicroLogix PLCs.',
     type: 'website',
   },
+  alternates: {
+    canonical: '/rss-file',
+  },
 }
 
 export default function RssFileLayout({

@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
+import { trackEvent } from '@/lib/analytics'
 
 // FAQ data for schema markup
 const faqs = [
@@ -93,6 +94,7 @@ export default function ViewL5xWithoutStudio5000Page() {
       }
 
       const project = await response.json()
+      trackEvent('file_upload', { file_type: 'l5x' })
       router.push(`/project/${project.id}`)
     } catch (err) {
       clearInterval(progressInterval)

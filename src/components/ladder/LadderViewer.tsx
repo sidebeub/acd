@@ -59,6 +59,16 @@ interface RungExplanation {
   crossRefs?: CrossRef[]
   ioMappings?: IoMapping[]
   conditions?: Condition[]
+  smartContext?: {
+    purpose?: string
+    category?: string
+    patterns?: string[]
+    safetyRelevant?: boolean
+    relatedRungs?: number[]
+    inputTags?: string[]
+    outputTags?: string[]
+  }
+  smartExplanation?: string
 }
 
 interface Rung {
@@ -568,6 +578,8 @@ export function LadderViewer({
             onInstructionSelect={selectedRungIndex === index ? handleInstructionSelect : undefined}
             onTagXRef={handleTagXRef}
             routineName={routineName}
+            smartContext={rungExplanations[rung.id]?.smartContext}
+            smartExplanation={rungExplanations[rung.id]?.smartExplanation}
           />
         </div>
           )

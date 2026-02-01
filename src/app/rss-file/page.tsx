@@ -3,8 +3,9 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { Metadata } from 'next'
 import { Logo } from '@/components/ui/Logo'
+import { Typewriter } from '@/components/home/Effects'
+import { trackEvent } from '@/lib/analytics'
 
 // FAQ data for schema markup
 const faqs = [
@@ -74,6 +75,7 @@ export default function RssFilePage() {
       }
 
       const project = await response.json()
+      trackEvent('file_upload', { file_type: 'rss' })
       router.push(`/project/${project.id}`)
     } catch (err) {
       clearInterval(progressInterval)
@@ -169,30 +171,40 @@ export default function RssFilePage() {
                 paddingInline: 'var(--space-4)',
                 paddingBlock: 'var(--space-2)',
                 marginBlockEnd: 'var(--space-8)',
-                background: 'var(--accent-amber-muted)',
-                border: '1px solid var(--accent-amber)',
-                borderRadius: 'var(--radius-sm)'
+                background: 'var(--accent-muted)',
+                border: '1px solid var(--accent)',
+                borderRadius: '20px'
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2">
-                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span className="text-fluid-sm font-medium" style={{ color: 'var(--accent-amber)' }}>
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  background: 'var(--accent)',
+                  borderRadius: '50%'
+                }}
+              />
+              <span className="text-fluid-sm font-medium" style={{ color: 'var(--accent)' }}>
                 RSLogix 500 Discontinued - We Have You Covered
               </span>
             </div>
 
             <h1
-              className="text-fluid-6xl font-bold tracking-tight"
               style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 'clamp(2.5rem, 8vw, 4.5rem)',
+                fontWeight: 600,
                 color: 'var(--text-primary)',
                 marginBlockEnd: 'var(--space-6)',
-                lineHeight: '1.1'
+                lineHeight: '1.1',
+                letterSpacing: '-0.02em'
               }}
             >
               Open RSS Files
               <br />
-              <span style={{ color: 'var(--accent-amber)' }}>SLC 500 & MicroLogix Viewer</span>
+              <span style={{ color: 'var(--accent)' }}>
+                <Typewriter text="SLC 500 & MicroLogix Viewer" speed={50} delay={300} />
+              </span>
             </h1>
 
             <p
@@ -219,7 +231,7 @@ export default function RssFilePage() {
                   gap: 'var(--space-2)',
                   minHeight: 'var(--touch-target-min)',
                   borderRadius: 'var(--radius-md)',
-                  background: 'var(--accent-amber)',
+                  background: 'var(--accent)',
                   color: '#000'
                 }}
               >
@@ -280,7 +292,7 @@ export default function RssFilePage() {
               <div>
                 <span
                   className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                  style={{ color: 'var(--accent-amber)', marginBlockEnd: 'var(--space-4)' }}
+                  style={{ color: 'var(--accent)', marginBlockEnd: 'var(--space-4)' }}
                 >
                   What is an RSS File?
                 </span>
@@ -359,7 +371,7 @@ export default function RssFilePage() {
             <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
               <span
                 className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-amber)', marginBlockEnd: 'var(--space-4)' }}
+                style={{ color: 'var(--accent)', marginBlockEnd: 'var(--space-4)' }}
               >
                 Features
               </span>
@@ -417,37 +429,37 @@ export default function RssFilePage() {
                 },
                 {
                   icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                       <path d="M12 2a4 4 0 014 4v1a3 3 0 013 3v1h1a3 3 0 013 3v2a4 4 0 01-4 4h-1" />
                       <path d="M12 2a4 4 0 00-4 4v1a3 3 0 00-3 3v1H4a3 3 0 00-3 3v2a4 4 0 004 4h1" />
                       <circle cx="12" cy="14" r="4" />
                     </svg>
                   ),
-                  iconBg: 'var(--accent-blue-muted)',
+                  iconBg: 'var(--accent-muted)',
                   iconBorder: 'rgba(59, 130, 246, 0.3)',
                   title: 'AI-Powered Explanations',
                   desc: 'Get plain-English explanations of what each rung does. Perfect for understanding unfamiliar legacy code.'
                 },
                 {
                   icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="1.5">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                       <path d="M9 12l2 2 4-4" />
                     </svg>
                   ),
-                  iconBg: 'var(--accent-emerald-muted)',
+                  iconBg: 'var(--accent-muted)',
                   iconBorder: 'rgba(16, 185, 129, 0.3)',
                   title: 'No Software Required',
                   desc: 'Works entirely in your browser. No RSLogix 500 license, no installation, no compatibility issues.'
                 },
                 {
                   icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                       <path d="M7 11V7a5 5 0 0110 0v4" />
                     </svg>
                   ),
-                  iconBg: 'var(--accent-amber-muted)',
+                  iconBg: 'var(--accent-muted)',
                   iconBorder: 'rgba(245, 158, 11, 0.3)',
                   title: 'Secure & Private',
                   desc: 'Your RSS files are processed locally. Your proprietary PLC code never leaves your computer.'
@@ -521,8 +533,8 @@ export default function RssFilePage() {
               className={`relative transition-all duration-200 ${isUploading ? 'pointer-events-none' : ''}`}
               style={{
                 padding: 'var(--space-10)',
-                background: isDragging ? 'var(--accent-amber-muted)' : 'var(--surface-2)',
-                border: `2px dashed ${isDragging ? 'var(--accent-amber)' : 'var(--border-default)'}`,
+                background: isDragging ? 'var(--accent-muted)' : 'var(--surface-2)',
+                border: `2px dashed ${isDragging ? 'var(--accent)' : 'var(--border-default)'}`,
                 borderRadius: 'var(--radius-md)'
               }}
             >
@@ -538,7 +550,7 @@ export default function RssFilePage() {
               {isUploading ? (
                 <div className="text-center" style={{ paddingBlock: 'var(--space-4)' }}>
                   <div style={{ marginBlockEnd: 'var(--space-4)' }}>
-                    <svg className="animate-pulse-subtle" style={{ width: '48px', height: '48px', marginInline: 'auto' }} viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
+                    <svg className="animate-pulse-subtle" style={{ width: '48px', height: '48px', marginInline: 'auto' }} viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                       <path d="M12 3v12M12 3l4 4M12 3L8 7" />
                       <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
                     </svg>
@@ -563,7 +575,7 @@ export default function RssFilePage() {
                       className="transition-all duration-200"
                       style={{
                         height: '100%',
-                        background: 'var(--accent-amber)',
+                        background: 'var(--accent)',
                         width: `${uploadProgress}%`,
                         borderRadius: 'var(--radius-sm)'
                       }}
@@ -584,7 +596,7 @@ export default function RssFilePage() {
                       style={{ width: 'clamp(48px, 8vw, 56px)', height: 'clamp(48px, 8vw, 56px)', marginInline: 'auto' }}
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke={isDragging ? 'var(--accent-amber)' : 'var(--text-muted)'}
+                      stroke={isDragging ? 'var(--accent)' : 'var(--text-muted)'}
                       strokeWidth="1.5"
                     >
                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
@@ -600,10 +612,10 @@ export default function RssFilePage() {
                     className="text-fluid-sm"
                     style={{ color: 'var(--text-muted)', marginBlockEnd: 'var(--space-4)' }}
                   >
-                    or <span style={{ color: 'var(--accent-amber)' }} className="cursor-pointer font-medium">browse</span> to select
+                    or <span style={{ color: 'var(--accent)' }} className="cursor-pointer font-medium">browse</span> to select
                   </p>
                   <div className="flex items-center justify-center" style={{ gap: 'var(--space-4)' }}>
-                    <span className="tech-badge" style={{ background: 'var(--accent-amber-muted)', borderColor: 'var(--accent-amber)', color: 'var(--accent-amber)' }}>.RSS</span>
+                    <span className="tech-badge" style={{ background: 'var(--accent-muted)', borderColor: 'var(--accent)', color: 'var(--accent)' }}>.RSS</span>
                   </div>
                 </div>
               )}
@@ -635,8 +647,8 @@ export default function RssFilePage() {
             <div className="text-center" style={{ marginBlockStart: 'var(--space-8)' }}>
               <p className="text-fluid-sm" style={{ color: 'var(--text-muted)' }}>
                 Need to view other formats? We also support{' '}
-                <Link href="/l5x-file" style={{ color: 'var(--accent-blue)' }}>L5X files</Link> and{' '}
-                <Link href="/acd-file" style={{ color: 'var(--accent-blue)' }}>ACD files</Link>
+                <Link href="/l5x-file" style={{ color: 'var(--accent)' }}>L5X files</Link> and{' '}
+                <Link href="/acd-file" style={{ color: 'var(--accent)' }}>ACD files</Link>
               </p>
             </div>
           </div>
@@ -648,7 +660,7 @@ export default function RssFilePage() {
             <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
               <span
                 className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-amber)', marginBlockEnd: 'var(--space-4)' }}
+                style={{ color: 'var(--accent)', marginBlockEnd: 'var(--space-4)' }}
               >
                 FAQ
               </span>

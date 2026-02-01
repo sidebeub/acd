@@ -11,6 +11,9 @@ import {
   ExplanationMode,
   DEVICE_PATTERNS
 } from '@/lib/instruction-library'
+import { getRungContext, getAllTagUsage } from '@/lib/deterministic-analysis'
+import { generateSmartExplanation } from '@/lib/program-analyzer'
+import { getClientIp, rateLimiters, rateLimitResponse } from '@/lib/rate-limit'
 
 // Cache version - increment this to invalidate old cached explanations
 const CACHE_VERSION = 15
@@ -23,6 +26,13 @@ function hashRung(text: string): string {
 // POST - Get explanation for a rung
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit check (60 per hour)
+    const clientIp = getClientIp(request)
+    const rateLimitResult = rateLimiters.explain(clientIp)
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult)
+    }
+
     const { rungId, mode = 'friendly' } = await request.json()
 
     if (!rungId) {
@@ -70,6 +80,45 @@ export async function POST(request: NextRequest) {
 
     if (!rung) {
       return NextResponse.json({ error: 'Rung not found' }, { status: 404 })
+    }
+
+    // Get pre-computed smart context (from deterministic analysis)
+    const rungContext = await getRungContext(rungId)
+    const projectId = rung.routine.program.projectId
+    const tagUsage = rungContext ? await getAllTagUsage(projectId) : new Map()
+
+    // Debug logging for smartContext
+    console.log(`[Explain API] rungId: ${rungId}, rungContext exists: ${!!rungContext}`)
+    if (!rungContext) {
+      // Check if the rung has category data directly
+      const rungWithCategory = await prisma.rung.findUnique({
+        where: { id: rungId },
+        select: { category: true, purpose: true, safetyRelevant: true }
+      })
+      console.log(`[Explain API] Direct rung category check:`, rungWithCategory)
+    }
+
+    // Generate smart explanation if we have context
+    let smartExplanation: string | undefined
+    if (rungContext && tagUsage.size > 0) {
+      // Convert Map for the generateSmartExplanation function
+      const tagUsageMap = new Map<string, {
+        name: string
+        readers: Array<{ program: string; routine: string; rungNumber: number; instruction: string; usage: 'read' | 'write' }>
+        writers: Array<{ program: string; routine: string; rungNumber: number; instruction: string; usage: 'read' | 'write' }>
+        semanticType: string
+      }>()
+
+      for (const [name, info] of tagUsage) {
+        tagUsageMap.set(name, {
+          name: info.name,
+          readers: info.readers.map((r: { program: string; routine: string; rungNumber: number }) => ({ ...r, instruction: '', usage: 'read' as const })),
+          writers: info.writers.map((w: { program: string; routine: string; rungNumber: number }) => ({ ...w, instruction: '', usage: 'write' as const })),
+          semanticType: info.semanticType
+        })
+      }
+
+      smartExplanation = generateSmartExplanation(rungContext, tagUsageMap as never)
     }
 
     const rungHash = hashRung(rung.rawText)
@@ -121,7 +170,18 @@ export async function POST(request: NextRequest) {
         cached: true,
         troubleshooting: troubleshootingTips.length > 0 ? troubleshootingTips : undefined,
         deviceTypes: deviceTypes.length > 0 ? deviceTypes : undefined,
-        conditions: conditions.length > 0 ? conditions : undefined
+        conditions: conditions.length > 0 ? conditions : undefined,
+        // Smart context from deterministic analysis
+        smartContext: rungContext ? {
+          purpose: rungContext.purpose,
+          category: rungContext.category,
+          patterns: rungContext.patterns,
+          safetyRelevant: rungContext.safetyRelevant,
+          relatedRungs: rungContext.relatedRungs,
+          inputTags: rungContext.inputTags,
+          outputTags: rungContext.outputTags
+        } : undefined,
+        smartExplanation
       })
     }
 
@@ -416,7 +476,18 @@ export async function POST(request: NextRequest) {
       deviceTypes: deviceTypes.length > 0 ? deviceTypes : undefined,
       crossRefs: crossRefs.length > 0 ? crossRefs : undefined,
       ioMappings: ioMappings.length > 0 ? ioMappings : undefined,
-      conditions: conditions.length > 0 ? conditions : undefined
+      conditions: conditions.length > 0 ? conditions : undefined,
+      // Smart context from deterministic analysis
+      smartContext: rungContext ? {
+        purpose: rungContext.purpose,
+        category: rungContext.category,
+        patterns: rungContext.patterns,
+        safetyRelevant: rungContext.safetyRelevant,
+        relatedRungs: rungContext.relatedRungs,
+        inputTags: rungContext.inputTags,
+        outputTags: rungContext.outputTags
+      } : undefined,
+      smartExplanation
     })
 
   } catch (error) {

@@ -78,6 +78,11 @@ model Project {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  // Deterministic pre-analysis (runs on upload, no AI)
+  tagUsageJson    String?   // JSON: Map of tag -> usage info (readers/writers)
+  patternsJson    String?   // JSON: Detected patterns across the program
+  summaryJson     String?   // JSON: Program summary statistics
+
   // Relations
   tags            Tag[]
   programs        Program[]
@@ -173,6 +178,15 @@ model Rung {
 
   // Analysis results
   explanation     String?   // Human-readable explanation from Claude
+
+  // Deterministic pre-analysis (computed on upload)
+  purpose         String?   // Inferred purpose of this rung
+  category        String?   // Category: safety, motor_control, timer_logic, etc.
+  patternsJson    String?   // JSON: Detected patterns in this rung
+  inputTagsJson   String?   // JSON: Tags read by this rung
+  outputTagsJson  String?   // JSON: Tags written by this rung
+  relatedRungs    String?   // JSON: Array of related rung numbers
+  safetyRelevant  Boolean   @default(false)
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

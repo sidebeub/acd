@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     description: 'View Studio 5000 ACD files without expensive software licenses. Browse ladder logic, tags, and program structure for ControlLogix and CompactLogix.',
     type: 'website',
   },
+  alternates: {
+    canonical: '/acd-file',
+  },
 }
 
 export default function AcdFileLayout({

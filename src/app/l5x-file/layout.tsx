@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     description: 'View Studio 5000 L5X exports without expensive software. Browse ladder logic, tags, and program structure for ControlLogix and CompactLogix controllers.',
     type: 'website',
   },
+  alternates: {
+    canonical: '/l5x-file',
+  },
 }
 
 export default function L5xFileLayout({

@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     type: 'website',
   },
   alternates: {
-    canonical: 'https://www.plc.company/ladder-logic-viewer',
+    canonical: '/ladder-logic-viewer',
   },
 }
 

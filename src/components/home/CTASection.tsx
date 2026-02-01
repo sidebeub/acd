@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { trackEvent } from '@/lib/analytics'
 
 const ALLOWED_EMAIL = 'zack.4290@gmail.com'
 
@@ -56,6 +57,7 @@ export function CTASection() {
       }
 
       const project = await response.json()
+      trackEvent('file_upload')
       router.push(`/project/${project.id}`)
     } catch (err) {
       clearInterval(progressInterval)
@@ -125,7 +127,7 @@ export function CTASection() {
           {/* Header */}
           <div style={{ textAlign: 'center', marginBlockEnd: 'var(--space-10)' }}>
             <h2 style={{
-              fontFamily: 'var(--font-display)',
+              fontFamily: 'var(--font-body)',
               fontSize: 'clamp(2rem, 5vw, 3rem)',
               fontWeight: 600,
               color: 'var(--text-primary)',
@@ -182,7 +184,7 @@ export function CTASection() {
                   animation: 'spin 1s linear infinite'
                 }} />
                 <p style={{
-                  fontFamily: 'var(--font-display)',
+                  fontFamily: 'var(--font-body)',
                   fontSize: '1.25rem',
                   fontWeight: 600,
                   color: 'var(--text-primary)',
@@ -236,7 +238,7 @@ export function CTASection() {
                 </div>
 
                 <p style={{
-                  fontFamily: 'var(--font-display)',
+                  fontFamily: 'var(--font-body)',
                   fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
                   fontWeight: 600,
                   color: 'var(--text-primary)',
@@ -300,7 +302,7 @@ export function CTASection() {
       <div style={{ maxWidth: '600px', marginInline: 'auto', paddingInline: 'var(--space-6)', textAlign: 'center' }}>
         {/* Big headline */}
         <h2 style={{
-          fontFamily: 'var(--font-display)',
+          fontFamily: 'var(--font-body)',
           fontSize: 'clamp(2.5rem, 6vw, 4rem)',
           fontWeight: 600,
           color: 'var(--text-primary)',
@@ -342,7 +344,7 @@ export function CTASection() {
               </svg>
             </div>
             <p style={{
-              fontFamily: 'var(--font-display)',
+              fontFamily: 'var(--font-body)',
               fontSize: '1.5rem',
               fontWeight: 600,
               color: 'var(--text-primary)',

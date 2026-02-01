@@ -4,6 +4,8 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
+import { Typewriter } from '@/components/home/Effects'
+import { trackEvent } from '@/lib/analytics'
 
 // FAQ data for schema markup
 const faqs = [
@@ -73,6 +75,7 @@ export default function AcdFilePage() {
       }
 
       const project = await response.json()
+      trackEvent('file_upload', { file_type: 'acd' })
       router.push(`/project/${project.id}`)
     } catch (err) {
       clearInterval(progressInterval)
@@ -168,31 +171,40 @@ export default function AcdFilePage() {
                 paddingInline: 'var(--space-4)',
                 paddingBlock: 'var(--space-2)',
                 marginBlockEnd: 'var(--space-8)',
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)'
+                background: 'var(--accent-muted)',
+                border: '1px solid var(--accent)',
+                borderRadius: '20px'
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2">
-                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                <path d="M22 4L12 14.01l-3-3" />
-              </svg>
-              <span className="text-fluid-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  background: 'var(--accent)',
+                  borderRadius: '50%'
+                }}
+              />
+              <span className="text-fluid-sm font-medium" style={{ color: 'var(--accent)' }}>
                 Studio 5000 Alternative
               </span>
             </div>
 
             <h1
-              className="text-fluid-6xl font-bold tracking-tight"
               style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 'clamp(2.5rem, 8vw, 4.5rem)',
+                fontWeight: 600,
                 color: 'var(--text-primary)',
                 marginBlockEnd: 'var(--space-6)',
-                lineHeight: '1.1'
+                lineHeight: '1.1',
+                letterSpacing: '-0.02em'
               }}
             >
               Open ACD Files
               <br />
-              <span style={{ color: 'var(--accent-blue)' }}>Allen-Bradley Program Viewer</span>
+              <span style={{ color: 'var(--accent)' }}>
+                <Typewriter text="Allen-Bradley Program Viewer" speed={50} delay={300} />
+              </span>
             </h1>
 
             <p
@@ -256,21 +268,21 @@ export default function AcdFilePage() {
               style={{ gap: 'var(--space-8)' }}
             >
               <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   <path d="M9 12l2 2 4-4" />
                 </svg>
                 <span className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>Files processed locally</span>
               </div>
               <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0110 0v4" />
                 </svg>
                 <span className="text-fluid-sm" style={{ color: 'var(--text-secondary)' }}>No cloud storage</span>
               </div>
               <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 6v6l4 2" />
                 </svg>
@@ -293,7 +305,7 @@ export default function AcdFilePage() {
               <div>
                 <span
                   className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                  style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+                  style={{ color: 'var(--accent)', marginBlockEnd: 'var(--space-4)' }}
                 >
                   What is an ACD File?
                 </span>
@@ -373,7 +385,7 @@ export default function AcdFilePage() {
             <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
               <span
                 className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+                style={{ color: 'var(--accent)', marginBlockEnd: 'var(--space-4)' }}
               >
                 Features
               </span>
@@ -432,13 +444,13 @@ export default function AcdFilePage() {
                 },
                 {
                   icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                       <path d="M12 2a4 4 0 014 4v1a3 3 0 013 3v1h1a3 3 0 013 3v2a4 4 0 01-4 4h-1" />
                       <path d="M12 2a4 4 0 00-4 4v1a3 3 0 00-3 3v1H4a3 3 0 00-3 3v2a4 4 0 004 4h1" />
                       <circle cx="12" cy="14" r="4" />
                     </svg>
                   ),
-                  iconBg: 'var(--accent-blue-muted)',
+                  iconBg: 'var(--accent-muted)',
                   iconBorder: 'rgba(59, 130, 246, 0.3)',
                   title: 'AI-Powered Explanations',
                   desc: 'Get plain-English explanations of what each rung does. Perfect for understanding unfamiliar code.'
@@ -459,24 +471,24 @@ export default function AcdFilePage() {
                 },
                 {
                   icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" strokeWidth="1.5">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                       <path d="M9 12l2 2 4-4" />
                     </svg>
                   ),
-                  iconBg: 'var(--accent-emerald-muted)',
+                  iconBg: 'var(--accent-muted)',
                   iconBorder: 'rgba(16, 185, 129, 0.3)',
                   title: 'Secure & Private',
                   desc: 'Your ACD file is processed in your browser. Your proprietary code never leaves your computer.'
                 },
                 {
                   icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                       <circle cx="12" cy="12" r="10" />
                       <path d="M12 6v6l4 2" />
                     </svg>
                   ),
-                  iconBg: 'var(--accent-amber-muted)',
+                  iconBg: 'var(--accent-muted)',
                   iconBorder: 'rgba(245, 158, 11, 0.3)',
                   title: 'Instant Results',
                   desc: 'Upload and view your ACD file in seconds. No waiting for slow software to initialize.'
@@ -521,7 +533,7 @@ export default function AcdFilePage() {
             <div className="text-center" style={{ marginBlockEnd: 'var(--space-12)' }}>
               <span
                 className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+                style={{ color: 'var(--accent)', marginBlockEnd: 'var(--space-4)' }}
               >
                 Compatibility
               </span>
@@ -612,8 +624,8 @@ export default function AcdFilePage() {
               className={`relative transition-all duration-200 ${isUploading ? 'pointer-events-none' : ''}`}
               style={{
                 padding: 'var(--space-10)',
-                background: isDragging ? 'var(--accent-blue-muted)' : 'var(--surface-2)',
-                border: `2px dashed ${isDragging ? 'var(--accent-blue)' : 'var(--border-default)'}`,
+                background: isDragging ? 'var(--accent-muted)' : 'var(--surface-2)',
+                border: `2px dashed ${isDragging ? 'var(--accent)' : 'var(--border-default)'}`,
                 borderRadius: 'var(--radius-md)'
               }}
             >
@@ -629,7 +641,7 @@ export default function AcdFilePage() {
               {isUploading ? (
                 <div className="text-center" style={{ paddingBlock: 'var(--space-4)' }}>
                   <div style={{ marginBlockEnd: 'var(--space-4)' }}>
-                    <svg className="animate-pulse-subtle" style={{ width: '48px', height: '48px', marginInline: 'auto' }} viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5">
+                    <svg className="animate-pulse-subtle" style={{ width: '48px', height: '48px', marginInline: 'auto' }} viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
                       <path d="M12 3v12M12 3l4 4M12 3L8 7" />
                       <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4" />
                     </svg>
@@ -654,7 +666,7 @@ export default function AcdFilePage() {
                       className="transition-all duration-200"
                       style={{
                         height: '100%',
-                        background: 'var(--accent-blue)',
+                        background: 'var(--accent)',
                         width: `${uploadProgress}%`,
                         borderRadius: 'var(--radius-sm)'
                       }}
@@ -675,7 +687,7 @@ export default function AcdFilePage() {
                       style={{ width: 'clamp(48px, 8vw, 56px)', height: 'clamp(48px, 8vw, 56px)', marginInline: 'auto' }}
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke={isDragging ? 'var(--accent-blue)' : 'var(--text-muted)'}
+                      stroke={isDragging ? 'var(--accent)' : 'var(--text-muted)'}
                       strokeWidth="1.5"
                     >
                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
@@ -691,7 +703,7 @@ export default function AcdFilePage() {
                     className="text-fluid-sm"
                     style={{ color: 'var(--text-muted)', marginBlockEnd: 'var(--space-4)' }}
                   >
-                    or <span style={{ color: 'var(--accent-blue)' }} className="cursor-pointer font-medium">browse</span> to select
+                    or <span style={{ color: 'var(--accent)' }} className="cursor-pointer font-medium">browse</span> to select
                   </p>
                   <div className="flex items-center justify-center" style={{ gap: 'var(--space-4)' }}>
                     <span className="tech-badge">.ACD</span>
@@ -726,8 +738,8 @@ export default function AcdFilePage() {
             <div className="text-center" style={{ marginBlockStart: 'var(--space-8)' }}>
               <p className="text-fluid-sm" style={{ color: 'var(--text-muted)' }}>
                 Have an export instead? We also support{' '}
-                <Link href="/l5x-file" style={{ color: 'var(--accent-blue)' }}>L5X files</Link>. For legacy PLCs, try{' '}
-                <Link href="/rss-file" style={{ color: 'var(--accent-blue)' }}>RSS files</Link>
+                <Link href="/l5x-file" style={{ color: 'var(--accent)' }}>L5X files</Link>. For legacy PLCs, try{' '}
+                <Link href="/rss-file" style={{ color: 'var(--accent)' }}>RSS files</Link>
               </p>
             </div>
           </div>
@@ -739,7 +751,7 @@ export default function AcdFilePage() {
             <div className="text-center" style={{ marginBlockEnd: 'var(--space-16)' }}>
               <span
                 className="text-fluid-sm font-semibold uppercase tracking-wider block"
-                style={{ color: 'var(--accent-blue)', marginBlockEnd: 'var(--space-4)' }}
+                style={{ color: 'var(--accent)', marginBlockEnd: 'var(--space-4)' }}
               >
                 FAQ
               </span>

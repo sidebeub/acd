@@ -6,7 +6,8 @@ import { Logo } from '@/components/ui/Logo'
 import {
   ScrollProgress,
   GrainOverlay,
-  AnimatedCounter
+  AnimatedCounter,
+  Typewriter
 } from '@/components/home/Effects'
 
 export default function Home() {
@@ -36,6 +37,15 @@ export default function Home() {
         <div className="container-default flex items-center justify-between" style={{ height: 'clamp(56px, 8vw, 64px)' }}>
           <a href="/" className="flex items-center" style={{ color: 'white', textDecoration: 'none' }}>
             <Logo size="sm" />
+          </a>
+
+          {/* Mobile: My Projects link */}
+          <a
+            href="/dashboard"
+            className="show-mobile-only text-xs font-medium px-3 py-2 rounded transition-colors"
+            style={{ color: 'var(--text-tertiary)', background: 'var(--surface-2)' }}
+          >
+            My Projects
           </a>
 
           <nav className="hide-mobile flex items-center" style={{ gap: 'var(--space-8)' }}>
@@ -113,13 +123,13 @@ export default function Home() {
           >
             <h1
               style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(3rem, 10vw, 6rem)',
-                fontWeight: 600,
+                fontFamily: "'Swiss 721 Black Extended', Arial Black, sans-serif",
+                fontSize: 'clamp(2rem, 6vw, 4rem)',
+                fontWeight: 900,
                 color: '#ffffff',
                 marginBlockEnd: 'var(--space-4)',
-                lineHeight: '1.1',
-                letterSpacing: '-0.02em',
+                lineHeight: '1.15',
+                letterSpacing: '0.02em',
                 textShadow: '0 4px 30px rgba(0,0,0,0.5)'
               }}
             >
@@ -138,8 +148,11 @@ export default function Home() {
                 lineHeight: 1.6
               }}
             >
-              View Allen-Bradley PLC programs without Studio 5000.
-              Upload your L5X, ACD, or RSS files. Get AI-powered explanations in seconds.
+              <Typewriter
+                text="View Allen-Bradley PLC programs without Studio 5000. Upload your L5X, ACD, or RSS files. Get AI-powered explanations in seconds."
+                speed={25}
+                delay={1000}
+              />
             </p>
 
             <div className="flex flex-wrap justify-center" style={{ gap: 'var(--space-4)' }}>
@@ -232,9 +245,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+            <div className="grid-cols-3-responsive" style={{
               gap: '1px',
               background: 'var(--border-subtle)'
             }}>
@@ -309,15 +320,11 @@ export default function Home() {
         {/* ==================== FEATURES - Editorial Grid ==================== */}
         <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(80px, 15vh, 150px)' }}>
           <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(12, 1fr)',
-              gap: 'var(--space-6)'
-            }}>
+            <div className="grid-features-12">
               {/* Left column - Big number + title */}
-              <div style={{ gridColumn: 'span 5' }}>
+              <div>
                 <span style={{
-                  fontFamily: 'var(--font-display)',
+                  fontFamily: 'var(--font-body)',
                   fontSize: 'clamp(6rem, 15vw, 12rem)',
                   fontWeight: 700,
                   color: 'var(--surface-4)',
@@ -345,7 +352,7 @@ export default function Home() {
               </div>
 
               {/* Right column - Feature list */}
-              <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--border-subtle)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--border-subtle)' }}>
                 {[
                   { title: 'AI Explanations', desc: 'Click any rung. Get instant understanding. Choose friendly, technical, or operator mode.' },
                   { title: 'Tag Browser', desc: 'Search thousands of tags instantly. Filter by type, scope, or usage.' },
@@ -354,13 +361,10 @@ export default function Home() {
                 ].map((feature, idx) => (
                   <div
                     key={idx}
+                    className="grid-feature-item"
                     style={{
                       background: 'var(--surface-0)',
-                      padding: 'var(--space-6)',
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 2fr',
-                      gap: 'var(--space-6)',
-                      alignItems: 'baseline'
+                      padding: 'var(--space-6)'
                     }}
                   >
                     <h4 style={{
@@ -387,9 +391,7 @@ export default function Home() {
           paddingBlock: 'clamp(60px, 10vh, 100px)'
         }}>
           <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+            <div className="grid-cols-3-responsive" style={{
               gap: '1px',
               background: 'var(--border-subtle)'
             }}>
@@ -414,7 +416,7 @@ export default function Home() {
                     {step.num}
                   </span>
                   <h3 style={{
-                    fontFamily: 'var(--font-display)',
+                    fontFamily: 'var(--font-body)',
                     fontSize: 'clamp(1.5rem, 3vw, 2rem)',
                     fontWeight: 600,
                     color: 'var(--text-primary)',
@@ -500,9 +502,7 @@ export default function Home() {
               </h2>
             </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+            <div className="grid-cols-2-responsive" style={{
               gap: '1px',
               background: 'var(--border-subtle)'
             }}>
@@ -613,9 +613,7 @@ export default function Home() {
         {/* ==================== STATS SECTION ==================== */}
         <section style={{ background: 'var(--surface-0)', paddingBlock: 'clamp(60px, 10vh, 100px)' }}>
           <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
+            <div className="grid-cols-4-responsive" style={{
               gap: '1px',
               background: 'var(--border-subtle)'
             }}>
@@ -634,7 +632,7 @@ export default function Home() {
                   }}
                 >
                   <span style={{
-                    fontFamily: 'var(--font-display)',
+                    fontFamily: 'var(--font-body)',
                     fontSize: 'clamp(2.5rem, 6vw, 4rem)',
                     fontWeight: 600,
                     color: 'var(--text-primary)',
@@ -686,9 +684,7 @@ export default function Home() {
               </h2>
             </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+            <div className="grid-cols-2-responsive" style={{
               gap: 'var(--space-6)'
             }}>
               {[
@@ -743,7 +739,7 @@ export default function Home() {
                   }}
                 >
                   <h3 style={{
-                    fontFamily: 'var(--font-display)',
+                    fontFamily: 'var(--font-body)',
                     fontSize: '1.25rem',
                     fontWeight: 600,
                     color: 'var(--text-primary)',
@@ -806,11 +802,7 @@ export default function Home() {
           paddingBlock: 'clamp(80px, 15vh, 150px)'
         }}>
           <div style={{ maxWidth: '1400px', marginInline: 'auto', paddingInline: 'var(--space-6)' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 2fr',
-              gap: 'var(--space-12)'
-            }}>
+            <div className="grid-faq">
               <div>
                 <p style={{
                   fontSize: '11px',
@@ -1022,7 +1014,16 @@ export default function Home() {
                   <a href="/ladder-logic-viewer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Ladder Logic Viewer</a>
                   <a href="/view-l5x-without-studio-5000" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>View L5X Without Studio 5000</a>
                   <a href="/studio-5000-alternative" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Studio 5000 Alternative</a>
-                  <a href="/free-allen-bradley-plc-viewer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Allen-Bradley Viewer</a>
+                  <a href="/allen-bradley-plc-viewer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Allen-Bradley Viewer</a>
+                </div>
+              </div>
+
+              {/* Legal */}
+              <div>
+                <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBlockEnd: 'var(--space-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Legal</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <a href="/terms" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Terms of Service</a>
+                  <a href="/privacy" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>Privacy Policy</a>
                 </div>
               </div>
             </div>

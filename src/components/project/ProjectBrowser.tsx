@@ -10,6 +10,7 @@ import { MiniMap } from '../ladder/MiniMap'
 import { IOVisualization } from '../IOVisualization'
 import { buildTagExportData, generateTagCSV, downloadCSV, generateCSVFilename } from '@/lib/csv-export'
 import { PDFExportModal } from '../export/PDFExportModal'
+import { trackEvent } from '@/lib/analytics'
 import { ProgramDiff } from '../diff/ProgramDiff'
 import { useSimulation } from '../ladder/SimulationContext'
 import { Logo } from '../ui/Logo'
@@ -67,6 +68,16 @@ interface ExplanationResponse {
   crossRefs?: CrossRef[]
   ioMappings?: IoMapping[]
   conditions?: Condition[]
+  smartContext?: {
+    purpose?: string
+    category?: string
+    patterns?: string[]
+    safetyRelevant?: boolean
+    relatedRungs?: number[]
+    inputTags?: string[]
+    outputTags?: string[]
+  }
+  smartExplanation?: string
 }
 
 interface RungExplanation {
@@ -77,6 +88,16 @@ interface RungExplanation {
   crossRefs?: CrossRef[]
   ioMappings?: IoMapping[]
   conditions?: Condition[]
+  smartContext?: {
+    purpose?: string
+    category?: string
+    patterns?: string[]
+    safetyRelevant?: boolean
+    relatedRungs?: number[]
+    inputTags?: string[]
+    outputTags?: string[]
+  }
+  smartExplanation?: string
 }
 
 interface Routine {
@@ -868,9 +889,14 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
           deviceTypes: data.deviceTypes,
           crossRefs: data.crossRefs,
           ioMappings: data.ioMappings,
-          conditions: data.conditions
+          conditions: data.conditions,
+          smartContext: data.smartContext,
+          smartExplanation: data.smartExplanation
         }
       }))
+
+      // Track explain rung event for analytics
+      trackEvent('explain_rung')
     } catch (error) {
       console.error('Error explaining rung:', error)
     }
@@ -906,7 +932,9 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
             deviceTypes: data.deviceTypes,
             crossRefs: data.crossRefs,
             ioMappings: data.ioMappings,
-            conditions: data.conditions
+            conditions: data.conditions,
+            smartContext: data.smartContext,
+            smartExplanation: data.smartExplanation
           }
         }
       } catch (error) {
@@ -1068,6 +1096,15 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
             style={{ color: 'white', textDecoration: 'none' }}
           >
             <Logo size="sm" />
+          </a>
+
+          {/* My Projects link */}
+          <a
+            href="/dashboard"
+            className="text-xs font-medium px-2 py-1 rounded transition-colors hover:bg-white/10"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            My Projects
           </a>
 
           {/* Divider - hidden on small screens */}
@@ -1310,7 +1347,10 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
 
           {/* Print / Export PDF button - hidden on smallest screens */}
           <button
-            onClick={() => setPdfExportModalOpen(true)}
+            onClick={() => {
+              setPdfExportModalOpen(true)
+              trackEvent('export_pdf')
+            }}
             className="hidden sm:flex items-center justify-center font-medium transition-colors no-print"
             style={{
               background: 'var(--surface-3)',

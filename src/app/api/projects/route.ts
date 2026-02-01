@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { analyzeProject } from '@/lib/project-analysis'
+import { runDeterministicAnalysis } from '@/lib/deterministic-analysis'
 import { requireAuth } from '@/lib/auth'
 import { parseRSS } from '@/lib/rss-parser'
 import { uploadFile } from '@/lib/s3'
+import { getClientIp, rateLimiters, rateLimitResponse } from '@/lib/rate-limit'
 
 // Parser API URL - set in environment
 const PARSER_API_URL = process.env.PARSER_API_URL || 'http://localhost:8000'
@@ -64,6 +66,13 @@ export async function GET() {
 // POST - Upload and parse a new project
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit check (10 per hour)
+    const clientIp = getClientIp(request)
+    const rateLimitResult = rateLimiters.fileUpload(clientIp)
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult)
+    }
+
     // Require authentication
     const user = await requireAuth()
 
@@ -869,11 +878,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Start project analysis in background (for cost-optimized chat)
+    // Run DETERMINISTIC analysis first (instant, no AI, updates rungs with context)
+    console.log(`[Analysis] Running deterministic pre-analysis for project ${dbProject.id}`)
+    try {
+      await runDeterministicAnalysis(dbProject.id, project)
+      console.log(`[Analysis] Deterministic analysis complete for project ${dbProject.id}`)
+    } catch (analysisErr) {
+      console.error('[Analysis] Deterministic analysis failed (non-fatal):', analysisErr)
+    }
+
+    // Start AI-powered project analysis in background (for cost-optimized chat)
     // This runs asynchronously - we don't wait for it
-    console.log(`[Analysis] Starting background analysis for project ${dbProject.id}`)
+    console.log(`[Analysis] Starting background AI analysis for project ${dbProject.id}`)
     analyzeProject(dbProject.id).catch(err => {
-      console.error('[Analysis] Background analysis failed:', err)
+      console.error('[Analysis] Background AI analysis failed:', err)
     })
 
     return NextResponse.json({

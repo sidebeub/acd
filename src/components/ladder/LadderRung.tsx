@@ -82,6 +82,16 @@ interface LadderRungProps {
   // Cross-reference navigation props
   onTagXRef?: (tagName: string) => void  // Callback when a tag is clicked for cross-reference
   routineName?: string  // Current routine name for cross-reference display
+  smartContext?: {
+    purpose?: string
+    category?: string
+    patterns?: string[]
+    safetyRelevant?: boolean
+    relatedRungs?: number[]
+    inputTags?: string[]
+    outputTags?: string[]
+  }
+  smartExplanation?: string
 }
 
 // Helper to check if an operand matches the search term (partial, case-insensitive)
@@ -2301,7 +2311,9 @@ export function LadderRung({
   currentSearchMatchIndex,
   searchMatchStartIndex,
   onTagXRef,
-  routineName
+  routineName,
+  smartContext,
+  smartExplanation
 }: LadderRungProps) {
   const [isExplaining, setIsExplaining] = useState(false)
   const [showRaw, setShowRaw] = useState(false)
@@ -2708,6 +2720,39 @@ export function LadderRung({
           >
             {rawText}
           </pre>
+        </div>
+      )}
+
+      {/* Smart Context */}
+      {smartContext && (
+        <div className="px-fluid-4 py-3 border-t" style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-1)' }}>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {smartContext.category && (
+              <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--accent-blue-muted)', color: 'var(--accent-blue)' }}>
+                {smartContext.category.replace(/_/g, ' ')}
+              </span>
+            )}
+            {smartContext.safetyRelevant && (
+              <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--accent-red-muted)', color: 'var(--accent-red)' }}>
+                ⚠️ Safety Critical
+              </span>
+            )}
+            {smartContext.patterns?.map(p => (
+              <span key={p} className="text-xs px-2 py-1 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-secondary)' }}>
+                {p.replace(/_/g, ' ')}
+              </span>
+            ))}
+          </div>
+          {smartContext.purpose && (
+            <p className="text-sm mb-2" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+              {smartContext.purpose}
+            </p>
+          )}
+          {smartExplanation && (
+            <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              {smartExplanation}
+            </p>
+          )}
         </div>
       )}
 

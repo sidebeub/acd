@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     type: 'website',
   },
   alternates: {
-    canonical: 'https://www.plc.company/free-allen-bradley-plc-viewer',
+    canonical: '/allen-bradley-plc-viewer',
   },
 }
 

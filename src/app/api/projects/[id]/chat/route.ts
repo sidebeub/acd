@@ -7,6 +7,7 @@ import {
   type ProjectContext,
   type AnalyzedProjectContext
 } from '@/lib/claude'
+import { getClientIp, rateLimiters, rateLimitResponse } from '@/lib/rate-limit'
 
 // Helper to verify project ownership
 async function verifyProjectOwnership(projectId: string, userId: string) {
@@ -68,6 +69,13 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Rate limit check (15 per day)
+    const clientIp = getClientIp(request)
+    const rateLimitResult = rateLimiters.chat(clientIp)
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult)
+    }
+
     const user = await requireAuth()
     const { id: projectId } = await params
     const body = await request.json()

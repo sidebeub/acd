@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
+import { trackEvent } from '@/lib/analytics'
 
 // FAQ data for schema markup - SEO optimized questions
 const faqs = [
@@ -65,6 +66,7 @@ export default function FreeAllenBradleyViewerPage() {
       }
 
       const project = await response.json()
+      trackEvent('file_upload')
       router.push(`/project/${project.id}`)
     } catch (err) {
       clearInterval(progressInterval)
