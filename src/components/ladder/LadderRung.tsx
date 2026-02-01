@@ -2782,24 +2782,36 @@ export function LadderRung({
 
           {/* Full Smart Explanation (with proper formatting) */}
           {smartExplanation && (
-            <div className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <div className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
               {smartExplanation.split('\n').map((line, i) => {
+                // Skip empty lines
+                if (!line.trim()) return null
+
                 // Skip lines that duplicate what we already showed above
                 if (line.startsWith('**Purpose:**') || line.startsWith('**Subsystems:**')) return null
-                if (line.startsWith('**Code Concerns:**') || (smartContext.concerns && smartContext.concerns.some(c => line.includes(c)))) return null
+                if (line.startsWith('**Code Concerns:**')) return null
+                if (smartContext?.concerns && smartContext.concerns.some(c => line.includes(c))) return null
 
-                // Handle section headers
-                if (line.startsWith('**') && line.endsWith('**')) {
-                  return <p key={i} className="font-medium mt-3 mb-1" style={{ color: 'var(--text-primary)' }}>{line.replace(/\*\*/g, '')}</p>
+                // Handle section headers like **Header:** or **Header**
+                const headerMatch = line.match(/^\*\*([^*]+)\*\*(.*)$/)
+                if (headerMatch) {
+                  const headerText = headerMatch[1].replace(/:$/, '') // Remove trailing colon
+                  const restOfLine = headerMatch[2].trim()
+                  return (
+                    <div key={i} className="mt-3">
+                      <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{headerText}</span>
+                      {restOfLine && <span className="ml-1">{restOfLine}</span>}
+                    </div>
+                  )
                 }
+
                 // Handle bullet points
                 if (line.startsWith('- ')) {
-                  return <p key={i} className="ml-2 text-xs">{line}</p>
+                  return <div key={i} className="ml-3 text-xs py-0.5">{line.substring(2)}</div>
                 }
-                // Empty lines
-                if (!line.trim()) return <br key={i} />
+
                 // Regular lines
-                return <p key={i}>{line}</p>
+                return <div key={i}>{line}</div>
               })}
             </div>
           )}
