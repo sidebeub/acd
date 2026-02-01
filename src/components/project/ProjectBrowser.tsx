@@ -1723,6 +1723,8 @@ export function ProjectBrowser({ project }: ProjectBrowserProps) {
                             crossRefs={rungExplanations[rung.id]?.crossRefs}
                             ioMappings={rungExplanations[rung.id]?.ioMappings}
                             conditions={rungExplanations[rung.id]?.conditions}
+                            smartContext={rungExplanations[rung.id]?.smartContext}
+                            smartExplanation={rungExplanations[rung.id]?.smartExplanation}
                             onExplain={handleExplain}
                             tagDescriptions={tagDescriptions}
                             projectId={project.id}
