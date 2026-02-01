@@ -177,7 +177,44 @@ interface AnalysisContext {
 }
 
 const PATTERN_RULES: PatternRule[] = [
-  // Safety Interlock Pattern
+  // Gate/Guard Interlock Pattern (specific, high confidence)
+  {
+    type: 'safety_interlock',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+
+      // Specific gate interlock patterns
+      const hasGateTags = /GATE\d*OPEN|GATE\d*CLOSE|GATESOK|GATEREQUEST|GATEUNLOCK|GATESHUTDOWN/i.test(text)
+      const hasGuardTags = /GUARD.*CLOSE|GUARD.*OPEN|GUARDOK/i.test(text)
+
+      if (hasGateTags || hasGuardTags) {
+        const tags = extractTagNames(text)
+        // Find the main output
+        const outputMatch = text.match(/OTE\s*\(\s*([^)]+)\)|OTL\s*\(\s*([^)]+)\)/i)
+        const mainOutput = outputMatch ? (outputMatch[1] || outputMatch[2]).trim() : ''
+
+        let description = 'Gate/guard interlock logic'
+        if (/GATESOK|GUARDOK/i.test(text)) {
+          description = 'Gate/guard status - confirms guards are in safe position'
+        } else if (/UNLOCK|OPEN/i.test(mainOutput)) {
+          description = 'Gate unlock control - allows gate to be opened'
+        } else if (/SHUTDOWN|STOP/i.test(text)) {
+          description = 'Gate shutdown sequence - safe machine stop when gate opens'
+        }
+
+        return {
+          type: 'safety_interlock',
+          confidence: 0.95,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'pattern', usage: 'read' }],
+          tags,
+          description
+        }
+      }
+      return null
+    }
+  },
+
+  // General Safety Interlock Pattern
   {
     type: 'safety_interlock',
     detect: (rung, ctx) => {
