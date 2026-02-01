@@ -1,0 +1,4 @@
+Top pages,Clicks,Impressions,CTR,Position
+https://www.plc.company/,1,1,100%,4
+http://www.plc.company/,0,1,0%,1
+https://www.plc.company/auth/login?callbackUrl=/,0,1,0%,2

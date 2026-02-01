@@ -69,6 +69,9 @@ export type PatternType =
   | 'comparison_branch'         // Multiple comparisons for ranges
   | 'handshake'                 // Command/feedback pair
   | 'fault_detection'           // Fault monitoring logic
+  | 'status_monitoring'         // Monitors multiple subsystem statuses
+  | 'zone_control'              // Controls multiple zones/areas
+  | 'code_concern'              // Potential code quality issue
 
 export interface RungContext {
   rungNumber: number
@@ -81,6 +84,8 @@ export interface RungContext {
   category: RungCategory
   inputTags: string[]           // Tags read by this rung
   outputTags: string[]          // Tags written by this rung
+  concerns?: string[]           // Code quality concerns
+  subsystems?: string[]         // Detected subsystem groups (e.g., "Infeed Conveyors", "Exit Zones")
 }
 
 export type RungCategory =
@@ -94,6 +99,8 @@ export type RungCategory =
   | 'hmi_interface'
   | 'data_move'
   | 'calculation'
+  | 'status_monitoring'         // Monitors multiple subsystem statuses
+  | 'zone_control'              // Controls multiple zones/conveyors
   | 'general_logic'
 
 export interface ProgramAnalysis {
@@ -454,7 +461,153 @@ const PATTERN_RULES: PatternRule[] = [
       return null
     }
   },
+
+  // Status Monitoring Pattern - multiple subsystems reporting status
+  {
+    type: 'status_monitoring',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      const tags = extractTagNames(text)
+
+      // Count tags ending in STOPPED, RUNNING, OK, READY, ACTIVE, STATUS
+      const statusTags = tags.filter(t =>
+        /STOPPED|RUNNING|OK|READY|ACTIVE|STATUS|COMPLETE|DONE$/i.test(t)
+      )
+
+      // Multiple status outputs suggest status monitoring
+      if (statusTags.length >= 3) {
+        // Detect subsystems being monitored
+        const subsystems = detectSubsystems(tags)
+
+        return {
+          type: 'status_monitoring',
+          confidence: 0.9,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'pattern', usage: 'read' }],
+          tags: statusTags,
+          description: `Monitors operational status of ${subsystems.length > 0 ? subsystems.join(', ') : 'multiple subsystems'} for system readiness`
+        }
+      }
+      return null
+    }
+  },
+
+  // Zone Control Pattern - controls multiple zones/conveyors
+  {
+    type: 'zone_control',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      const tags = extractTagNames(text)
+
+      // Detect zone/conveyor patterns
+      const zonePatterns = [
+        /ZONE\d+|ZONE_\d+/i,
+        /INFEED\d*|OUTFEED\d*|EXIT\d*/i,
+        /CONV\d+|CONVEYOR\d+/i,
+        /STATION\d+/i
+      ]
+
+      const zoneTags = tags.filter(t =>
+        zonePatterns.some(p => p.test(t))
+      )
+
+      if (zoneTags.length >= 2) {
+        const subsystems = detectSubsystems(zoneTags)
+        return {
+          type: 'zone_control',
+          confidence: 0.85,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'pattern', usage: 'read' }],
+          tags: zoneTags,
+          description: `Controls ${subsystems.length > 0 ? subsystems.join(', ') : 'multiple zones/conveyors'}`
+        }
+      }
+      return null
+    }
+  },
+
+  // Code Concern Pattern - detects potentially problematic code
+  {
+    type: 'code_concern',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      const concerns: string[] = []
+
+      // Check for math instructions (MUL, DIV) used with boolean-looking tags
+      const mathMatch = text.match(/MUL\s*\(([^)]+)\)|DIV\s*\(([^)]+)\)/gi)
+      if (mathMatch) {
+        for (const match of mathMatch) {
+          const operands = match.match(/\(([^)]+)\)/)?.[1]?.split(',') || []
+          const booleanOperands = operands.filter(op =>
+            /STOPPED|RUNNING|OK|READY|ACTIVE|ENABLE|DISABLE|ON|OFF|TRUE|FALSE/i.test(op.trim())
+          )
+          if (booleanOperands.length >= 2) {
+            concerns.push('Math instructions (MUL/DIV) used with boolean-type tags - may cause unpredictable behavior')
+          }
+        }
+      }
+
+      // Check for EQU used as a contact (comparing booleans)
+      const equMatch = text.match(/EQU\s*\(([^)]+)\)/gi)
+      if (equMatch) {
+        for (const match of equMatch) {
+          const operands = match.match(/\(([^)]+)\)/)?.[1]?.split(',') || []
+          const booleanOperands = operands.filter(op =>
+            /STOPPED|RUNNING|OK|READY|ACTIVE/i.test(op.trim())
+          )
+          if (booleanOperands.length >= 1) {
+            concerns.push('EQU instruction used with boolean-type tags - consider using XIC/XIO contacts instead')
+          }
+        }
+      }
+
+      if (concerns.length > 0) {
+        return {
+          type: 'code_concern',
+          confidence: 0.8,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'pattern', usage: 'read' }],
+          tags: [],
+          description: concerns[0] // Primary concern
+        }
+      }
+      return null
+    }
+  },
 ]
+
+// Detect subsystem groups from tag names
+function detectSubsystems(tags: string[]): string[] {
+  const subsystems: string[] = []
+  const found = new Set<string>()
+
+  // Subsystem patterns with friendly names
+  const patterns: [RegExp, string][] = [
+    [/INFEED\d*/i, 'Infeed Conveyors'],
+    [/OUTFEED\d*|EXIT\d*/i, 'Exit Conveyors'],
+    [/CARRIAGE/i, 'Carriage System'],
+    [/ROTATION|ROTATE/i, 'Rotation System'],
+    [/CUTTER|CUT/i, 'Cutter System'],
+    [/CLAMP/i, 'Clamp System'],
+    [/MPS/i, 'MPS System'],
+    [/STABILIZER/i, 'Stabilizer'],
+    [/HOTWIRE|HOT_WIRE/i, 'Hot Wire'],
+    [/WRAP/i, 'Wrap System'],
+    [/FILM/i, 'Film System'],
+    [/LIFT|LOAD/i, 'Load Lift'],
+    [/CONVEYOR|CONV/i, 'Conveyors'],
+    [/DISPENSE/i, 'Dispenser'],
+    [/VFD|DRIVE/i, 'VFD/Drives'],
+  ]
+
+  for (const tag of tags) {
+    for (const [pattern, name] of patterns) {
+      if (pattern.test(tag) && !found.has(name)) {
+        found.add(name)
+        subsystems.push(name)
+      }
+    }
+  }
+
+  return subsystems
+}
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -506,10 +659,21 @@ function isReadInstruction(instruction: string): boolean {
 function categorizeRung(rung: PlcRung, patterns: PatternType[], inputTags: string[], outputTags: string[]): RungCategory {
   const text = rung.rawText.toUpperCase()
 
+  // Filter out numeric constants
+  const cleanOutputs = outputTags.filter(t => !isNumericConstant(t))
+
+  // Special case: status_monitoring with many outputs takes priority
+  // This is the hallmark of a "track all zone statuses" rung
+  if (patterns.includes('status_monitoring') && cleanOutputs.length >= 5) {
+    return 'status_monitoring'
+  }
+
   // Check patterns first (in priority order)
   if (patterns.includes('safety_interlock')) return 'safety'
   if (patterns.includes('sequencer')) return 'sequence_control'
   if (patterns.includes('start_stop_circuit')) return 'motor_control'
+  if (patterns.includes('status_monitoring')) return 'status_monitoring'
+  if (patterns.includes('zone_control')) return 'zone_control'
   if (patterns.includes('timer_delay')) return 'timer_logic'
   if (patterns.includes('counter_accumulator')) return 'counter_logic'
   // fault_detection is lower priority - check tag semantics first
@@ -558,10 +722,24 @@ function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: 
   // Pattern-based inference with enrichment
   // Prioritize certain patterns over others
   if (patterns.length > 0) {
-    // Priority order for patterns
+    // Special case: if status_monitoring is present with many outputs, it takes priority
+    // This is the hallmark of a "track all zone statuses" rung
+    const statusMonitoringPattern = patterns.find(p => p.type === 'status_monitoring')
+    if (statusMonitoringPattern && cleanOutputs.length >= 5) {
+      const allTags = [...cleanInputs, ...cleanOutputs]
+      const subsystems = detectSubsystems(allTags)
+      if (subsystems.length > 0) {
+        return `Monitors operational status of ${subsystems.join(', ')} for system readiness`
+      }
+      return 'Monitors operational status of multiple subsystems for system readiness'
+    }
+
+    // Priority order for patterns (when status_monitoring doesn't dominate)
     const patternPriority: PatternType[] = [
       'safety_interlock',
       'sequencer',
+      'status_monitoring',
+      'zone_control',
       'start_stop_circuit',
       'timer_delay',
       'counter_accumulator',
@@ -569,7 +747,8 @@ function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: 
       'handshake',
       'comparison_branch',
       'latch_unlatch',
-      'fault_detection'  // lowest priority - often a secondary concern
+      'fault_detection',  // lowest priority - often a secondary concern
+      'code_concern'      // don't use for purpose, just flagging
     ]
 
     // Find highest priority pattern
@@ -580,6 +759,26 @@ function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: 
         mainPattern = found
         break
       }
+    }
+
+    // Special handling for status_monitoring - generate API-quality description
+    if (mainPattern.type === 'status_monitoring') {
+      const allTags = [...cleanInputs, ...cleanOutputs]
+      const subsystems = detectSubsystems(allTags)
+      if (subsystems.length > 0) {
+        return `Monitors operational status of ${subsystems.join(', ')} for system readiness`
+      }
+      return 'Monitors operational status of multiple subsystems for system readiness'
+    }
+
+    // Special handling for zone_control
+    if (mainPattern.type === 'zone_control') {
+      const allTags = [...cleanInputs, ...cleanOutputs]
+      const subsystems = detectSubsystems(allTags)
+      if (subsystems.length > 0) {
+        return `Controls ${subsystems.join(', ')} zone operations`
+      }
+      return 'Controls multiple zone operations'
     }
 
     let purpose = mainPattern.description
@@ -683,6 +882,24 @@ function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: 
       return hmiTag
         ? `HMI interface: ${formatTagName(hmiTag)}`
         : 'HMI/operator interface logic'
+    }
+
+    case 'status_monitoring': {
+      const allTags = [...cleanInputs, ...cleanOutputs]
+      const subsystems = detectSubsystems(allTags)
+      if (subsystems.length > 0) {
+        return `Monitors operational status of ${subsystems.join(', ')} for system readiness`
+      }
+      return 'Monitors operational status of multiple subsystems for system readiness'
+    }
+
+    case 'zone_control': {
+      const allTags = [...cleanInputs, ...cleanOutputs]
+      const subsystems = detectSubsystems(allTags)
+      if (subsystems.length > 0) {
+        return `Controls ${subsystems.join(', ')} zone operations`
+      }
+      return 'Controls multiple zone operations'
     }
 
     default: {
@@ -865,6 +1082,18 @@ export function analyzeProgram(project: PlcProject): ProgramAnalysis {
         // Infer purpose
         const purpose = inferRungPurpose(rung, rungPatterns, category, inputTags, outputTags)
 
+        // Extract concerns from code_concern patterns
+        const concerns: string[] = []
+        for (const pattern of rungPatterns) {
+          if (pattern.type === 'code_concern' && pattern.description) {
+            concerns.push(pattern.description)
+          }
+        }
+
+        // Detect subsystems from all tags in this rung
+        const allRungTagsForSubsystems = [...inputTags, ...outputTags].filter(t => !isNumericConstant(t))
+        const subsystems = detectSubsystems(allRungTagsForSubsystems)
+
         // Store rung context
         const key = `${program.name}/${routine.name}:${rung.number}`
         rungContexts.set(key, {
@@ -877,7 +1106,9 @@ export function analyzeProgram(project: PlcProject): ProgramAnalysis {
           safetyRelevant,
           category,
           inputTags,
-          outputTags
+          outputTags,
+          concerns: concerns.length > 0 ? concerns : undefined,
+          subsystems: subsystems.length > 0 ? subsystems : undefined
         })
       }
     }
@@ -1005,16 +1236,32 @@ export function generateSmartExplanation(
     lines.push(`**Purpose:** ${rungContext.purpose}`)
   }
 
+  // Subsystems involved (grouped by functional area like the API benchmark)
+  if (rungContext.subsystems && rungContext.subsystems.length > 0) {
+    lines.push('')
+    lines.push('**Subsystems:** ' + rungContext.subsystems.join(', '))
+  }
+
   // Safety warning if relevant
   if (rungContext.safetyRelevant) {
     lines.push('')
-    lines.push('⚠️ **Safety-Related Logic** - This rung affects safety functions. Changes require careful review.')
+    lines.push('**Safety-Related Logic** - This rung affects safety functions. Changes require careful review.')
   }
 
-  // Patterns detected
-  if (rungContext.patterns.length > 0) {
+  // Code concerns/anomalies (like API benchmark detecting improper MUL/DIV use)
+  if (rungContext.concerns && rungContext.concerns.length > 0) {
     lines.push('')
-    lines.push('**Patterns:** ' + rungContext.patterns.map(formatPatternName).join(', '))
+    lines.push('**Code Concerns:**')
+    for (const concern of rungContext.concerns) {
+      lines.push(`- ${concern}`)
+    }
+  }
+
+  // Patterns detected (filter out code_concern as it's shown separately)
+  const displayPatterns = rungContext.patterns.filter(p => p !== 'code_concern')
+  if (displayPatterns.length > 0) {
+    lines.push('')
+    lines.push('**Patterns:** ' + displayPatterns.map(formatPatternName).join(', '))
   }
 
   // Input conditions
@@ -1032,7 +1279,7 @@ export function generateSmartExplanation(
       }
       if (writers.length > 0) {
         const setBy = writers[0]
-        detail += ` ← set by ${setBy.routine}:${setBy.rungNumber}`
+        detail += ` <- set by ${setBy.routine}:${setBy.rungNumber}`
       }
       lines.push(detail)
     }
@@ -1053,7 +1300,7 @@ export function generateSmartExplanation(
       }
       if (readers.length > 0) {
         const usedBy = readers.slice(0, 3).map(r => `${r.routine}:${r.rungNumber}`).join(', ')
-        detail += ` → used by ${usedBy}`
+        detail += ` -> used by ${usedBy}`
       }
       lines.push(detail)
     }
@@ -1079,7 +1326,10 @@ function formatPatternName(pattern: PatternType): string {
     'one_shot': 'One-Shot',
     'comparison_branch': 'Comparison Logic',
     'handshake': 'Handshake',
-    'fault_detection': 'Fault Detection'
+    'fault_detection': 'Fault Detection',
+    'status_monitoring': 'Status Monitoring',
+    'zone_control': 'Zone Control',
+    'code_concern': 'Code Quality Concern'
   }
   return names[pattern] || pattern
 }
