@@ -358,6 +358,65 @@ const PATTERN_RULES: PatternRule[] = [
       return null
     }
   },
+
+  // Sequencer / State Machine Pattern
+  {
+    type: 'sequencer',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      // Look for state/step comparisons or step tags with transitions
+      const hasStateCompare = /EQU\s*\([^,]*(STATE|STEP|PHASE|STAGE|SEQ)/i.test(text)
+      const hasStepLogic = /(STEP|PHASE|STAGE|STATE).*\d+.*(DONE|COMPLETE|ACTIVE)/i.test(text)
+      const hasStateIncrement = /(STATE|STEP).*ADD.*1/i.test(text) || /ADD.*1.*(STATE|STEP)/i.test(text)
+
+      if (hasStateCompare || hasStepLogic || hasStateIncrement) {
+        const tags = extractTagNames(text)
+        // Try to extract the state/step number
+        const stateMatch = text.match(/(?:STATE|STEP|PHASE)[,\s]*(\d+)/i) || text.match(/EQU\s*\([^,]+,\s*(\d+)/i)
+        const stateNum = stateMatch ? stateMatch[1] : '?'
+
+        return {
+          type: 'sequencer',
+          confidence: 0.85,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'pattern', usage: 'read' }],
+          tags,
+          description: `State machine step ${stateNum} transition logic`
+        }
+      }
+      return null
+    }
+  },
+
+  // Comparison/Range Check Pattern
+  {
+    type: 'comparison_branch',
+    detect: (rung, ctx) => {
+      const text = rung.rawText.toUpperCase()
+      // Multiple comparisons or LIM instruction
+      const compCount = (text.match(/EQU|NEQ|GRT|LES|GEQ|LEQ/gi) || []).length
+      const hasLim = /LIM\s*\(/i.test(text)
+
+      if (compCount >= 2 || hasLim) {
+        const tags = extractTagNames(text)
+        let description = 'Range/threshold checking logic'
+
+        if (hasLim) {
+          description = 'Limit check - value within allowed range'
+        } else if (compCount >= 2) {
+          description = 'Multiple comparison conditions'
+        }
+
+        return {
+          type: 'comparison_branch',
+          confidence: 0.75,
+          rungRefs: [{ program: ctx.program, routine: ctx.routine, rungNumber: rung.number, instruction: 'pattern', usage: 'read' }],
+          tags,
+          description
+        }
+      }
+      return null
+    }
+  },
 ]
 
 // ============================================================================
@@ -367,7 +426,7 @@ const PATTERN_RULES: PatternRule[] = [
 function extractTagNames(text: string): string[] {
   const tags: string[] = []
   const regex = /([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*(?:\[[^\]]+\])?)/g
-  const instructionPattern = /^(XIC|XIO|OTE|OTL|OTU|TON|TOF|RTO|CTU|CTD|MOV|COP|JSR|RET|ADD|SUB|MUL|DIV|EQU|NEQ|GRT|LES|GEQ|LEQ|ONS|OSR|OSF|RES|JMP|LBL|NOP|AFI|MCR|END|Branch)$/i
+  const instructionPattern = /^(XIC|XIO|OTE|OTL|OTU|TON|TOF|RTO|CTU|CTD|MOV|COP|JSR|RET|ADD|SUB|MUL|DIV|EQU|NEQ|GRT|LES|GEQ|LEQ|ONS|OSR|OSF|RES|JMP|LBL|NOP|AFI|MCR|END|Branch|LIM|SQR|ABS|NEG|CLR|FLL|AVE|SRT|STD|CMP|CPT|SIN|COS|TAN|ASN|ACS|ATN|LN|LOG)$/i
 
   let match
   while ((match = regex.exec(text)) !== null) {
@@ -377,6 +436,12 @@ function extractTagNames(text: string): string[] {
     }
   }
   return tags
+}
+
+// Check if a string is a numeric constant (not a tag)
+function isNumericConstant(value: string): boolean {
+  // Match integers, decimals, negative numbers, scientific notation
+  return /^-?\d+\.?\d*(?:[eE][+-]?\d+)?$/.test(value)
 }
 
 function inferSemanticType(tagName: string): SemanticTagType {
@@ -404,78 +469,204 @@ function isReadInstruction(instruction: string): boolean {
 function categorizeRung(rung: PlcRung, patterns: PatternType[], inputTags: string[], outputTags: string[]): RungCategory {
   const text = rung.rawText.toUpperCase()
 
-  // Check patterns first
+  // Check patterns first (in priority order)
   if (patterns.includes('safety_interlock')) return 'safety'
+  if (patterns.includes('sequencer')) return 'sequence_control'
   if (patterns.includes('start_stop_circuit')) return 'motor_control'
   if (patterns.includes('timer_delay')) return 'timer_logic'
   if (patterns.includes('counter_accumulator')) return 'counter_logic'
-  if (patterns.includes('fault_detection')) return 'fault_handling'
+  // fault_detection is lower priority - check tag semantics first
 
-  // Check tag semantics
-  const allTags = [...inputTags, ...outputTags]
+  // Check tag semantics (filter out numeric constants)
+  const allTags = [...inputTags, ...outputTags].filter(t => !isNumericConstant(t))
+
+  // First pass: check for high-priority categories
   for (const tag of allTags) {
     const type = inferSemanticType(tag)
     if (type === 'safety') return 'safety'
+    if (type === 'sequence') return 'sequence_control'
+  }
+
+  // Second pass: other categories
+  for (const tag of allTags) {
+    const type = inferSemanticType(tag)
     if (type === 'motor') return 'motor_control'
     if (type === 'valve') return 'valve_control'
-    if (type === 'sequence') return 'sequence_control'
-    if (type === 'fault') return 'fault_handling'
     if (type === 'hmi') return 'hmi_interface'
   }
 
-  // Check instruction types
+  // Check instruction types before fault (fault is often a secondary concern)
+  if (/ADD|SUB|MUL|DIV|CPT|SQR|ABS/i.test(text)) return 'calculation'
   if (/MOV|COP|FLL/i.test(text)) return 'data_move'
-  if (/ADD|SUB|MUL|DIV|CPT/i.test(text)) return 'calculation'
+
+  // Fault handling is last resort from patterns
+  if (patterns.includes('fault_detection')) return 'fault_handling'
+
+  // Check for fault tags only if nothing else matches
+  for (const tag of allTags) {
+    const type = inferSemanticType(tag)
+    if (type === 'fault') return 'fault_handling'
+  }
 
   return 'general_logic'
 }
 
 function inferRungPurpose(rung: PlcRung, patterns: DetectedPattern[], category: RungCategory, inputTags: string[], outputTags: string[]): string {
-  // Start with pattern-based inference
+  const text = rung.rawText.toUpperCase()
+
+  // Filter out numeric constants from tags
+  const cleanInputs = inputTags.filter(t => !isNumericConstant(t))
+  const cleanOutputs = outputTags.filter(t => !isNumericConstant(t))
+
+  // Pattern-based inference with enrichment
+  // Prioritize certain patterns over others
   if (patterns.length > 0) {
-    const mainPattern = patterns[0]
-    return mainPattern.description
+    // Priority order for patterns
+    const patternPriority: PatternType[] = [
+      'safety_interlock',
+      'sequencer',
+      'start_stop_circuit',
+      'timer_delay',
+      'counter_accumulator',
+      'one_shot',
+      'handshake',
+      'comparison_branch',
+      'latch_unlatch',
+      'fault_detection'  // lowest priority - often a secondary concern
+    ]
+
+    // Find highest priority pattern
+    let mainPattern = patterns[0]
+    for (const priorityType of patternPriority) {
+      const found = patterns.find(p => p.type === priorityType)
+      if (found) {
+        mainPattern = found
+        break
+      }
+    }
+
+    let purpose = mainPattern.description
+
+    // Enrich with specific tag info if available
+    if (cleanOutputs.length > 0 && !purpose.includes(cleanOutputs[0])) {
+      purpose += ` → ${formatTagName(cleanOutputs[0])}`
+    }
+
+    return purpose
   }
 
-  // Build purpose from category and tags
-  const purposeParts: string[] = []
-
+  // Smart purpose generation based on category
   switch (category) {
-    case 'safety':
-      purposeParts.push('Safety logic:')
-      break
-    case 'motor_control':
-      purposeParts.push('Motor control:')
-      break
-    case 'valve_control':
-      purposeParts.push('Valve/actuator control:')
-      break
-    case 'timer_logic':
-      purposeParts.push('Timer logic:')
-      break
-    case 'counter_logic':
-      purposeParts.push('Counter logic:')
-      break
-    case 'sequence_control':
-      purposeParts.push('Sequence control:')
-      break
-    case 'fault_handling':
-      purposeParts.push('Fault handling:')
-      break
-    default:
-      purposeParts.push('Logic:')
-  }
+    case 'safety': {
+      const safetyOutput = cleanOutputs.find(t => inferSemanticType(t) === 'safety' || inferSemanticType(t) === 'status')
+      return safetyOutput
+        ? `Safety interlock controlling ${formatTagName(safetyOutput)}`
+        : 'Safety interlock logic'
+    }
 
-  // Add what conditions enable outputs
-  if (inputTags.length > 0 && outputTags.length > 0) {
-    const inputs = inputTags.slice(0, 3).join(', ')
-    const outputs = outputTags.slice(0, 2).join(', ')
-    purposeParts.push(`When ${inputs} conditions are met, ${outputs} is controlled`)
-  } else if (outputTags.length > 0) {
-    purposeParts.push(`Controls ${outputTags.slice(0, 2).join(', ')}`)
-  }
+    case 'motor_control': {
+      const motorTag = [...cleanOutputs, ...cleanInputs].find(t => inferSemanticType(t) === 'motor')
+      return motorTag
+        ? `Motor control for ${formatTagName(motorTag)}`
+        : 'Motor control logic'
+    }
 
-  return purposeParts.join(' ')
+    case 'valve_control': {
+      const valveTag = [...cleanOutputs, ...cleanInputs].find(t => inferSemanticType(t) === 'valve')
+      return valveTag
+        ? `Valve/actuator control for ${formatTagName(valveTag)}`
+        : 'Valve/actuator control logic'
+    }
+
+    case 'timer_logic': {
+      const timerMatch = text.match(/T(?:ON|OF|RTO)\s*\(\s*([^,)]+)/i)
+      const timerTag = timerMatch ? timerMatch[1].trim() : null
+      return timerTag
+        ? `Timer logic using ${formatTagName(timerTag)}`
+        : 'Timer-based logic'
+    }
+
+    case 'counter_logic': {
+      const counterMatch = text.match(/CT[UD]\s*\(\s*([^,)]+)/i)
+      const counterTag = counterMatch ? counterMatch[1].trim() : null
+      return counterTag
+        ? `Counter logic using ${formatTagName(counterTag)}`
+        : 'Counter-based logic'
+    }
+
+    case 'sequence_control': {
+      const stateTag = cleanInputs.find(t => /STATE|STEP|PHASE|SEQ/i.test(t))
+      const stateMatch = text.match(/EQU\s*\([^,]+,\s*(\d+)/i)
+      const stepNum = stateMatch ? stateMatch[1] : null
+
+      if (stepNum && stateTag) {
+        return `Sequence step ${stepNum}: ${formatTagName(stateTag)} transition`
+      } else if (stateTag) {
+        return `Sequence control for ${formatTagName(stateTag)}`
+      }
+      return 'Sequence/state machine logic'
+    }
+
+    case 'fault_handling': {
+      const faultTag = cleanOutputs.find(t => inferSemanticType(t) === 'fault')
+      return faultTag
+        ? `Fault handling for ${formatTagName(faultTag)}`
+        : 'Fault detection/handling logic'
+    }
+
+    case 'calculation': {
+      // Describe what's being calculated
+      if (/MUL.*0\.\d+|DIV.*\d{2,}/i.test(text)) {
+        // Scaling pattern (multiply by small number or divide by large number)
+        const destMatch = text.match(/(?:MUL|DIV|ADD|SUB)\s*\([^,]+,[^,]+,\s*([^)\s]+)/i)
+        const dest = destMatch ? destMatch[1] : cleanOutputs[0]
+        return dest
+          ? `Scaling/conversion calculation → ${formatTagName(dest)}`
+          : 'Scaling/conversion calculation'
+      }
+      if (cleanOutputs.length > 0) {
+        return `Calculate ${formatTagName(cleanOutputs[0])}`
+      }
+      return 'Mathematical calculation'
+    }
+
+    case 'data_move': {
+      if (cleanOutputs.length > 0) {
+        const hmiDest = cleanOutputs.find(t => /HMI|DISPLAY|SCREEN/i.test(t))
+        if (hmiDest) {
+          return `Update HMI display: ${formatTagName(hmiDest)}`
+        }
+        return `Data transfer to ${formatTagName(cleanOutputs[0])}`
+      }
+      return 'Data move/copy operation'
+    }
+
+    case 'hmi_interface': {
+      const hmiTag = cleanOutputs.find(t => inferSemanticType(t) === 'hmi') || cleanInputs.find(t => inferSemanticType(t) === 'hmi')
+      return hmiTag
+        ? `HMI interface: ${formatTagName(hmiTag)}`
+        : 'HMI/operator interface logic'
+    }
+
+    default: {
+      // General logic - try to make something useful
+      if (cleanOutputs.length > 0) {
+        return `Control logic for ${formatTagName(cleanOutputs[0])}`
+      }
+      if (cleanInputs.length > 0) {
+        return `Logic based on ${formatTagName(cleanInputs[0])}`
+      }
+      return 'General control logic'
+    }
+  }
+}
+
+// Format tag name for display (convert underscores to spaces, title case)
+function formatTagName(tag: string): string {
+  // Remove array indices and member access for cleaner display
+  const baseName = tag.split(/[\.\[]/)[0]
+  // Convert underscores to spaces and title case
+  return baseName.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
 // ============================================================================
@@ -555,13 +746,57 @@ export function analyzeProgram(project: PlcProject): ProgramAnalysis {
         const outputTags: string[] = []
 
         for (const instruction of rung.instructions) {
-          const isWrite = isWriteInstruction(instruction.type)
-          for (const operand of instruction.operands) {
-            if (operand) {
-              if (isWrite) {
-                if (!outputTags.includes(operand)) outputTags.push(operand)
-              } else {
-                if (!inputTags.includes(operand)) inputTags.push(operand)
+          const instType = instruction.type.toUpperCase()
+
+          // Special handling for MOV/COP - first operand is read, second is write
+          if (instType === 'MOV' || instType === 'COP' || instType === 'FLL') {
+            if (instruction.operands[0] && !isNumericConstant(instruction.operands[0])) {
+              if (!inputTags.includes(instruction.operands[0])) inputTags.push(instruction.operands[0])
+            }
+            if (instruction.operands[1] && !isNumericConstant(instruction.operands[1])) {
+              if (!outputTags.includes(instruction.operands[1])) outputTags.push(instruction.operands[1])
+            }
+          }
+          // Math instructions: first two operands are read, third is write
+          else if (['ADD', 'SUB', 'MUL', 'DIV', 'AND', 'OR', 'XOR'].includes(instType)) {
+            if (instruction.operands[0] && !isNumericConstant(instruction.operands[0])) {
+              if (!inputTags.includes(instruction.operands[0])) inputTags.push(instruction.operands[0])
+            }
+            if (instruction.operands[1] && !isNumericConstant(instruction.operands[1])) {
+              if (!inputTags.includes(instruction.operands[1])) inputTags.push(instruction.operands[1])
+            }
+            if (instruction.operands[2] && !isNumericConstant(instruction.operands[2])) {
+              if (!outputTags.includes(instruction.operands[2])) outputTags.push(instruction.operands[2])
+            }
+          }
+          // JSR - skip routine name (first param), treat rest as inputs
+          else if (instType === 'JSR') {
+            // Skip operands[0] (routine name) and operands[1] (parameter count)
+            for (let i = 2; i < instruction.operands.length; i++) {
+              const op = instruction.operands[i]
+              if (op && !isNumericConstant(op) && !inputTags.includes(op)) {
+                inputTags.push(op)
+              }
+            }
+          }
+          // Comparison instructions - all operands are read
+          else if (['EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ', 'LIM'].includes(instType)) {
+            for (const operand of instruction.operands) {
+              if (operand && !isNumericConstant(operand) && !inputTags.includes(operand)) {
+                inputTags.push(operand)
+              }
+            }
+          }
+          // Standard read/write instructions
+          else {
+            const isWrite = isWriteInstruction(instruction.type)
+            for (const operand of instruction.operands) {
+              if (operand && !isNumericConstant(operand)) {
+                if (isWrite) {
+                  if (!outputTags.includes(operand)) outputTags.push(operand)
+                } else {
+                  if (!inputTags.includes(operand)) inputTags.push(operand)
+                }
               }
             }
           }
@@ -631,8 +866,8 @@ function addTagUsage(
   instruction: string,
   usage: 'read' | 'write'
 ): void {
-  // Skip numeric literals and empty
-  if (!tagName || /^\d+$/.test(tagName)) return
+  // Skip numeric literals, empty strings, and numeric constants
+  if (!tagName || isNumericConstant(tagName)) return
 
   let info = map.get(tagName)
   if (!info) {
