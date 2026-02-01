@@ -7174,7 +7174,9 @@ function isBranchBracket(text: string, openPos: number): boolean {
 
 /**
  * Parse rung text into structured sections
- * Rockwell format: INSTR()[BRANCH1,BRANCH2,...]INSTR()
+ * Supports two formats:
+ * - L5X format: INSTR()[BRANCH1,BRANCH2,...]INSTR()
+ * - RSS format: [Branch: INSTR() | INSTR() | INSTR()...]
  */
 function parseRungStructure(rungText: string): ParsedRungStructure {
   const result: ParsedRungStructure = {
@@ -7182,6 +7184,12 @@ function parseRungStructure(rungText: string): ParsedRungStructure {
     branches: [],
     sharedSuffix: [],
     hasBranches: false
+  }
+
+  // Check for RSS pipe-separated format: [Branch: ... | ... | ...]
+  // This format uses | to separate parallel branches
+  if (rungText.includes('[Branch:') || (rungText.includes(' | ') && rungText.startsWith('['))) {
+    return parseRSSBranchFormat(rungText)
   }
 
   // Find the bracket structure for branches (skip array index brackets)
@@ -7267,6 +7275,81 @@ function parseRungStructure(rungText: string): ParsedRungStructure {
 
   // Parse instructions in each branch
   result.branches = branchTexts.map(bt => extractInstructions(bt))
+
+  return result
+}
+
+/**
+ * Parse RSS pipe-separated branch format
+ * Format: [Branch: INSTR() INSTR() | INSTR() | INSTR() ...] or just text with | separators
+ */
+function parseRSSBranchFormat(rungText: string): ParsedRungStructure {
+  const result: ParsedRungStructure = {
+    sharedPrefix: [],
+    branches: [],
+    sharedSuffix: [],
+    hasBranches: false
+  }
+
+  // Find the actual branch content - it's between [Branch: and the matching ]
+  // Need to handle cases like: [Branch: ... ] [DEBUG: ...]
+  let content = rungText
+
+  // Find the [Branch: section and extract just that part
+  // Use non-greedy match to get content up to first ]
+  const branchMatch = content.match(/\[Branch:\s*([\s\S]*?)\]/)
+  if (branchMatch) {
+    content = branchMatch[1].trim()
+  } else if (content.includes(' | ')) {
+    // Fallback for pipe-separated format without [Branch: prefix
+    // Remove any leading [ and trailing ] or [DEBUG:...] suffix
+    if (content.startsWith('[')) {
+      content = content.substring(1).trim()
+    }
+    // Remove trailing ] or [DEBUG:...] section
+    const debugIdx = content.indexOf('] [')
+    if (debugIdx > 0) {
+      content = content.substring(0, debugIdx).trim()
+    } else if (content.endsWith(']')) {
+      content = content.substring(0, content.length - 1).trim()
+    }
+  }
+
+  // Split by | while respecting parentheses depth
+  const branches: string[] = []
+  let currentBranch = ''
+  let parenDepth = 0
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i]
+    if (char === '(') {
+      parenDepth++
+      currentBranch += char
+    } else if (char === ')') {
+      parenDepth--
+      currentBranch += char
+    } else if (char === '|' && parenDepth === 0) {
+      // Branch separator
+      if (currentBranch.trim()) {
+        branches.push(currentBranch.trim())
+      }
+      currentBranch = ''
+    } else {
+      currentBranch += char
+    }
+  }
+  if (currentBranch.trim()) {
+    branches.push(currentBranch.trim())
+  }
+
+  if (branches.length <= 1) {
+    // No actual branches found
+    result.sharedPrefix = extractInstructions(content)
+    return result
+  }
+
+  result.hasBranches = true
+  result.branches = branches.map(bt => extractInstructions(bt))
 
   return result
 }
@@ -7618,14 +7701,49 @@ export function generateFullRungExplanation(
     if (!outputInst) return null
 
     const tag = outputInst.operands[outputInst.instruction === 'COP' || outputInst.instruction === 'MOV' ? 1 : 0] || ''
+    const tagUpper = tag.toUpperCase()
 
     // Try to derive a meaningful name from the tag
-    if (tag.includes('HMI')) return 'HMI Status Update'
-    if (tag.includes('_Seq') || tag.includes('Seq_')) return 'Sequence Control'
-    if (tag.includes('_Start') || tag.includes('Start_')) return 'Start Command'
-    if (tag.includes('_Stop') || tag.includes('Stop_')) return 'Stop Command'
-    if (tag.includes('_Fault') || tag.includes('Fault_')) return 'Fault Handling'
-    if (tag.includes('_Alarm') || tag.includes('Alarm_')) return 'Alarm Control'
+    if (tagUpper.includes('HMI')) return 'HMI Status Update'
+    if (tagUpper.includes('_SEQ') || tagUpper.includes('SEQ_')) return 'Sequence Control'
+    if (tagUpper.includes('_START') || tagUpper.includes('START_')) return 'Start Command'
+    if (tagUpper.includes('_STOP') || tagUpper.includes('STOP_')) return 'Stop Command'
+    if (tagUpper.includes('_FAULT') || tagUpper.includes('FAULT_')) return 'Fault Handling'
+    if (tagUpper.includes('_ALARM') || tagUpper.includes('ALARM_')) return 'Alarm Control'
+    if (tagUpper.includes('BLOCKED')) return 'Blocked Status'
+    if (tagUpper.includes('FILMBREAK')) return 'Film Break Detection'
+
+    // Subsystem STOPPED status patterns
+    if (tagUpper.includes('STOPPED')) {
+      if (tagUpper.includes('ROTATION')) return 'Rotation Stopped Status'
+      if (tagUpper.includes('MPS')) return 'MPS Stopped Status'
+      if (tagUpper.includes('CUTTER')) return 'Cutter Stopped Status'
+      if (tagUpper.includes('CLAMP')) return 'Clamp Stopped Status'
+      if (tagUpper.includes('STABILIZER')) return 'Stabilizer Stopped Status'
+      if (tagUpper.includes('HOTWIRE')) return 'Hot Wire Stopped Status'
+      if (tagUpper.includes('LOADLIFT')) return 'Load Lift Stopped Status'
+      if (tagUpper.includes('WRAPZONE')) return 'Wrap Zone Stopped Status'
+      if (tagUpper.includes('CARRIAGE')) return 'Carriage Stopped Status'
+      if (tagUpper.includes('INFEED')) return 'Infeed Stopped Status'
+      if (tagUpper.includes('EXIT')) return 'Exit Stopped Status'
+      return 'Stopped Status'
+    }
+
+    // Conveyor patterns
+    if (tagUpper.includes('INFEED')) {
+      const numMatch = tagUpper.match(/INFEED(\d+)/)
+      if (numMatch) return `Infeed ${numMatch[1]} Control`
+      return 'Infeed Control'
+    }
+    if (tagUpper.includes('EXIT')) {
+      const numMatch = tagUpper.match(/EXIT(\d+)/)
+      if (numMatch) return `Exit ${numMatch[1]} Control`
+      return 'Exit Control'
+    }
+
+    // Instruction-based descriptions
+    if (outputInst.instruction === 'OTL') return 'Latch Output'
+    if (outputInst.instruction === 'OTU') return 'Unlatch Output'
     if (outputInst.instruction === 'TON' || outputInst.instruction === 'TOF') return 'Timer Operation'
     if (outputInst.instruction === 'CTU' || outputInst.instruction === 'CTD') return 'Counter Operation'
     if (outputInst.instruction === 'COP') return 'Data Copy'

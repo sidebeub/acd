@@ -993,7 +993,7 @@ export default function Home() {
                   <Logo size="sm" style={{ opacity: 0.8 }} />
                 </a>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  View PLC programs without expensive licenses.
+                  Read-only PLC program viewer. View and analyze your ladder logic without expensive licenses.
                 </p>
               </div>
 
@@ -1028,10 +1028,56 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Disclaimer */}
+            <div style={{
+              borderBlockStart: '1px solid var(--border-subtle)',
+              paddingBlockStart: 'var(--space-6)',
+              marginBlockEnd: 'var(--space-4)'
+            }}>
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 'var(--space-4)',
+                marginBlockEnd: 'var(--space-4)',
+                fontSize: '0.7rem',
+                color: 'var(--text-tertiary)'
+              }}>
+                <span style={{
+                  padding: '4px 10px',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '4px',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  Not affiliated with Rockwell Automation
+                </span>
+                <span style={{
+                  padding: '4px 10px',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '4px',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  For Educational Use Only
+                </span>
+                <span style={{
+                  padding: '4px 10px',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '4px',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  Read-Only Viewer - Cannot Modify PLCs
+                </span>
+              </div>
+              <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: 1.6, maxWidth: '800px' }}>
+                This tool is an independent read-only viewer for educational purposes. It cannot write to, program, or modify any PLC hardware.
+                Allen-Bradley, ControlLogix, CompactLogix, RSLogix, Studio 5000, and related names are trademarks of Rockwell Automation, Inc.
+                We are not endorsed by, affiliated with, or sponsored by Rockwell Automation.
+              </p>
+            </div>
+
             {/* Copyright */}
-            <div style={{ borderBlockStart: '1px solid var(--border-subtle)', paddingBlockStart: 'var(--space-6)' }}>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                © {new Date().getFullYear()} PLC Viewer. Allen-Bradley, ControlLogix, CompactLogix, RSLogix, and Studio 5000 are trademarks of Rockwell Automation.
+            <div>
+              <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                © {new Date().getFullYear()} PLC Viewer. All rights reserved.
               </p>
             </div>
           </div>

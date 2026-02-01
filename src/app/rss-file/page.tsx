@@ -707,7 +707,7 @@ export default function RssFilePage() {
           }}
         >
           <div className="container-default">
-            <div className="stack-to-row justify-between" style={{ gap: 'var(--space-6)' }}>
+            <div className="stack-to-row justify-between" style={{ gap: 'var(--space-6)', marginBlockEnd: 'var(--space-6)' }}>
               <Link href="/" style={{ color: 'white', textDecoration: 'none' }}>
                 <Logo size="sm" />
               </Link>
@@ -716,6 +716,14 @@ export default function RssFilePage() {
                 <Link href="/l5x-file" className="text-fluid-sm" style={{ color: 'var(--text-muted)' }}>L5X Viewer</Link>
                 <Link href="/acd-file" className="text-fluid-sm" style={{ color: 'var(--text-muted)' }}>ACD Viewer</Link>
               </div>
+            </div>
+
+            {/* Disclaimer */}
+            <div style={{ borderBlockStart: '1px solid var(--border-subtle)', paddingBlockStart: 'var(--space-4)' }}>
+              <p className="text-fluid-xs" style={{ color: 'var(--text-muted)', lineHeight: 1.6, maxWidth: '800px' }}>
+                Read-only viewer for educational purposes. Not affiliated with, endorsed by, or sponsored by Rockwell Automation.
+                Allen-Bradley, RSLogix 500, SLC 500, MicroLogix, and PLC-5 are trademarks of Rockwell Automation, Inc.
+              </p>
             </div>
           </div>
         </footer>

@@ -16,7 +16,7 @@ import { generateSmartExplanation } from '@/lib/program-analyzer'
 import { getClientIp, rateLimiters, rateLimitResponse } from '@/lib/rate-limit'
 
 // Cache version - increment this to invalidate old cached explanations
-const CACHE_VERSION = 15
+const CACHE_VERSION = 16
 
 // Helper to create a hash of rung text (includes version to invalidate old cache)
 function hashRung(text: string): string {
